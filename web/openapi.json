@@ -1,0 +1,1676 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VerRes",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Status"
+          },
+          "db": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Db"
+          },
+          "grobid": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Grobid"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "db",
+          "grobid"
+        ],
+        "title": "HealthResponse"
+      },
+      "Citation": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reference_id": {
+            "title": "Reference Id",
+            "type": "string"
+          },
+          "sentence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sentence Ids",
+            "type": "array"
+          },
+          "claim_text": {
+            "title": "Claim Text",
+            "type": "string"
+          },
+          "context": {
+            "default": "",
+            "title": "Context",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reference_id",
+          "sentence_ids",
+          "claim_text"
+        ],
+        "title": "Citation",
+        "type": "object"
+      },
+      "ClaimEdge": {
+        "additionalProperties": false,
+        "properties": {
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "relation": {
+            "enum": [
+              "SUPPORTS",
+              "CONTRADICTS",
+              "DEPENDS_ON"
+            ],
+            "title": "Relation",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSpan"
+            },
+            "title": "Evidence",
+            "type": "array"
+          }
+        },
+        "required": [
+          "source_id",
+          "target_id",
+          "relation",
+          "reason"
+        ],
+        "title": "ClaimEdge",
+        "type": "object"
+      },
+      "ClaimMap": {
+        "additionalProperties": false,
+        "properties": {
+          "paper_id": {
+            "title": "Paper Id",
+            "type": "string"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "status": {
+            "default": "COMPLETE",
+            "enum": [
+              "COMPLETE",
+              "NEEDS_REVIEW"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "needs_review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Needs Review Reason"
+          }
+        },
+        "required": [
+          "paper_id"
+        ],
+        "title": "ClaimMap",
+        "type": "object"
+      },
+      "ClaimMapEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "claim_map",
+            "default": "claim_map",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ClaimMap"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "ClaimMapEvent",
+        "type": "object"
+      },
+      "ClaimNode": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "sentence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sentence Ids",
+            "type": "array"
+          },
+          "citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Citation Ids",
+            "type": "array"
+          },
+          "kind": {
+            "default": "CLAIM",
+            "enum": [
+              "CLAIM",
+              "EVIDENCE",
+              "ASSUMPTION"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "sentence_ids"
+        ],
+        "title": "ClaimNode",
+        "type": "object"
+      },
+      "DoneEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "done",
+            "default": "done",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/Report"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "DoneEvent",
+        "type": "object"
+      },
+      "ErrorEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "error",
+            "default": "error",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ErrorPayload"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "ErrorEvent",
+        "type": "object"
+      },
+      "ErrorPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "retryable": {
+            "default": false,
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "reason"
+        ],
+        "title": "ErrorPayload",
+        "type": "object"
+      },
+      "EvidenceLevel": {
+        "enum": [
+          "FULL_TEXT",
+          "ABSTRACT_ONLY",
+          "METADATA_ONLY"
+        ],
+        "title": "EvidenceLevel",
+        "type": "string"
+      },
+      "EvidenceSpan": {
+        "additionalProperties": false,
+        "properties": {
+          "passage_id": {
+            "minLength": 1,
+            "title": "Passage Id",
+            "type": "string"
+          },
+          "quote": {
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "passage_id",
+          "quote"
+        ],
+        "title": "EvidenceSpan",
+        "type": "object"
+      },
+      "ExistenceEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "existence",
+            "default": "existence",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ExistenceResult"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "ExistenceEvent",
+        "type": "object"
+      },
+      "ExistenceResult": {
+        "additionalProperties": false,
+        "properties": {
+          "reference_id": {
+            "title": "Reference Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExistenceStatus"
+          },
+          "matched_reference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Reference"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "provider_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Provider Ids",
+            "type": "object"
+          },
+          "receipt_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Receipt Urls",
+            "type": "array"
+          },
+          "discrepancies": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Discrepancies",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "status",
+          "reason"
+        ],
+        "title": "ExistenceResult",
+        "type": "object"
+      },
+      "ExistenceStatus": {
+        "enum": [
+          "VERIFIED",
+          "VERIFIED_WITH_DISCREPANCIES",
+          "DOI_MISMATCH",
+          "AMBIGUOUS",
+          "NOT_FOUND",
+          "UNCHECKABLE",
+          "CHECK_INCOMPLETE"
+        ],
+        "title": "ExistenceStatus",
+        "type": "string"
+      },
+      "HiddenTextEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "hidden_text",
+            "default": "hidden_text",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/HiddenTextFinding"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "HiddenTextEvent",
+        "type": "object"
+      },
+      "HiddenTextFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "HIDDEN_TEXT",
+              "PROMPT_INJECTION",
+              "SUSPICIOUS_TEXT",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "quote": {
+            "title": "Quote",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "quote",
+          "reason"
+        ],
+        "title": "HiddenTextFinding",
+        "type": "object"
+      },
+      "Judgment": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "$ref": "#/components/schemas/SupportLabel"
+          },
+          "mismatch_types": {
+            "items": {
+              "$ref": "#/components/schemas/MismatchType"
+            },
+            "title": "Mismatch Types",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSpan"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "evidence_strength": {
+            "enum": [
+              "DIRECT",
+              "INDIRECT",
+              "INSUFFICIENT"
+            ],
+            "title": "Evidence Strength",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "evidence_strength",
+          "reason"
+        ],
+        "title": "Judgment",
+        "type": "object"
+      },
+      "MismatchType": {
+        "enum": [
+          "SCOPE",
+          "POPULATION",
+          "MAGNITUDE",
+          "CAUSAL_OVERREACH",
+          "HEDGE_DROPPED",
+          "DIRECTION",
+          "TEMPORAL",
+          "METHOD",
+          "SOURCE_LIMITATION",
+          "NOT_IN_SOURCE"
+        ],
+        "title": "MismatchType",
+        "type": "string"
+      },
+      "Paper": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authors",
+            "type": "array"
+          },
+          "paper_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Paper Date"
+          },
+          "sentences": {
+            "items": {
+              "$ref": "#/components/schemas/Sentence"
+            },
+            "title": "Sentences",
+            "type": "array"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "status": {
+            "default": "PARSED",
+            "enum": [
+              "PARSED",
+              "NEEDS_REVIEW"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "needs_review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Needs Review Reason"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "Paper",
+        "type": "object"
+      },
+      "PaperEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "paper",
+            "default": "paper",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/Paper"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "PaperEvent",
+        "type": "object"
+      },
+      "Reference": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "raw_text": {
+            "title": "Raw Text",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Authors",
+            "type": "array"
+          },
+          "year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Year"
+          },
+          "doi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Doi"
+          },
+          "arxiv_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Arxiv Id"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "raw_text"
+        ],
+        "title": "Reference",
+        "type": "object"
+      },
+      "Report": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "paper": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Paper"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "existence": {
+            "items": {
+              "$ref": "#/components/schemas/ExistenceResult"
+            },
+            "title": "Existence",
+            "type": "array"
+          },
+          "retractions": {
+            "items": {
+              "$ref": "#/components/schemas/RetractionResult"
+            },
+            "title": "Retractions",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceDocument"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "support": {
+            "items": {
+              "$ref": "#/components/schemas/SupportResult"
+            },
+            "title": "Support",
+            "type": "array"
+          },
+          "claim_map": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimMap"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "hidden_text": {
+            "items": {
+              "$ref": "#/components/schemas/HiddenTextFinding"
+            },
+            "title": "Hidden Text",
+            "type": "array"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "status": {
+            "enum": [
+              "COMPLETE",
+              "NEEDS_REVIEW",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "Report",
+        "type": "object"
+      },
+      "RetractionEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "retraction",
+            "default": "retraction",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/RetractionResult"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "RetractionEvent",
+        "type": "object"
+      },
+      "RetractionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "reference_id": {
+            "title": "Reference Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RetractionStatus"
+          },
+          "notice_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notice Urls",
+            "type": "array"
+          },
+          "checked_as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checked As Of"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "status",
+          "reason"
+        ],
+        "title": "RetractionResult",
+        "type": "object"
+      },
+      "RetractionStatus": {
+        "enum": [
+          "RETRACTED",
+          "EXPRESSION_OF_CONCERN",
+          "CORRECTED",
+          "NONE",
+          "UNKNOWN"
+        ],
+        "title": "RetractionStatus",
+        "type": "string"
+      },
+      "ReviewComment": {
+        "additionalProperties": false,
+        "properties": {
+          "reviewer": {
+            "enum": [
+              "METHODS",
+              "EVIDENCE",
+              "CLAIMS"
+            ],
+            "title": "Reviewer",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "MAJOR",
+              "MINOR"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "sentence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Sentence Ids",
+            "type": "array"
+          },
+          "quote": {
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          },
+          "issue": {
+            "minLength": 1,
+            "title": "Issue",
+            "type": "string"
+          },
+          "suggestion": {
+            "minLength": 1,
+            "title": "Suggestion",
+            "type": "string"
+          },
+          "linked_citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Linked Citation Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reviewer",
+          "severity",
+          "sentence_ids",
+          "quote",
+          "issue",
+          "suggestion"
+        ],
+        "title": "ReviewComment",
+        "type": "object"
+      },
+      "ReviewEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "review",
+            "default": "review",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ReviewComment"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "ReviewEvent",
+        "type": "object"
+      },
+      "ReviewSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "top_fixes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Top Fixes",
+            "type": "array"
+          },
+          "comments": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewComment"
+            },
+            "title": "Comments",
+            "type": "array"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Warning"
+          }
+        },
+        "title": "ReviewSummary",
+        "type": "object"
+      },
+      "ReviewSummaryEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "review_summary",
+            "default": "review_summary",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ReviewSummary"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "ReviewSummaryEvent",
+        "type": "object"
+      },
+      "Sentence": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "Sentence",
+        "type": "object"
+      },
+      "SourceDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "reference_id": {
+            "title": "Reference Id",
+            "type": "string"
+          },
+          "evidence_level": {
+            "$ref": "#/components/schemas/EvidenceLevel"
+          },
+          "passages": {
+            "items": {
+              "$ref": "#/components/schemas/SourcePassage"
+            },
+            "title": "Passages",
+            "type": "array"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "content_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Content Sha256"
+          },
+          "status": {
+            "default": "AVAILABLE",
+            "enum": [
+              "AVAILABLE",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "evidence_level",
+          "reason"
+        ],
+        "title": "SourceDocument",
+        "type": "object"
+      },
+      "SourceEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "source",
+            "default": "source",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/SourceDocument"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "SourceEvent",
+        "type": "object"
+      },
+      "SourcePassage": {
+        "additionalProperties": false,
+        "properties": {
+          "passage_id": {
+            "title": "Passage Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Section"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          }
+        },
+        "required": [
+          "passage_id",
+          "text"
+        ],
+        "title": "SourcePassage",
+        "type": "object"
+      },
+      "StageEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "stage",
+            "default": "stage",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/StagePayload"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "StageEvent",
+        "type": "object"
+      },
+      "StagePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "STARTED",
+              "COMPLETED",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "stage",
+          "status"
+        ],
+        "title": "StagePayload",
+        "type": "object"
+      },
+      "SupportEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "format": "uuid",
+            "title": "Job Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "type": {
+            "const": "support",
+            "default": "support",
+            "title": "Type",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/SupportResult"
+          }
+        },
+        "required": [
+          "job_id",
+          "seq",
+          "payload"
+        ],
+        "title": "SupportEvent",
+        "type": "object"
+      },
+      "SupportLabel": {
+        "enum": [
+          "SUPPORTED",
+          "PARTIALLY_SUPPORTED",
+          "NOT_SUPPORTED",
+          "CONTRADICTED",
+          "NEEDS_REVIEW"
+        ],
+        "title": "SupportLabel",
+        "type": "string"
+      },
+      "SupportResult": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "$ref": "#/components/schemas/SupportLabel"
+          },
+          "mismatch_types": {
+            "items": {
+              "$ref": "#/components/schemas/MismatchType"
+            },
+            "title": "Mismatch Types",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSpan"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "evidence_strength": {
+            "enum": [
+              "DIRECT",
+              "INDIRECT",
+              "INSUFFICIENT"
+            ],
+            "title": "Evidence Strength",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "citation_id": {
+            "title": "Citation Id",
+            "type": "string"
+          },
+          "needs_review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Needs Review Reason"
+          },
+          "adjudicated": {
+            "default": false,
+            "title": "Adjudicated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "label",
+          "evidence_strength",
+          "reason",
+          "citation_id"
+        ],
+        "title": "SupportResult",
+        "type": "object"
+      },
+      "VerResContract": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/Report"
+          },
+          {
+            "$ref": "#/components/schemas/Judgment"
+          },
+          {
+            "discriminator": {
+              "mapping": {
+                "claim_map": "#/components/schemas/ClaimMapEvent",
+                "done": "#/components/schemas/DoneEvent",
+                "error": "#/components/schemas/ErrorEvent",
+                "existence": "#/components/schemas/ExistenceEvent",
+                "hidden_text": "#/components/schemas/HiddenTextEvent",
+                "paper": "#/components/schemas/PaperEvent",
+                "retraction": "#/components/schemas/RetractionEvent",
+                "review": "#/components/schemas/ReviewEvent",
+                "review_summary": "#/components/schemas/ReviewSummaryEvent",
+                "source": "#/components/schemas/SourceEvent",
+                "stage": "#/components/schemas/StageEvent",
+                "support": "#/components/schemas/SupportEvent"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StageEvent"
+              },
+              {
+                "$ref": "#/components/schemas/PaperEvent"
+              },
+              {
+                "$ref": "#/components/schemas/ExistenceEvent"
+              },
+              {
+                "$ref": "#/components/schemas/RetractionEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SourceEvent"
+              },
+              {
+                "$ref": "#/components/schemas/SupportEvent"
+              },
+              {
+                "$ref": "#/components/schemas/ClaimMapEvent"
+              },
+              {
+                "$ref": "#/components/schemas/HiddenTextEvent"
+              },
+              {
+                "$ref": "#/components/schemas/ReviewEvent"
+              },
+              {
+                "$ref": "#/components/schemas/ReviewSummaryEvent"
+              },
+              {
+                "$ref": "#/components/schemas/DoneEvent"
+              },
+              {
+                "$ref": "#/components/schemas/ErrorEvent"
+              }
+            ]
+          }
+        ]
+      },
+      "SSEEvent": {
+        "discriminator": {
+          "mapping": {
+            "claim_map": "#/components/schemas/ClaimMapEvent",
+            "done": "#/components/schemas/DoneEvent",
+            "error": "#/components/schemas/ErrorEvent",
+            "existence": "#/components/schemas/ExistenceEvent",
+            "hidden_text": "#/components/schemas/HiddenTextEvent",
+            "paper": "#/components/schemas/PaperEvent",
+            "retraction": "#/components/schemas/RetractionEvent",
+            "review": "#/components/schemas/ReviewEvent",
+            "review_summary": "#/components/schemas/ReviewSummaryEvent",
+            "source": "#/components/schemas/SourceEvent",
+            "stage": "#/components/schemas/StageEvent",
+            "support": "#/components/schemas/SupportEvent"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/StageEvent"
+          },
+          {
+            "$ref": "#/components/schemas/PaperEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ExistenceEvent"
+          },
+          {
+            "$ref": "#/components/schemas/RetractionEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SourceEvent"
+          },
+          {
+            "$ref": "#/components/schemas/SupportEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ClaimMapEvent"
+          },
+          {
+            "$ref": "#/components/schemas/HiddenTextEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ReviewEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ReviewSummaryEvent"
+          },
+          {
+            "$ref": "#/components/schemas/DoneEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorEvent"
+          }
+        ]
+      }
+    }
+  }
+}
