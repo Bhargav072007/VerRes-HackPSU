@@ -29,11 +29,12 @@ def test_doi_balanced_parentheses_are_preserved():
     assert identifiers("(10.1234/paper(2024)).")["doi"] == "10.1234/paper(2024)"
 
 
-def test_corrections_are_not_imported_as_retractions():
+def test_corrections_are_preserved_as_distinct_notices():
     rows, rejected = read_watch_csv(
         "OriginalPaperDOI,RetractionDate,RetractionNature\n10.1234/a,2023-01-01,Correction\n10.1234/b,2023-01-01,Retraction\n"
     )
-    assert len(rows) == 1 and rows[0].doi == "10.1234/b" and rejected == 1
+    assert len(rows) == 2 and rejected == 0
+    assert [row.notice_type for row in rows] == ["CORRECTION", "RETRACTION"]
     assert rows[0].retracted == date(2023, 1, 1)
 
 
@@ -43,7 +44,7 @@ def test_malformed_watch_header_is_not_a_successful_empty_import():
 
 async def test_retraction_database_outage_returns_unknown():
     class Pool:
-        async def fetch(self, *args):
+        async def fetchrow(self, *args):
             raise OSError("database unavailable")
 
     assert await PostgresRetractions(Pool()).lookup("10.1234/a") is None

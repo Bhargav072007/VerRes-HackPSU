@@ -20,9 +20,10 @@ def judgment(
 
 
 class FixtureModel:
-    def __init__(self, responses, model_id="fixture-model", family="fixture-family"):
+    def __init__(self, responses, model_id="fixture-model", family="fixture-family", vendor=None):
         self.responses = responses
         self.model_id, self.family = model_id, family
+        self.vendor = family if vendor is None else vendor
         self.calls = []
 
     async def complete(self, **kwargs):

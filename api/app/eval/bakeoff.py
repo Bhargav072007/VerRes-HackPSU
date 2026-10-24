@@ -1,6 +1,6 @@
 """Run with configured Model adapters via run_bakeoff; CLI manages human labels.
 
-No demo papers or human labels were supplied, so pairs.jsonl is deliberately empty.
+Demo PDFs are available, but human labels are not; pairs.jsonl is deliberately empty.
 """
 
 import argparse
@@ -16,7 +16,7 @@ from pydantic import Field, ValidationError
 from api.app.ingest.models import Record
 from api.app.sources.acquire import Source
 from api.app.verify.gates import SEVERE, gate, quote_matches
-from api.app.verify.model import Model, ModelFailure, call_model
+from api.app.verify.model import Model, ModelFailure, call_model, output_schema
 from api.app.verify.models import AtomicClaim, Judgment
 from api.app.verify.retrieval import retrieve
 
@@ -116,7 +116,7 @@ async def run_bakeoff(
         "prompt_sha256": hashlib.sha256(
             (Path(__file__).parent.parent / "prompts" / "preamble.v1.md").read_bytes()
             + (Path(__file__).parent.parent / "prompts" / "judge.v2.md").read_bytes()
-            + json.dumps(Judgment.model_json_schema(), sort_keys=True).encode()
+            + json.dumps(output_schema("judge", Judgment), sort_keys=True).encode()
         ).hexdigest(),
         "ran_at": datetime.now(UTC).isoformat(),
         "dataset_ready": len(pairs) == 40
@@ -172,6 +172,7 @@ async def run_bakeoff(
             predictions.append(prediction)
         report["models"][model.model_id] = {
             "family": model.family,
+            "vendor": getattr(model, "vendor", None),
             "metrics": summarize(pairs, predictions).model_dump(),
             "predictions": [p.model_dump() for p in predictions],
         }

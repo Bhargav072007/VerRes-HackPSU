@@ -3,7 +3,7 @@
 import inspect
 import json
 from copy import deepcopy
-from datetime import date
+from datetime import UTC, date, datetime
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -203,7 +203,9 @@ async def test_verification_preserves_shared_passage_ids(claim, level):
     assert isinstance(result, SupportResult) and result.label == SupportLabel.SUPPORTED
     assert result.evidence[0].passage_id == source.passages[0].passage_id
     assert result.evidence_strength == "DIRECT" and not result.adjudicated
-    assert primary.calls[-1]["schema"] == Judgment.model_json_schema()
+    sent_schema = primary.calls[-1]["schema"]
+    assert sent_schema["properties"]["evidence"].pop("maxItems") == 3
+    assert sent_schema == Judgment.model_json_schema()
 
 
 async def test_public_severe_finding_requires_independent_same_receipts(claim):
@@ -291,6 +293,7 @@ async def test_retraction_import_and_lookup_use_existing_jsonb_table():
     class Pool:
         def __init__(self):
             self.rows = []
+            self.snapshot = None
 
         def acquire(self):
             return self
@@ -308,12 +311,23 @@ async def test_retraction_import_and_lookup_use_existing_jsonb_table():
             assert "retraction_watch(doi,payload)" in sql and "updated_at=now()" in sql
             self.rows = rows
 
-        async def fetch(self, sql, doi):
-            assert sql.startswith("SELECT payload FROM retraction_watch")
-            return [{"payload": json.loads(payload)} for key, payload in self.rows if key == doi]
+        async def execute(self, sql, *args):
+            if sql.startswith("INSERT INTO http_cache"):
+                self.snapshot = json.loads(args[1])
+
+        async def fetchrow(self, sql, key, doi):
+            assert "payload AS snapshot" in sql and key == PostgresRetractions.SNAPSHOT_KEY
+            return {
+                "snapshot": self.snapshot,
+                "records": [json.loads(payload) for key, payload in self.rows if key == doi],
+            }
 
     adapter = PostgresRetractions(Pool())
-    assert await adapter.import_csv("OriginalPaperDOI,RetractionDate\n10.1234/a,2023-01-01\n") == (
+    assert await adapter.import_csv(
+        "OriginalPaperDOI,RetractionDate\n10.1234/a,2023-01-01\n",
+        complete=True,
+        fetched_at=datetime.now(UTC),
+    ) == (
         1,
         0,
     )

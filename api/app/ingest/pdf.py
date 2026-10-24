@@ -12,9 +12,10 @@ from pdfminer.pdfparser import PDFSyntaxError
 from pdfminer.psparser import PSEOF
 from pdfplumber.utils.exceptions import PdfminerException
 
-from api.app.ingest.models import HiddenScan, HiddenSpan, ParsedPaper, ParsedSentence, ParseResult
+from api.app.ingest.basic import PAGE_LIMIT, PDF_LIMIT, fallback_pdf
+from api.app.ingest.models import HiddenScan, HiddenSpan, ParseResult
 from api.app.ingest.tei import parse_tei
-from api.app.providers.http import MAX_BYTES, Gateway
+from api.app.providers.http import Gateway
 
 INSTRUCTIONS = re.compile(
     r"ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|"
@@ -36,35 +37,7 @@ PDF_ERRORS = (
 
 
 def valid_pdf(data: bytes) -> bool:
-    return bool(data.startswith(b"%PDF-") and len(data) <= MAX_BYTES)
-
-
-def fallback_pdf(data: bytes) -> ParseResult:
-    if not valid_pdf(data):
-        return ParseResult(
-            status="FAILED", parser="pdfplumber", reasons=["invalid or oversized PDF"]
-        )
-    try:
-        with pdfplumber.open(io.BytesIO(data)) as pdf:
-            sentences = []
-            for page_no, page in enumerate(pdf.pages, 1):
-                for part in re.split(r"(?<=[.!?])\s+|\n\s*\n", page.extract_text() or ""):
-                    if part.strip():
-                        sentences.append(
-                            ParsedSentence(
-                                id=f"s{len(sentences) + 1:05d}",
-                                text=part.strip(),
-                                section=f"Page {page_no}",
-                            )
-                        )
-        return ParseResult(
-            status="PARTIAL" if sentences else "FAILED",
-            parser="pdfplumber",
-            paper=ParsedPaper(sentences=sentences),
-            reasons=["fallback text only; bibliography and citation links unavailable"],
-        )
-    except PDF_ERRORS:
-        return ParseResult(status="FAILED", parser="pdfplumber", reasons=["PDF extraction failed"])
+    return bool(data.startswith(b"%PDF-") and len(data) <= PDF_LIMIT)
 
 
 async def ingest_pdf(data: bytes, gateway: Gateway) -> ParseResult:
@@ -110,7 +83,9 @@ def scan_hidden_text(data: bytes) -> HiddenScan:
         interpreter = PDFPageInterpreter(manager, device)
         invisible_pages = []
         try:
-            for page in PDFPage.get_pages(io.BytesIO(data)):
+            for index, page in enumerate(PDFPage.get_pages(io.BytesIO(data))):
+                if index >= PAGE_LIMIT:
+                    return HiddenScan(status="CHECK_INCOMPLETE", reason="PDF exceeds 80 pages")
                 device.invisible = []
                 interpreter.process_page(page)
                 invisible_pages.append(device.invisible[:])

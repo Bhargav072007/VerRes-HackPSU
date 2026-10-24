@@ -1,144 +1,120 @@
-# Partner B integration handoff
+# Partner B correctness handoff
 
-Branch: `codex/partner-b-backend`. Integrated upstream `fc9e48e`, containing A1 shared
-contracts, A2 jobs/SSE and D1 frontend. Published branch history is retained with a merge;
-no force push or merge of PR #2 is required.
+Base: `origin/main` at `03cbc3d` (A1/A2/A3, D1/D2 and three demo papers).
+Fix branch: `codex/partner-b-correctness`. Shared contracts, job/orchestrator code,
+migrations, infrastructure and frontend source remain unchanged.
 
-## Public interfaces
+## Delivered fixes
 
-`contracts/schema.py` and `contracts/interfaces.py` are unchanged. These concrete classes
-implement the exact async protocols and return the shared Pydantic models:
+- Quote receipts now require exact case-sensitive correspondence after Unicode
+  typography/whitespace normalization. No fuzzy edits, negation changes, numeric
+  sign changes, cropped numeric tokens or altered scientific-unit capitalization.
+  Four-word minimum remains. Judge/adjudicator outputs are limited to three quotes
+  by the provider schema, output validation and deterministic gate.
+- Full-source severe adjudication requires distinct nonempty configured model IDs,
+  families AND vendors. Model identity comes from trusted configuration, never papers.
+  `JSONGatewayModel(..., vendor="configured-company")` supplies vendor identity.
+  Existing injected adapters without vendor metadata can still give ordinary findings;
+  severe findings abstain until independent identity is configured.
+- Source PDFs containing raster images, vector paths or rectangles do not qualify
+  as FULL_TEXT without OCR/vision coverage. They fall back to a real available abstract,
+  otherwise METADATA_ONLY/CHECK_INCOMPLETE. This deliberately includes graphical or
+  decorative PDFs: the current extractor cannot certify their whole-source coverage.
+  Text-only PDFs still require identity checks and nonempty extracted text on every page.
+- Ingest accepts the same 25 MiB limit as intake. Source HTTP downloads retain their
+  separate 20 MiB bound. PDFium fallback enforces 80 pages, closes native resources,
+  and serializes native PDFium calls across worker threads.
+- The fallback is `pypdfium2 + regex`, labeled basic parser and always NEEDS_REVIEW.
+  It recovers bracketed/numbered bibliography entries, stable sentence/reference IDs,
+  bounded citation ranges, sections and citation context. Duplicate/missing reference
+  numbers are not guessed. Author-year references and complete metadata are not inferred.
+- OpenAlex/arXiv display names remain intact. Compound surnames can match without
+  dropping particles. Unparseable display names cannot establish DOI_MISMATCH.
+  Structured surnames are preferred when combining corroborating provider records.
+- Dated retraction/correction/concern flags require notice receipts; missing notice
+  links yield UNKNOWN. Retraction notices preserve corrections and concerns separately;
+  all notices for one DOI survive import. Temporal checks map to existing public enums.
+- Claim-map citation IDs must belong to the node's cited sentences. Unrelated
+  associations are rejected rather than receiving evidence-based coloring.
+- Evaluation reports hash the actual bounded output schema and record configured
+  vendor identity. No measured scientific accuracy is claimed by fixture tests.
 
-| Protocol | Implementation | Methods and return types |
-|---|---|---|
-| `Ingest` | `api.app.ingest.service.IngestService` | `parse_pdf(data) -> Paper`; `scan_hidden_text(data) -> list[HiddenTextFinding]` |
-| `Resolve` | `api.app.resolve.service.ResolveService` | `resolve_reference(reference) -> ExistenceResult`; `check_retraction(existence, paper_date) -> RetractionResult` |
-| `Sources` | `api.app.sources.service.SourceService` | `fetch_source(existence) -> SourceDocument` |
-| `Verify` | `api.app.verify.service.VerifyService` | `verify_citation(citation, source) -> SupportResult` |
-| `Graph` | `api.app.graph.service.GraphService` | `build_claim_map(paper) -> ClaimMap` |
+## Retraction Watch import requirement
 
-The public boundary uses shared names and enums: `VERIFIED` (not `FOUND`),
-`ABSTRACT_ONLY`/`METADATA_ONLY`, `RetractionStatus.NONE`/`UNKNOWN`, and evidence strength
-`INSUFFICIENT`. `NEEDS_REVIEW` support always includes `needs_review_reason`. Definitive
-support always includes verified source receipts, and severe labels set `adjudicated`
-only after agreement by different model IDs and families.
-
-`ParsedPaper`, `ParsedReference`, `ParsedCitation`, `ParsedSentence`, `Work`, atomic-claim
-types and other internal processing records retain extraction/provider details. They
-are not application/API contracts. The public adapters perform explicit conversions;
-they never serialize private models into jobs or SSE. The judge uses `contracts.schema.Judgment`
-directly, and graph extraction uses `contracts.schema.ClaimMap` directly.
-
-## Integration and lifecycle
+An empty table is unavailable data, not an authoritative empty search. Clean results
+require an explicitly complete snapshot with an explicit, timezone-aware actual fetch
+receipt no older than seven days:
 
 ```python
-from api.app.providers.services import build_backend
-from api.app.settings import Settings
+from api.app.resolve.retraction import PostgresRetractions
 
-# Lane A supplies its pool and configured Model adapters; no model name/key is guessed.
-async with build_backend(Settings(), pool=pool, primary=primary,
-                         adjudicator=adjudicator) as backend:
-    paper = await backend.ingest.parse_pdf(pdf_bytes)
-    hidden = await backend.ingest.scan_hidden_text(pdf_bytes)
-    existence = await backend.resolve.resolve_reference(paper.references[0])
-    retraction = await backend.resolve.check_retraction(existence, paper.paper_date)
-    source = await backend.sources.fetch_source(existence)
-    support = await backend.verify.verify_citation(paper.citations[0], source)
-    claim_map = await backend.graph.build_claim_map(paper)
+store = PostgresRetractions(pool)
+accepted, rejected = await store.import_csv(
+    downloaded_csv,
+    complete=True,
+    fetched_at=verified_download_time,  # actual retrieval time; do not substitute file mtime
+)
 ```
 
-The bundle owns/closes its gateway. Inject a gateway via `gateway=...` when supplying
-extra configured HTTPS model providers or deterministic transports. Model adapters sharing
-that gateway must use it within the bundle's lifetime. `openalex_daily_budget_usd` configures
-the OpenAlex guard separately from Lane A's `llm_daily_budget`. Missing Crossref identity
-or model configuration produces explicit incomplete/review outcomes.
+Complete imports reject malformed/empty/stale inputs before changing stored data.
+They atomically replace rows and store a versioned checksum/freshness marker under
+`retraction-watch:snapshot:v1` in existing `http_cache` JSONB storage. The marker expires
+seven days after fetching. This requires no migration. Imports are serialized by an
+advisory transaction lock; lookups read marker and records in one SQL snapshot.
 
-The A2 `get_client(provider)` hook remains available with its shared-per-provider lifecycle,
-20-second read and 5-second connect timeouts. Existing main/health/lifespan behavior is
-preserved. Source downloads use the stricter gateway `safe_fetch`, not this compatibility
-hook. Lane A still owns job routes, SSE, persistence and the future A3 orchestrator; none
-of those modules, shared contracts, migrations, workflows or frontend files are changed
-relative to upstream. These services are injectable implementations, not a replacement
-job API or an implicit production orchestration change.
+Partial imports revoke completeness. Missing, expired, partial or corrupt snapshots
+return `None`/UNKNOWN for checks, including negative lookups. Existing installations
+need a new complete import; old rows alone do not prove completeness. Schedule refresh
+in Lane A/operations. `RetractionRecord.retracted` stores the notice's effective date,
+including correction/concern dates; `notice_type` distinguishes them.
 
-## Storage compatibility
+## Public integration remains unchanged
 
-Adapters target the actual A1 tables from `infra/migrations/001_init.sql`; no new columns
-or migrations are required:
+`build_backend(settings, pool=pool, primary=primary, adjudicator=adjudicator)` returns
+contract implementations for `Ingest`, `Resolve`, `Sources`, `Verify`, and `Graph`.
+The bundle owns its gateway and closes it through its async context manager. Existing
+A3 already calls these services. A3's default `build_services` does not configure model
+adapters, so Lane A must supply configured primary/adjudicator adapters before live
+scientific judgments can run. Missing model configuration yields NEEDS_REVIEW.
 
-- `http_cache(cache_key, payload, expires_at)`: JSONB payload contains HTTP status,
-  base64-encoded body and headers. Invalid/incompatible cached payloads are misses.
-- `retraction_watch(doi, payload, updated_at)`: JSONB contains normalized DOI, nullable
-  retraction date, provenance and optional notice URL. CSV import preserves notice DOI
-  receipts and skips known non-retraction notices. Missing/invalid rows or unavailable
-  snapshots are not treated as evidence of non-retraction.
+No new public fields/statuses or incompatible replacement application models are added.
+Internal Work records retain full-name parsing provenance; public adapters stay explicit.
+The frozen OpenAPI schema is unchanged by these fixes.
 
-`PostgresRetractions.lookup` returns `None` on unavailable/corrupt storage. Pass a complete,
-current RW snapshot to the resolver before relying on a clean chronological check. OpenAlex
-`is_retracted=True` without a dated notice remains `UNKNOWN`; a retraction is flagged as
-pre-existing only when it predates the citing paper.
+## Contract proposal and remaining integration work
 
-## Evidence and schema compatibility
+The frozen `Reference` omits work type. Non-arXiv references with no authoritative
+coverage information remain CHECK_INCOMPLETE rather than guessing NOT_FOUND or
+UNCHECKABLE. Proposed additive field for Lane A approval:
 
-`VerifyService` retains the supplied `SourcePassage.passage_id` through BM25 retrieval,
-quote checks and full-source adjudication. It rejects mismatched reference IDs, duplicate
-passage IDs, empty source passages and missing citation sentence IDs. It never regenerates
-passage IDs at the public boundary. Quotes require at least four words and normalized
-fuzzy similarity of 0.95, with numbers and negation protected. Abstract-only evidence
-cannot produce severe labels; full support requires DIRECT evidence.
-
-Judge/adjudicator prompt version v2 uses shared enum names and shared Judgment schema.
-Historical v1 files remain available. The provider adapter renders defaults as explicit
-required properties for strict JSON output without mutating the shared schemas. Graph
-v1 uses shared node kinds/edges; invalid IDs, oversized nodes, duplicates and cycles are
-removed with a review reason. Graph extraction does not invent source receipts or
-evidence-based node status fields absent from the frozen contract.
-
-Source fetching retains HTTPS/public-DNS/redirect checks, pinned connections with original
-Host/TLS SNI, decoded-body limit of 20 MB, a 20-second network deadline, and arXiv throttling.
-Full-text identity is checked against available title/author metadata; failed/scanned
-extraction falls back to an abstract or explicit unavailable result. PDF extraction has
-no OCR or figure interpretation. Worker resource isolation remains a deployment concern.
-
-The shared `Reference` has no venue, work-type or PMID fields. Available raw reference text
-is preserved; additional extraction details remain internal. Without authoritative work
-type, an unrecognized record stays `CHECK_INCOMPLETE` rather than inferring index coverage
-from a DOI. arXiv IDs supply preprint coverage. A future optional work-type/venue extension
-can improve coverage, but this branch does not change contracts to obtain it.
-
-## Development and validation
-
-The merged root `pyproject.toml` is the sole dependency source. Existing A1/A2 pins are
-retained; parser, limiter, YAML/fuzzy matching and PDF test dependencies are added there.
-The incompatible bootstrap lock file is removed. Upstream Makefile commands are retained,
-and pytest collects both `tests/` and `api/tests/`:
-
-```sh
-.venv/bin/python -m pip install -e '.[dev]'
-make lint
-make test
-make openapi
-.venv/bin/python -m pip check
+```python
+work_type: Literal[
+    "journal-article", "proceedings-article", "preprint", "book", "website", "software", "dataset"
+] | None = None
 ```
 
-Tests include the unchanged A1/A2 contract, health, database, upload/jobs and SSE suites,
-the original Partner B logic tests, and public-interface regressions. A deterministic
-integration test parses PDF/TEI, resolves metadata, acquires source PDF, verifies a citation,
-and round-trips every resulting public object through Report and the A2 SSE union. HTTP,
-model, PDF and database transports use explicit synthetic fixtures; no live network or
-scientific quality is claimed by these tests.
+Affected consumers: Ingest/Resolve/Source adapters, stored Paper/Report payloads,
+OpenAPI generation and generated frontend types. No contract change is made here.
 
-## Evaluation and remaining work
+Upload admission/storage cleanup, retention, public snapshot IP removal, CORS, model
+lifecycle/configuration, report/evidence UI and deployment remain A/D responsibilities.
+This branch does not replace their implementation.
 
-`api/app/eval/pairs.jsonl` remains empty because the three actual demo papers and 40 human
-labels have not been supplied. `EvalPair.model_json_schema()` gives the labeling format;
-`python -m api.app.eval.bakeoff ...` manages labels, and `run_bakeoff` compares configured
-models. Reports include actual judge v2/schema hashes, dataset hash/version, model identity,
-UTC time, raw/admitted accuracy, severe false positives, service/JSON errors and quote
-failures. An abstention without a quote is not itself a fabricated-quote failure.
+The three demo PDFs now exist in `fixtures/pdfs`. Forty independent human labels and
+configured live model runs are still missing; `api/app/eval/pairs.jsonl` remains empty.
+The tooling does not invent labels, performance numbers or benchmark outcomes.
 
-Real GROBID/PostgreSQL/provider/model integration and the scientific bake-off still require
-configured services/data. A3 orchestration and model-run persistence remain Lane A work.
-No C7 requirement was supplied. The OpenAlex guard uses reported `meta.cost_usd` per process,
-allows cached records after its limit, and closes new paid requests when cost metadata is
-unknown. It is not a distributed reservation system or a hard pre-request spending cap.
+## Validation of this candidate
+
+- `make lint`: passed, 75 files formatted.
+- `make test`: 303 passed (247 on the starting main), one existing Starlette warning.
+- `.venv/bin/python -m pip check`: passed.
+- Generated `app.openapi()` equals main's committed OpenAPI JSON; contracts are unchanged.
+- `npm run build -- --webpack`: passed against the merged D2 frontend, including TypeScript.
+  Webpack was used because local Turbopack is restricted from binding its worker port.
+- Disposable PostgreSQL 17.11 smoke check: all three migrations and an idempotent rerun,
+  complete/partial/invalid/expired snapshots, grouped notices, replacement, and concurrent
+  import/read transactions passed. The temporary container was removed afterward.
+
+Unit tests remain offline and fixture-backed. Live GROBID/provider/model behavior and
+scientific accuracy were not claimed by these checks.

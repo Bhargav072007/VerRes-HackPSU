@@ -16,6 +16,22 @@ from api.app.verify.models import (
 from api.app.verify.retrieval import passages, retrieve, retrieve_passages
 
 
+def independent_models(primary: Model, adjudicator: Model | None) -> bool:
+    if adjudicator is None:
+        return False
+    for name in ("model_id", "family", "vendor"):
+        first, second = getattr(primary, name, None), getattr(adjudicator, name, None)
+        if (
+            not isinstance(first, str)
+            or not isinstance(second, str)
+            or not first.strip()
+            or not second.strip()
+            or first.strip().casefold() == second.strip().casefold()
+        ):
+            return False
+    return True
+
+
 async def classify_citations(citations: list[ParsedCitation], model: Model) -> dict[str, str]:
     classifications = {}
     for start in range(0, len(citations), 10):
@@ -106,16 +122,10 @@ async def verify_citation(
             # Confirm primary evidence BEFORE spending an independent full-source call.
             proposed = gate(judgment, selected, source, primary.model_id, adjudicated=True)
             if proposed.status in SEVERE:
-                if (
-                    not adjudicator
-                    or not primary.family.strip()
-                    or not adjudicator.family.strip()
-                    or adjudicator.family.strip().casefold() == primary.family.strip().casefold()
-                    or adjudicator.model_id == primary.model_id
-                ):
+                if not independent_models(primary, adjudicator):
                     finding = uncertain(
                         source,
-                        "a different-family adjudicator is not configured",
+                        "a different-vendor, different-family adjudicator is not configured",
                         [primary.model_id],
                     )
                 else:

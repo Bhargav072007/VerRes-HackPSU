@@ -28,10 +28,23 @@ def title_similarity(left, right) -> float:
     return token_set_ratio(normalize(left), normalize(right)) / 100 if left and right else 0
 
 
+def compare_author(ref: ParsedReference, work: Work) -> bool | None:
+    if not ref.authors or not work.authors:
+        return None
+    expected, actual = normalize(ref.authors[0]), normalize(work.authors[0])
+    if not expected or not actual:
+        return None
+    if expected == actual:
+        return True
+    if work.author_names_are_full:
+        # A display name does not identify family-name boundaries. Preserve compound
+        # names; incompatible display text is uncertainty, not a DOI discrepancy.
+        return True if actual.endswith(" " + expected) else None
+    return False
+
+
 def author_agrees(ref: ParsedReference, work: Work) -> bool:
-    return bool(
-        ref.authors and work.authors and normalize(ref.authors[0]) == normalize(work.authors[0])
-    )
+    return compare_author(ref, work) is True
 
 
 def agrees(ref: ParsedReference, work: Work) -> bool:
@@ -47,7 +60,7 @@ def agrees(ref: ParsedReference, work: Work) -> bool:
 def metadata_mismatch(ref: ParsedReference, work: Work) -> bool:
     return bool(
         (ref.title and work.title and title_similarity(ref.title, work.title) < 0.9)
-        or (ref.authors and work.authors and not author_agrees(ref, work))
+        or compare_author(ref, work) is False
         or (ref.year is not None and work.year is not None and abs(ref.year - work.year) > 1)
     )
 
@@ -68,6 +81,7 @@ def combine_works(works: list[Work]) -> Work:
     abstract_work = next((w for w in works if w.provider == "crossref" and w.abstract), None)
     abstract_work = abstract_work or next((w for w in works if w.abstract), best)
     index_work = next((w for w in works if w.abstract_inverted_index), best)
+    author_work = next((w for w in works if w.authors and not w.author_names_are_full), best)
     origin = None
     if abstract_work.abstract:
         origin = abstract_work.abstract_origin or abstract_work.provider
@@ -79,6 +93,8 @@ def combine_works(works: list[Work]) -> Work:
             "abstract_origin": origin,
             "abstract_inverted_index": index_work.abstract_inverted_index,
             "arxiv": next((w.arxiv for w in works if w.arxiv), best.arxiv),
+            "authors": author_work.authors,
+            "author_names_are_full": author_work.author_names_are_full,
         }
     )
 
