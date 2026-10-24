@@ -11,6 +11,7 @@ from pydantic import TypeAdapter
 from starlette.exceptions import HTTPException
 
 from api.app.db import Jobs, create_pool, run_migrations
+from api.app.orchestrator import Runner, build_services
 from api.app.providers.http import get_client
 from api.app.routes.health import router
 from api.app.routes.jobs import dev_router, error
@@ -34,12 +35,20 @@ async def lifespan(app: FastAPI):
         if app.state.pool is not None:
             await run_migrations(app.state.pool)
             app.state.event_bus = EventBus(Jobs(app.state.pool))
+            app.state.services = build_services(app.state.settings, app.state.pool)
+            app.state.runner = Runner(
+                app.state.event_bus, app.state.services, app.state.settings, app.state.tasks
+            )
+            await app.state.runner.recover()
         yield
     finally:
         tasks = list(app.state.tasks)
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        if app.state.services is not None:
+            await app.state.services.aclose()
+        await get_client("arxiv-intake").aclose()
         if app.state.pool is not None:
             await app.state.pool.close()
         await app.state.grobid_client.aclose()
@@ -50,6 +59,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings or Settings()
     app.state.event_bus = None
     app.state.tasks = set()
+    app.state.services = None
+    app.state.runner = None
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list({"http://localhost:3000", app.state.settings.frontend_origin}),

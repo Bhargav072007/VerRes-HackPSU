@@ -8,6 +8,11 @@ pytest_plugins = ["tests.job_fixtures"]
 
 
 @pytest.fixture(autouse=True)
+def fixture_services(monkeypatch):
+    monkeypatch.setenv("STUBS", "1")
+
+
+@pytest.fixture(autouse=True)
 def block_live_http(respx_mock):
     """respx rejects every HTTP call without an explicit fixture-backed route."""
     return respx_mock

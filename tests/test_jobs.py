@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import json
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -22,6 +22,8 @@ from tests.conftest import FIXTURES
 def job_app(monkeypatch, tmp_path, job_pool):
     monkeypatch.setattr(main, "create_pool", AsyncMock(return_value=job_pool))
     monkeypatch.setattr(main, "run_migrations", AsyncMock())
+    # A2 tests exercise intake/journal independently; A3 tests run the real runner.
+    monkeypatch.setattr(main.Runner, "start", Mock())
     return main.create_app(
         Settings(
             _env_file=None, env="dev", data_dir=tmp_path, frontend_origin="https://frontend.example"
@@ -346,6 +348,23 @@ async def test_fake_job_contracts(job_client, job_app, job_pool, monkeypatch):
             }
         )
     assert job_pool.rows[job_id]["status"] == "COMPLETE"
+
+
+async def test_dev_fake_job_exempts_hourly_limit_but_keeps_running_cap(
+    job_client, job_app, job_pool, monkeypatch
+):
+    monkeypatch.setattr(demo, "sleep", AsyncMock())
+    for _ in range(6):
+        response = await job_client.post("/dev/fake-job")
+        assert response.status_code == 202
+        await asyncio.gather(*list(job_app.state.tasks))
+    assert len(job_pool.rows) == 6
+    assert all(row["status"] == "COMPLETE" for row in job_pool.rows.values())
+    store = job_app.state.event_bus.jobs
+    for index in range(3):
+        assert isinstance(await store.create(f"cap-{index}", {}, running=True), UUID)
+    response = await job_client.post("/dev/fake-job")
+    assert response.status_code == 429 and response.json()["code"] == "rate_limited"
 
 
 @pytest.mark.parametrize("env", ["development", "test", "production"])

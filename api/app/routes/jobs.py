@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import os
+import re
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -17,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 
 from api.app.db import JobFailure
+from api.app.providers.http import get_client
 from api.app.routes.demo import run_fake_job
 from contracts.events import ErrorPayload, SSEEvent, StagePayload
 from contracts.schema import Contract, Report, ReviewComment
@@ -96,6 +98,36 @@ def save_pdf(data: bytes, data_dir: Path):
     return {"sha256": digest}
 
 
+async def load_pdf(job_input: dict, settings):
+    """Download identifiers with a bounded body, then use the upload PDF validator."""
+    if "doi" in job_input:
+        return JobFailure(code="CHECK_INCOMPLETE", message="DOI intake not yet supported")
+    try:
+        if "sha256" in job_input and re.fullmatch(r"[0-9a-f]{64}", job_input["sha256"]):
+            return await run_in_threadpool(
+                (settings.data_dir / "uploads" / f"{job_input['sha256']}.pdf").read_bytes
+            )
+        identifier = job_input.get("arxiv_id", "")
+        if not re.fullmatch(r"(?:\d{4}\.\d{4,5}|[a-z][a-z.-]+/\d{7})(?:v[1-9]\d*)?", identifier):
+            return JobFailure(code="CHECK_INCOMPLETE", message="Invalid arXiv identifier")
+        async with get_client("arxiv-intake").stream(
+            "GET", f"https://arxiv.org/pdf/{identifier}"
+        ) as response:
+            response.raise_for_status()
+            if int(response.headers.get("content-length", "0")) > PDF_LIMIT:
+                return JobFailure(code="pdf_too_large", message="PDF must be at most 25 MB.")
+            data = bytearray()
+            async for chunk in response.aiter_bytes(64 * 1024):
+                data.extend(chunk)
+                if len(data) > PDF_LIMIT:
+                    return JobFailure(code="pdf_too_large", message="PDF must be at most 25 MB.")
+        data = bytes(data)
+        validated = await run_in_threadpool(save_pdf, data, settings.data_dir)
+        return validated if isinstance(validated, JobFailure) else data
+    except Exception:
+        return JobFailure(code="CHECK_INCOMPLETE", message="PDF intake could not be completed")
+
+
 ERRORS = {status: {"model": JobFailure} for status in (400, 404, 413, 429, 503)}
 INTAKE_BODY = {
     "requestBody": {
@@ -151,6 +183,8 @@ async def create_job(request: Request):
     if isinstance(job_input, JobFailure):
         return error(job_input.code, job_input.message)
     result = await bus.jobs.create(request.client.host if request.client else "unknown", job_input)
+    if not isinstance(result, JobFailure) and request.app.state.runner is not None:
+        request.app.state.runner.start(result)
     return (
         error(result.code, result.message)
         if isinstance(result, JobFailure)
@@ -182,12 +216,35 @@ async def snapshot(job_id: UUID, request: Request):
         if kind in arrays:
             result.setdefault(arrays[kind], []).append(payload)
         elif kind == "done":
+            if payload.get("paper") and payload["paper"]["sentences"]:
+                result.update(payload)  # A complete rerun supersedes receipts from prior attempts.
+                continue
             # A minimal failure report must not erase receipts emitted earlier.
             for field, value in payload.items():
                 if field in ("job_id", "status", "reason") or field not in result:
                     result[field] = value
         else:
             result[{"review_summary": "review"}.get(kind, kind)] = payload
+    # Recovery may emit a newer receipt for the same row; keep the latest in snapshots.
+    for kind, field in arrays.items():
+        identity = {
+            "existence": "reference_id",
+            "retraction": "reference_id",
+            "source": "reference_id",
+            "support": "citation_id",
+            "hidden_text": "id",
+            "stage": "stage",
+        }.get(kind)
+        if identity and field in result:
+            result[field] = list({item[identity]: item for item in result[field]}.values())
+    result["review_comments"] = list(
+        {
+            comment.model_dump_json(): comment
+            for comment in (
+                ReviewComment.model_validate(item) for item in result.get("review_comments", [])
+            )
+        }.values()
+    )
     return JobSnapshot.model_validate(result)
 
 
@@ -218,7 +275,10 @@ async def fake_job(request: Request):
     if bus is None:
         return error("CHECK_INCOMPLETE", "Job storage is unavailable.")
     job_id = await bus.jobs.create(
-        request.client.host if request.client else "unknown", {"demo": "fixture"}, running=True
+        request.client.host if request.client else "unknown",
+        {"demo": "fixture"},
+        running=True,
+        exempt_hourly=request.app.state.settings.env == "dev",
     )
     if isinstance(job_id, JobFailure):
         return error(job_id.code, job_id.message)
