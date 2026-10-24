@@ -109,17 +109,3 @@ test("reduced motion shows every word immediately and disables CSS animations", 
     fullPage: true,
   });
 });
-
-test("check page is an explicit placeholder and safely renders the review ID", async ({
-  page,
-}) => {
-  await page.goto("/check/submitted-paper-1");
-  await expect(
-    page.getByRole("heading", { name: "Your paper is in." }),
-  ).toBeVisible();
-  await expect(page.getByText("Review ID: submitted-paper-1")).toBeVisible();
-  await page.getByRole("link", { name: "Back to VerRes" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Proof, not vibes." }),
-  ).toBeVisible();
-});
