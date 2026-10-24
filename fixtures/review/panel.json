@@ -1,0 +1,6 @@
+{
+  "r1_methods": {"comments": [{"reviewer": "METHODS", "severity": "MAJOR", "sentence_ids": ["s1"], "quote": "Treatment improved outcomes in adults.", "issue": "METHODS issue.", "suggestion": "Address the METHODS issue.", "linked_citation_ids": []}]},
+  "r3_claims": {"comments": [{"reviewer": "CLAIMS", "severity": "MAJOR", "sentence_ids": ["s2"], "quote": "Treatment benefits extend to children.", "issue": "CLAIMS issue.", "suggestion": "Address the CLAIMS issue.", "linked_citation_ids": []}]},
+  "r2_evidence": {"comments": [{"reviewer": "EVIDENCE", "severity": "MAJOR", "sentence_ids": ["s2"], "quote": "Treatment benefits extend to children.", "issue": "EVIDENCE issue.", "suggestion": "Address the EVIDENCE issue.", "linked_citation_ids": ["cite-2"]}]},
+  "chair": {"comment_ids": ["comment-1", "comment-2", "comment-3"]}
+}

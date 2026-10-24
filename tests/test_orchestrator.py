@@ -13,7 +13,7 @@ from api.app.graph.service import GraphService
 from api.app.ingest.service import IngestService
 from api.app.orchestrator import Pipeline, Runner, build_services
 from api.app.resolve.service import ResolveService
-from api.app.review import ReviewStub
+from api.app.review import ReviewPanel
 from api.app.routes.jobs import PDF_LIMIT, load_pdf, save_pdf
 from api.app.settings import Settings
 from api.app.sources.service import SourceService
@@ -48,7 +48,7 @@ async def test_factory_real_services_when_flag_unset(monkeypatch):
             ("graph", GraphService),
         ):
             assert isinstance(getattr(backend, field), expected)
-        assert isinstance(services.review, ReviewStub)
+        assert isinstance(services.review, ReviewPanel)
     finally:
         await services.aclose()
     assert all(client.is_closed for client in backend.gateway.clients.values())

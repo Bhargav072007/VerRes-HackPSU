@@ -1,6 +1,9 @@
-"""Explicit non-model review placeholder until A8."""
+"""Receipt-validated peer review, with an explicitly selected fixture stub."""
 
+from api.app.review.panel import ReviewPanel
 from contracts.schema import Paper, ReviewComment, ReviewSummary, SupportResult
+
+__all__ = ["ReviewPanel", "ReviewStub"]
 
 
 class ReviewStub:
