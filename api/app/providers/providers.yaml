@@ -1,0 +1,5 @@
+crossref_single: {base_url: "https://api.crossref.org", rate: 8, period: 1, concurrency: 4}
+crossref_query: {base_url: "https://api.crossref.org", rate: 2.5, period: 1, concurrency: 2}
+openalex: {base_url: "https://api.openalex.org", rate: 10, period: 1, concurrency: 5}
+arxiv: {base_url: "https://export.arxiv.org", rate: 1, period: 3, concurrency: 1}
+source: {base_url: "https://arxiv.org", rate: 2, period: 1, concurrency: 2}
