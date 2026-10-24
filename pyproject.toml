@@ -1,0 +1,42 @@
+[project]
+name = "verres"
+version = "0.1.0"
+description = "Pre-submission research integrity review: receipts, not scores."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi==0.115.12",
+  "pydantic==2.11.4",
+  "pydantic-settings==2.9.1",
+  "httpx==0.28.1",
+  "asyncpg==0.30.0",
+  "bm25s==0.2.13",
+  "uvicorn==0.34.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.3.5",
+  "pytest-asyncio==0.26.0",
+  "respx==0.22.0",
+  "ruff==0.11.9",
+]
+
+[build-system]
+requires = ["setuptools==80.3.1"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["api*", "contracts*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

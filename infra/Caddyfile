@@ -1,0 +1,4 @@
+# Development proxy scaffold; production hostname/TLS configuration follows later.
+http://localhost {
+    reverse_proxy host.docker.internal:8000
+}
