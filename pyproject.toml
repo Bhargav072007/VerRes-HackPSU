@@ -4,13 +4,15 @@ version = "0.1.0"
 description = "Pre-submission research integrity review: receipts, not scores."
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "fastapi==0.115.12",
+  "fastapi==0.135.1",
   "pydantic==2.11.4",
   "pydantic-settings==2.9.1",
   "httpx==0.28.1",
   "asyncpg==0.30.0",
   "bm25s==0.2.13",
   "uvicorn==0.34.2",
+  "pypdf==6.21.2",
+  "python-multipart==0.0.22",
 ]
 
 [project.optional-dependencies]
