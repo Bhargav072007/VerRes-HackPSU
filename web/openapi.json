@@ -22,55 +22,339 @@
           }
         }
       }
+    },
+    "/jobs": {
+      "post": {
+        "summary": "Create Job",
+        "operationId": "create_job_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "required": [
+                      "arxiv_id"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "doi"
+                    ]
+                  }
+                ],
+                "properties": {
+                  "arxiv_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 256,
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Arxiv Id"
+                  },
+                  "doi": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 256,
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Doi"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "Identifier"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "summary": "Snapshot",
+        "operationId": "snapshot_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/events": {
+      "get": {
+        "summary": "Events",
+        "operationId": "events_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
-      "HealthResponse": {
+      "Accepted": {
         "properties": {
-          "status": {
+          "job_id": {
             "type": "string",
-            "enum": [
-              "ok",
-              "CHECK_INCOMPLETE"
-            ],
-            "title": "Status"
-          },
-          "db": {
-            "type": "string",
-            "enum": [
-              "ok",
-              "CHECK_INCOMPLETE"
-            ],
-            "title": "Db"
-          },
-          "grobid": {
-            "type": "string",
-            "enum": [
-              "ok",
-              "CHECK_INCOMPLETE"
-            ],
-            "title": "Grobid"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
+            "format": "uuid",
+            "title": "Job Id"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
-          "status",
-          "db",
-          "grobid"
+          "job_id"
         ],
-        "title": "HealthResponse"
+        "title": "Accepted"
       },
       "Citation": {
         "additionalProperties": false,
@@ -498,6 +782,65 @@
         "title": "ExistenceStatus",
         "type": "string"
       },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Status"
+          },
+          "db": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Db"
+          },
+          "grobid": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Grobid"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "db",
+          "grobid"
+        ],
+        "title": "HealthResponse"
+      },
       "HiddenTextEvent": {
         "additionalProperties": false,
         "properties": {
@@ -578,48 +921,266 @@
         "title": "HiddenTextFinding",
         "type": "object"
       },
-      "Judgment": {
-        "additionalProperties": false,
+      "JobFailure": {
         "properties": {
-          "label": {
-            "$ref": "#/components/schemas/SupportLabel"
+          "code": {
+            "type": "string",
+            "title": "Code"
           },
-          "mismatch_types": {
-            "items": {
-              "$ref": "#/components/schemas/MismatchType"
-            },
-            "title": "Mismatch Types",
-            "type": "array"
-          },
-          "evidence": {
-            "items": {
-              "$ref": "#/components/schemas/EvidenceSpan"
-            },
-            "title": "Evidence",
-            "type": "array"
-          },
-          "evidence_strength": {
-            "enum": [
-              "DIRECT",
-              "INDIRECT",
-              "INSUFFICIENT"
-            ],
-            "title": "Evidence Strength",
-            "type": "string"
-          },
-          "reason": {
-            "minLength": 1,
-            "title": "Reason",
-            "type": "string"
+          "message": {
+            "type": "string",
+            "title": "Message"
           }
         },
+        "additionalProperties": false,
+        "type": "object",
         "required": [
-          "label",
-          "evidence_strength",
-          "reason"
+          "code",
+          "message"
         ],
-        "title": "Judgment",
-        "type": "object"
+        "title": "JobFailure"
+      },
+      "JobRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "COMPLETE",
+              "NEEDS_REVIEW",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Status"
+          },
+          "input": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Input"
+          },
+          "client_ip": {
+            "type": "string",
+            "title": "Client Ip"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "input",
+          "client_ip",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobRow"
+      },
+      "JobSnapshot": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          },
+          "paper": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Paper"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "existence": {
+            "items": {
+              "$ref": "#/components/schemas/ExistenceResult"
+            },
+            "type": "array",
+            "title": "Existence"
+          },
+          "retractions": {
+            "items": {
+              "$ref": "#/components/schemas/RetractionResult"
+            },
+            "type": "array",
+            "title": "Retractions"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceDocument"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "support": {
+            "items": {
+              "$ref": "#/components/schemas/SupportResult"
+            },
+            "type": "array",
+            "title": "Support"
+          },
+          "claim_map": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClaimMap"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden_text": {
+            "items": {
+              "$ref": "#/components/schemas/HiddenTextFinding"
+            },
+            "type": "array",
+            "title": "Hidden Text"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "COMPLETE",
+              "NEEDS_REVIEW",
+              "CHECK_INCOMPLETE"
+            ],
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "job": {
+            "$ref": "#/components/schemas/JobRow"
+          },
+          "events": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/StageEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/PaperEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/ExistenceEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/RetractionEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/SupportEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/ClaimMapEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/HiddenTextEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/ReviewEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/ReviewSummaryEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/DoneEvent"
+                },
+                {
+                  "$ref": "#/components/schemas/ErrorEvent"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "claim_map": "#/components/schemas/ClaimMapEvent",
+                  "done": "#/components/schemas/DoneEvent",
+                  "error": "#/components/schemas/ErrorEvent",
+                  "existence": "#/components/schemas/ExistenceEvent",
+                  "hidden_text": "#/components/schemas/HiddenTextEvent",
+                  "paper": "#/components/schemas/PaperEvent",
+                  "retraction": "#/components/schemas/RetractionEvent",
+                  "review": "#/components/schemas/ReviewEvent",
+                  "review_summary": "#/components/schemas/ReviewSummaryEvent",
+                  "source": "#/components/schemas/SourceEvent",
+                  "stage": "#/components/schemas/StageEvent",
+                  "support": "#/components/schemas/SupportEvent"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StagePayload"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorPayload"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "review_comments": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewComment"
+            },
+            "type": "array",
+            "title": "Review Comments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "status",
+          "job",
+          "events"
+        ],
+        "title": "JobSnapshot"
       },
       "MismatchType": {
         "enum": [
@@ -1545,6 +2106,89 @@
           "citation_id"
         ],
         "title": "SupportResult",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Judgment": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "$ref": "#/components/schemas/SupportLabel"
+          },
+          "mismatch_types": {
+            "items": {
+              "$ref": "#/components/schemas/MismatchType"
+            },
+            "title": "Mismatch Types",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceSpan"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "evidence_strength": {
+            "enum": [
+              "DIRECT",
+              "INDIRECT",
+              "INSUFFICIENT"
+            ],
+            "title": "Evidence Strength",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "evidence_strength",
+          "reason"
+        ],
+        "title": "Judgment",
         "type": "object"
       },
       "VerResContract": {

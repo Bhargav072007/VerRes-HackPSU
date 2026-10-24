@@ -18,4 +18,4 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     data_dir: Path = Path("data")
     llm_daily_budget: float = 10.0
-    env: Literal["development", "test", "production"] = "development"
+    env: Literal["dev", "development", "test", "production"] = "development"

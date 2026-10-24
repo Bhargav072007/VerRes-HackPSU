@@ -1,15 +1,22 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 import asyncpg
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter
+from starlette.exceptions import HTTPException
 
-from api.app.db import create_pool, run_migrations
+from api.app.db import Jobs, create_pool, run_migrations
 from api.app.providers.http import get_client
 from api.app.routes.health import router
+from api.app.routes.jobs import dev_router, error
+from api.app.routes.jobs import router as jobs_router
 from api.app.settings import Settings
+from api.app.sse import EventBus
 from contracts.events import SSEEvent
 from contracts.schema import Judgment, Report
 
@@ -26,8 +33,13 @@ async def lifespan(app: FastAPI):
             pass
         if app.state.pool is not None:
             await run_migrations(app.state.pool)
+            app.state.event_bus = EventBus(Jobs(app.state.pool))
         yield
     finally:
+        tasks = list(app.state.tasks)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
         if app.state.pool is not None:
             await app.state.pool.close()
         await app.state.grobid_client.aclose()
@@ -36,13 +48,39 @@ async def lifespan(app: FastAPI):
 def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="VerRes", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings or Settings()
+    app.state.event_bus = None
+    app.state.tasks = set()
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[app.state.settings.frontend_origin],
+        allow_origins=list({"http://localhost:3000", app.state.settings.frontend_origin}),
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type", "Last-Event-ID"],
     )
     app.include_router(router)
+    app.include_router(jobs_router)
+    if app.state.settings.env == "dev":
+        app.include_router(dev_router)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request, exception):
+        return error("invalid_request", "Request validation failed.")
+
+    @app.exception_handler(HTTPException)
+    async def http_error(request, exception):
+        if exception.status_code == 404:
+            return JSONResponse(
+                {"code": "not_found", "message": "Route not found."}, status_code=404
+            )
+        return JSONResponse(
+            {"code": "invalid_request", "message": "Request could not be parsed."},
+            status_code=exception.status_code,
+        )
+
+    async def storage_error(request, exception):
+        return error("CHECK_INCOMPLETE", "Job storage is unavailable.")
+
+    for exception in (asyncpg.PostgresError, asyncpg.InterfaceError, OSError, TimeoutError):
+        app.add_exception_handler(exception, storage_error)
 
     def openapi():
         if app.openapi_schema is None:
