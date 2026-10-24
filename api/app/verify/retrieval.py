@@ -2,7 +2,7 @@ import re
 
 import bm25s
 
-from app.verify.models import Passage
+from api.app.verify.models import Passage
 
 
 def passages(text: str, words: int = 200) -> list[Passage]:
@@ -17,7 +17,13 @@ def passages(text: str, words: int = 200) -> list[Passage]:
 
 
 def retrieve(query: str, source: str, abstract: str | None = None) -> list[Passage]:
-    chunks = passages(source)
+    return retrieve_passages(query, passages(source), abstract)
+
+
+def retrieve_passages(
+    query: str, chunks: list[Passage], abstract: str | None = None
+) -> list[Passage]:
+    """Rank existing passages without changing their shared-contract identifiers."""
     if not chunks:
         return []
     corpus = [p.text for p in chunks]
@@ -30,6 +36,10 @@ def retrieve(query: str, source: str, abstract: str | None = None) -> list[Passa
         retriever.index(tokens, show_progress=False)
         results, _ = retriever.retrieve(queries, k=min(8, len(chunks)), show_progress=False)
         selected = [chunks[int(i)] for i in results[0]]
-    if abstract and abstract not in [p.text for p in selected]:
+    if (
+        abstract
+        and abstract not in [p.text for p in selected]
+        and not any(p.id == "abstract" for p in selected)
+    ):
         selected.append(Passage(id="abstract", text=abstract))
     return selected

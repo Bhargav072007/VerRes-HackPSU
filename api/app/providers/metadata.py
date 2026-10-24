@@ -5,8 +5,8 @@ from xml.etree.ElementTree import ParseError
 from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 
-from app.providers.http import DAY, Gateway
-from app.providers.models import ProviderResult, Work
+from api.app.providers.http import DAY, Gateway
+from api.app.providers.models import ProviderResult, Work
 
 
 def normalize_doi(value: str | None) -> str | None:

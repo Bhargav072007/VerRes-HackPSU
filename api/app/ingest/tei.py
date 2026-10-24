@@ -5,7 +5,13 @@ from xml.etree.ElementTree import ParseError
 from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 
-from app.ingest.models import Citation, Paper, ParseResult, Reference, Sentence
+from api.app.ingest.models import (
+    ParsedCitation,
+    ParsedPaper,
+    ParsedReference,
+    ParsedSentence,
+    ParseResult,
+)
 
 NS = "{http://www.tei-c.org/ns/1.0}"
 XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
@@ -44,7 +50,7 @@ def parse_tei(data: bytes) -> ParseResult:
     if root.tag != NS + "TEI":
         return ParseResult(status="FAILED", parser="grobid", reasons=["unexpected TEI namespace"])
     reasons = []
-    paper = Paper(title=text(root.find(f".//{NS}titleStmt/{NS}title")) or None)
+    paper = ParsedPaper(title=text(root.find(f".//{NS}titleStmt/{NS}title")) or None)
     stamp = root.find(f".//{NS}sourceDesc//{NS}date")
     if stamp is not None:
         try:
@@ -77,7 +83,7 @@ def parse_tei(data: bytes) -> ParseResult:
             elif kind in ("arxiv", "pmid"):
                 ids[kind] = value or None
         paper.references.append(
-            Reference(
+            ParsedReference(
                 id=ref_id,
                 raw=raw,
                 title=text(title) or None,
@@ -113,7 +119,7 @@ def parse_tei(data: bytes) -> ParseResult:
     for index, (node, section) in enumerate(selected):
         sid = f"s{index + 1:05d}"
         value = text(node)
-        paper.sentences.append(Sentence(id=sid, text=value, section=section))
+        paper.sentences.append(ParsedSentence(id=sid, text=value, section=section))
         for marker in node.findall(f".//{NS}ref[@type='bibr']"):
             targets = marker.get("target", "").split()
             if not targets:
@@ -124,7 +130,7 @@ def parse_tei(data: bytes) -> ParseResult:
                     reasons.append(f"broken citation target: {target}")
                     continue
                 paper.citations.append(
-                    Citation(
+                    ParsedCitation(
                         id=f"c{len(paper.citations) + 1:05d}",
                         reference_id=target,
                         sentence_id=sid,

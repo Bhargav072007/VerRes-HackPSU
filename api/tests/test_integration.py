@@ -1,17 +1,18 @@
 import json
 
 import httpx
-from app.ingest.tei import parse_tei
-from app.providers.http import Gateway
-from app.providers.metadata import Crossref, OpenAlex
-from app.sources.acquire import acquire_source
-from app.verify.pipeline import verify_citation
-from conftest import FixtureModel, judgment
+
+from api.app.ingest.tei import parse_tei
+from api.app.providers.http import Gateway
+from api.app.providers.metadata import Crossref, OpenAlex
+from api.app.sources.acquire import acquire_source
+from api.app.verify.pipeline import verify_citation
+from api.tests.helpers import FixtureModel, judgment
 
 
 async def test_offline_tei_to_verified_receipt(tei, pdf_bytes, claim):
     """Real module composition; only HTTP and model boundaries are fixture-backed."""
-    from app.resolve.existence import resolve_reference
+    from api.app.resolve.existence import resolve_reference
 
     paper = parse_tei(tei).paper
     crossref = {

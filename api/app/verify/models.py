@@ -2,7 +2,9 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.ingest.models import Record
+from api.app.ingest.models import Record
+from contracts.schema import EvidenceSpan as Quote
+from contracts.schema import Judgment as Judgment
 
 Verdict = Literal["SUPPORTED", "PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED"]
 FinalVerdict = Literal[
@@ -42,38 +44,14 @@ class Passage(Record):
     text: str
 
 
-class Quote(Record):
-    passage_id: str
-    quote: str = Field(min_length=1)
-
-
-class Judgment(Record):
-    label: Verdict
-    reason: str = Field(min_length=1)
-    mismatch_types: list[
-        Literal[
-            "SCOPE",
-            "POPULATION",
-            "MAGNITUDE",
-            "CAUSAL_OVERREACH",
-            "HEDGE_DROPPED",
-            "DIRECTION",
-            "TEMPORAL",
-            "METHOD",
-            "NOT_IN_SOURCE",
-        ]
-    ]
-    evidence: list[Quote] = Field(max_length=3)
-    evidence_strength: Literal["DIRECT", "INDIRECT", "NONE"]
-
-
 class Finding(Record):
     status: FinalVerdict
     reason: str
     evidence: list[Quote] = Field(default_factory=list)
     evidence_level: Literal["FULL_TEXT", "ABSTRACT", "NONE"]
+    evidence_strength: Literal["DIRECT", "INDIRECT", "INSUFFICIENT"] = "INSUFFICIENT"
     model_ids: list[str] = Field(default_factory=list)
-    prompt_version: str = "v1"
+    prompt_version: str = "v2"
     source_work_id: str | None = None
     source_origin: str | None = None
     passages: list[Passage] = Field(default_factory=list)

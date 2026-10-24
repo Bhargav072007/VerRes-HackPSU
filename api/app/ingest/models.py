@@ -1,4 +1,4 @@
-"""PROVISIONAL Partner B types; adapt explicitly to Lane A contracts when supplied."""
+"""Internal extraction details. Public lane interfaces return contracts.schema models."""
 
 from datetime import date
 from typing import Literal
@@ -10,7 +10,7 @@ class Record(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
-class Reference(Record):
+class ParsedReference(Record):
     id: str
     raw: str
     title: str | None = None
@@ -23,13 +23,13 @@ class Reference(Record):
     kind: str = "unknown"
 
 
-class Sentence(Record):
+class ParsedSentence(Record):
     id: str
     text: str
     section: str
 
 
-class Citation(Record):
+class ParsedCitation(Record):
     id: str
     reference_id: str
     sentence_id: str
@@ -42,17 +42,17 @@ class Citation(Record):
     next: str | None = None
 
 
-class Paper(Record):
+class ParsedPaper(Record):
     title: str | None = None
     published: date | None = None
-    sentences: list[Sentence] = Field(default_factory=list)
-    references: list[Reference] = Field(default_factory=list)
-    citations: list[Citation] = Field(default_factory=list)
+    sentences: list[ParsedSentence] = Field(default_factory=list)
+    references: list[ParsedReference] = Field(default_factory=list)
+    citations: list[ParsedCitation] = Field(default_factory=list)
 
 
 class ParseResult(Record):
     status: Literal["FULL", "PARTIAL", "FAILED"]
-    paper: Paper = Field(default_factory=Paper)
+    paper: ParsedPaper = Field(default_factory=ParsedPaper)
     reasons: list[str] = Field(default_factory=list)
     parser: str
 

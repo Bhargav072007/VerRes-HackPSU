@@ -5,10 +5,10 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.ingest.models import Record, Reference
-from app.providers.metadata import normalize_doi
-from app.providers.models import Work
-from app.resolve.existence import agrees, metadata_mismatch
+from api.app.ingest.models import ParsedReference, Record
+from api.app.providers.metadata import normalize_doi
+from api.app.providers.models import Work
+from api.app.resolve.existence import agrees, metadata_mismatch
 
 
 class DOICheck(Record):
@@ -19,7 +19,7 @@ class DOICheck(Record):
     works: list[Work] = Field(default_factory=list)
 
 
-async def check_doi(reference: Reference, crossref, openalex) -> DOICheck:
+async def check_doi(reference: ParsedReference, crossref, openalex) -> DOICheck:
     if not reference.doi:
         return DOICheck(status="CHECK_INCOMPLETE", reason="reference has no DOI")
     if not normalize_doi(reference.doi):

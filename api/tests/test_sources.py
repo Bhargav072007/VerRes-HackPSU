@@ -1,7 +1,8 @@
 import httpx
-from app.providers.http import Gateway
-from app.providers.models import Work
-from app.sources.acquire import abstract_text, acquire_source, extract_full_pdf
+
+from api.app.providers.http import Gateway
+from api.app.providers.models import Work
+from api.app.sources.acquire import abstract_text, acquire_source, extract_full_pdf
 
 
 def test_abstract_jats_and_inverted_index():

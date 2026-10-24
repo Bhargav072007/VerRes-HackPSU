@@ -1,10 +1,12 @@
 """Cache adapters. Lane A owns creation/migration of the documented SQL tables."""
 
+import base64
+import binascii
 import json
 import time
 from typing import Protocol
 
-from app.providers.models import HTTPResult
+from api.app.providers.models import HTTPResult
 
 
 class Cache(Protocol):
@@ -37,29 +39,38 @@ class PostgresCache:
 
     async def get(self, key: str) -> HTTPResult | None:
         row = await self.pool.fetchrow(
-            "SELECT status, body, headers FROM http_cache "
-            "WHERE cache_key=$1 AND expires_at > now()",
+            "SELECT payload FROM http_cache WHERE cache_key=$1 AND expires_at > now()",
             key,
         )
         if not row:
             return None
-        headers = row["headers"]
-        return HTTPResult(
-            status=row["status"],
-            content=bytes(row["body"]),
-            headers=json.loads(headers) if isinstance(headers, str) else headers,
-            cached=True,
-        )
+        try:
+            payload = row["payload"]
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            return HTTPResult(
+                status=payload["status"],
+                content=base64.b64decode(payload["body_base64"], validate=True),
+                headers=payload["headers"],
+                cached=True,
+            )
+        except (KeyError, TypeError, ValueError, binascii.Error):
+            # An incompatible/invalid cache entry is a miss, never a citation verdict.
+            return None
 
     async def put(self, key: str, value: HTTPResult, ttl: int) -> None:
         await self.pool.execute(
-            "INSERT INTO http_cache(cache_key,status,body,headers,expires_at) "
-            "VALUES($1,$2,$3,$4::jsonb,now()+$5 * interval '1 second') "
-            "ON CONFLICT(cache_key) DO UPDATE SET status=EXCLUDED.status,body=EXCLUDED.body,"
-            "headers=EXCLUDED.headers,expires_at=EXCLUDED.expires_at",
+            "INSERT INTO http_cache(cache_key,payload,expires_at) "
+            "VALUES($1,$2::jsonb,now()+$3 * interval '1 second') "
+            "ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload,"
+            "expires_at=EXCLUDED.expires_at",
             key,
-            value.status,
-            value.content,
-            json.dumps(value.headers),
+            json.dumps(
+                {
+                    "status": value.status,
+                    "body_base64": base64.b64encode(value.content).decode(),
+                    "headers": value.headers,
+                }
+            ),
             ttl,
         )

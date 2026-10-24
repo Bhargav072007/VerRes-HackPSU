@@ -1,16 +1,19 @@
 from pathlib import Path
 
 import pytest
-from app.eval.bakeoff import EvalPair, Prediction, read_pairs, run_bakeoff, summarize
-from app.graph.build import Edge, GraphProposal, Node, build_graph, color_graph, validate_graph
-from app.ingest.models import Paper, Sentence
-from app.verify.gates import uncertain
-from app.verify.models import CitationVerification
-from conftest import FixtureModel, judgment
+
+from api.app.eval.bakeoff import EvalPair, Prediction, read_pairs, run_bakeoff, summarize
+from api.app.graph.build import Edge, GraphProposal, Node, build_graph, color_graph, validate_graph
+from api.app.ingest.models import ParsedPaper, ParsedSentence
+from api.app.verify.gates import uncertain
+from api.app.verify.models import CitationVerification
+from api.tests.helpers import FixtureModel, judgment
 
 
 def test_graph_drops_invalid_ids_duplicates_and_cycles():
-    paper = Paper(sentences=[Sentence(id="s1", text="A valid claim.", section="Results")])
+    paper = ParsedPaper(
+        sentences=[ParsedSentence(id="s1", text="A valid claim.", section="Results")]
+    )
     nodes = [
         Node(id="a", kind="FINDING", text="First finding", sentence_ids=["s1"]),
         Node(id="b", kind="MAIN_CLAIM", text="Main claim", sentence_ids=["s1"]),
@@ -29,8 +32,9 @@ def test_graph_drops_invalid_ids_duplicates_and_cycles():
 
 
 async def test_graph_build_and_color(citation, source):
-    paper = Paper(
-        sentences=[Sentence(id="s1", text=citation.text, section="Results")], citations=[citation]
+    paper = ParsedPaper(
+        sentences=[ParsedSentence(id="s1", text=citation.text, section="Results")],
+        citations=[citation],
     )
     model = FixtureModel(
         {
@@ -49,7 +53,7 @@ async def test_graph_build_and_color(citation, source):
 
 
 async def test_graph_invalid_output_and_no_eligible_sentences():
-    paper = Paper(sentences=[Sentence(id="s1", text="Text", section="References")])
+    paper = ParsedPaper(sentences=[ParsedSentence(id="s1", text="Text", section="References")])
     assert (await build_graph(paper, FixtureModel({}))).reasons
     paper.sentences[0].section = "Results"
     assert (await build_graph(paper, FixtureModel({"graph": "not JSON"}))).reasons

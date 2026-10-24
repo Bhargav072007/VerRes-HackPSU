@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import Field
 
-from app.ingest.models import Record
+from api.app.ingest.models import Record
 
 
 class Work(Record):

@@ -1,0 +1,4 @@
+# Reserved for production deployment in a later PR.
+# Do not deploy compose.yml's development trust authentication to production.
+# Production requires an API image, database credentials, and Caddy TLS configuration.
+services: {}

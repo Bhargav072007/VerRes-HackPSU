@@ -3,16 +3,17 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
-from app.ingest.models import Reference
-from app.ingest.tei import identifiers
-from app.providers.http import Circuit, Gateway
-from app.providers.models import ProviderResult, Work
-from app.resolve.doi import check_doi
-from app.resolve.existence import combine_works
-from app.resolve.retraction import PostgresRetractions, read_watch_csv
-from app.sources.acquire import acquire_source
-from app.verify.pipeline import classify_citations
-from conftest import FixtureModel
+
+from api.app.ingest.models import ParsedReference
+from api.app.ingest.tei import identifiers
+from api.app.providers.http import Circuit, Gateway
+from api.app.providers.models import ProviderResult, Work
+from api.app.resolve.doi import check_doi
+from api.app.resolve.existence import combine_works
+from api.app.resolve.retraction import PostgresRetractions, read_watch_csv
+from api.app.sources.acquire import acquire_source
+from api.app.verify.pipeline import classify_citations
+from api.tests.helpers import FixtureModel
 
 
 def test_interleaved_success_does_not_erase_throttle_window():
@@ -61,7 +62,7 @@ async def test_retraction_database_outage_returns_unknown():
     ],
 )
 async def test_doi_failure_states(case, expected):
-    ref = Reference(
+    ref = ParsedReference(
         id="b1",
         raw="test",
         title="A real title",

@@ -20,11 +20,25 @@ import yaml
 from aiolimiter import AsyncLimiter
 from asyncpg import PostgresError
 
-from app.providers.cache import Cache, MemoryCache
-from app.providers.models import HTTPResult
+from api.app.providers.cache import Cache, MemoryCache
+from api.app.providers.models import HTTPResult
 
 DAY = 86400
 MAX_BYTES = 20 * 1024 * 1024
+
+# A1/A2 health/lifespan compatibility. Source downloads must still use safe_fetch;
+# this shared client hook is for trusted configured services such as GROBID health.
+_clients: dict[str, httpx.AsyncClient] = {}
+
+
+def get_client(provider: str) -> httpx.AsyncClient:
+    client = _clients.get(provider)
+    if client is None or client.is_closed:
+        client = httpx.AsyncClient(
+            timeout=httpx.Timeout(20.0, connect=5.0), trust_env=False, follow_redirects=False
+        )
+        _clients[provider] = client
+    return client
 
 
 @dataclass(frozen=True)
@@ -170,7 +184,7 @@ class Gateway:
                 if result.status == 200 and not result.cached and not result.error:
                     try:
                         cost = result.json()["meta"]["cost_usd"]
-                        if isinstance(cost, bool) or not isinstance(cost, (int, float)):
+                        if isinstance(cost, bool) or not isinstance(cost, int | float):
                             raise ValueError("invalid cost")
                         if not math.isfinite(cost) or cost < 0:
                             raise ValueError("invalid cost")

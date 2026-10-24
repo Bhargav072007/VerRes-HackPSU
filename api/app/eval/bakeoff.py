@@ -13,12 +13,12 @@ from typing import Literal
 
 from pydantic import Field, ValidationError
 
-from app.ingest.models import Record
-from app.sources.acquire import Source
-from app.verify.gates import SEVERE, gate, quote_matches
-from app.verify.model import Model, ModelFailure, call_model
-from app.verify.models import AtomicClaim, Judgment
-from app.verify.retrieval import retrieve
+from api.app.ingest.models import Record
+from api.app.sources.acquire import Source
+from api.app.verify.gates import SEVERE, gate, quote_matches
+from api.app.verify.model import Model, ModelFailure, call_model
+from api.app.verify.models import AtomicClaim, Judgment
+from api.app.verify.retrieval import retrieve
 
 Label = Literal["SUPPORTED", "PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED", "NEEDS_REVIEW"]
 
@@ -112,9 +112,11 @@ async def run_bakeoff(
         "dataset_sha256": hashlib.sha256(
             "\n".join(p.model_dump_json() for p in pairs).encode()
         ).hexdigest(),
-        "prompt_version": "v1",
+        "prompt_version": "v2",
         "prompt_sha256": hashlib.sha256(
-            (Path(__file__).parent.parent / "prompts" / "judge.v1.md").read_bytes()
+            (Path(__file__).parent.parent / "prompts" / "preamble.v1.md").read_bytes()
+            + (Path(__file__).parent.parent / "prompts" / "judge.v2.md").read_bytes()
+            + json.dumps(Judgment.model_json_schema(), sort_keys=True).encode()
         ).hexdigest(),
         "ran_at": datetime.now(UTC).isoformat(),
         "dataset_ready": len(pairs) == 40
@@ -140,7 +142,7 @@ async def run_bakeoff(
                     Judgment,
                 )
                 lookup = {p.id: p.text for p in selected}
-                failed = not judgment.evidence or any(
+                failed = (judgment.label != "NEEDS_REVIEW" and not judgment.evidence) or any(
                     q.passage_id not in lookup or not quote_matches(q.quote, lookup[q.passage_id])
                     for q in judgment.evidence
                 )

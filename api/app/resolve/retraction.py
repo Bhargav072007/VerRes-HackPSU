@@ -1,20 +1,23 @@
 import csv
 import io
+import json
 from datetime import date, datetime
 from typing import Literal
+from urllib.parse import quote
 
 from asyncpg import PostgresError
 from pydantic import Field
 
-from app.ingest.models import Record
-from app.providers.metadata import normalize_doi
-from app.providers.models import Work
+from api.app.ingest.models import Record
+from api.app.providers.metadata import normalize_doi
+from api.app.providers.models import Work
 
 
 class RetractionRecord(Record):
     doi: str
     retracted: date | None
     provenance: str
+    notice_url: str | None = None
 
 
 class RetractionResult(Record):
@@ -55,6 +58,11 @@ def read_watch_csv(data: str) -> tuple[list[RetractionRecord], int]:
                 doi=doi,
                 retracted=parse_date(row.get("RetractionDate") or ""),
                 provenance="Retraction Watch CSV",
+                notice_url=(
+                    "https://doi.org/" + quote(normalize_doi(row.get("RetractionDOI")), safe="/")
+                )
+                if normalize_doi(row.get("RetractionDOI"))
+                else None,
             )
         )
     return rows, rejected
@@ -68,25 +76,29 @@ class PostgresRetractions:
         rows, rejected = read_watch_csv(data)
         async with self.pool.acquire() as connection, connection.transaction():
             await connection.executemany(
-                "INSERT INTO retraction_watch(doi,retracted_at,provenance) VALUES($1,$2,$3) "
-                "ON CONFLICT(doi) DO UPDATE SET retracted_at=EXCLUDED.retracted_at,"
-                "provenance=EXCLUDED.provenance",
-                [(r.doi, r.retracted, r.provenance) for r in rows],
+                "INSERT INTO retraction_watch(doi,payload) VALUES($1,$2::jsonb) "
+                "ON CONFLICT(doi) DO UPDATE SET payload=EXCLUDED.payload,updated_at=now()",
+                [(r.doi, r.model_dump_json()) for r in rows],
             )
         return len(rows), rejected
 
     async def lookup(self, doi: str) -> list[RetractionRecord] | None:
         try:
             rows = await self.pool.fetch(
-                "SELECT doi,retracted_at,provenance FROM retraction_watch WHERE doi=$1",
+                "SELECT payload FROM retraction_watch WHERE doi=$1",
                 normalize_doi(doi),
             )
         except (PostgresError, OSError):
             return None
-        return [
-            RetractionRecord(doi=r["doi"], retracted=r["retracted_at"], provenance=r["provenance"])
-            for r in rows
-        ]
+        try:
+            return [
+                RetractionRecord.model_validate_json(
+                    r["payload"] if isinstance(r["payload"], str) else json.dumps(r["payload"])
+                )
+                for r in rows
+            ]
+        except (ValueError, TypeError, KeyError):
+            return None
 
 
 def check_retraction(

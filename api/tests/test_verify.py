@@ -3,14 +3,15 @@ import json
 
 import httpx
 import pytest
-from app.providers.http import Gateway, Policy
-from app.verify.gates import aggregate, gate, quote_matches
-from app.verify.model import JSONGatewayModel, ModelFailure, call_model, untrusted
-from app.verify.models import ClaimSplit, Judgment
-from app.verify.pipeline import classify_citations, verify_citation
-from app.verify.retrieval import passages, retrieve
-from conftest import FixtureModel, judgment
 from pydantic import ValidationError
+
+from api.app.providers.http import Gateway, Policy
+from api.app.verify.gates import aggregate, gate, quote_matches
+from api.app.verify.model import JSONGatewayModel, ModelFailure, call_model, untrusted
+from api.app.verify.models import ClaimSplit, Judgment
+from api.app.verify.pipeline import classify_citations, verify_citation
+from api.app.verify.retrieval import passages, retrieve
+from api.tests.helpers import FixtureModel, judgment
 
 
 @pytest.mark.parametrize(

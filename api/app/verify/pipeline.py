@@ -2,15 +2,21 @@ import asyncio
 
 from pydantic import ValidationError
 
-from app.ingest.models import Citation
-from app.sources.acquire import Source
-from app.verify.gates import SEVERE, aggregate, gate, normalize_quote, uncertain
-from app.verify.model import Model, ModelFailure, call_model
-from app.verify.models import CitationVerification, ClaimSplit, Classification, Judgment
-from app.verify.retrieval import passages, retrieve
+from api.app.ingest.models import ParsedCitation
+from api.app.sources.acquire import Source
+from api.app.verify.gates import SEVERE, aggregate, gate, normalize_quote, uncertain
+from api.app.verify.model import Model, ModelFailure, call_model
+from api.app.verify.models import (
+    CitationVerification,
+    ClaimSplit,
+    Classification,
+    Judgment,
+    Passage,
+)
+from api.app.verify.retrieval import passages, retrieve, retrieve_passages
 
 
-async def classify_citations(citations: list[Citation], model: Model) -> dict[str, str]:
+async def classify_citations(citations: list[ParsedCitation], model: Model) -> dict[str, str]:
     classifications = {}
     for start in range(0, len(citations), 10):
         batch = citations[start : start + 10]
@@ -29,12 +35,13 @@ async def classify_citations(citations: list[Citation], model: Model) -> dict[st
 
 
 async def verify_citation(
-    citation: Citation,
+    citation: ParsedCitation,
     source: Source,
     primary: Model,
     *,
     adjudicator: Model | None = None,
     citation_function=None,
+    source_passages: list[Passage] | None = None,
 ):
     result = CitationVerification(
         citation_id=citation.id,
@@ -74,7 +81,10 @@ async def verify_citation(
                 uncertain(source, "splitter introduced a magnitude absent from the citing sentence")
             )
             continue
-        selected = await asyncio.to_thread(retrieve, claim.text, source.text, source.abstract)
+        if source_passages is None:
+            selected = await asyncio.to_thread(retrieve, claim.text, source.text, source.abstract)
+        else:
+            selected = await asyncio.to_thread(retrieve_passages, claim.text, source_passages)
         try:
             judgment = await call_model(
                 primary,
@@ -109,7 +119,9 @@ async def verify_citation(
                         [primary.model_id],
                     )
                 else:
-                    whole_source = passages(source.text)
+                    whole_source = (
+                        source_passages if source_passages is not None else passages(source.text)
+                    )
                     try:
                         second = await call_model(
                             adjudicator,

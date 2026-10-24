@@ -8,12 +8,12 @@ import pdfplumber
 from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 
-from app.ingest.models import Record, Reference
-from app.ingest.pdf import PDF_ERRORS, valid_pdf
-from app.providers.http import Gateway
-from app.providers.metadata import normalize_doi
-from app.providers.models import Work
-from app.resolve.existence import agrees, metadata_mismatch, normalize, title_similarity
+from api.app.ingest.models import ParsedReference, Record
+from api.app.ingest.pdf import PDF_ERRORS, valid_pdf
+from api.app.providers.http import Gateway
+from api.app.providers.metadata import normalize_doi
+from api.app.providers.models import Work
+from api.app.resolve.existence import agrees, metadata_mismatch, normalize, title_similarity
 
 
 class Source(Record):
@@ -80,7 +80,9 @@ async def acquire_source(
     work: Work, gateway: Gateway, *, crossref_work: Work | None = None
 ) -> Source:
     if crossref_work:
-        ref = Reference(id=work.id, raw="", title=work.title, authors=work.authors, year=work.year)
+        ref = ParsedReference(
+            id=work.id, raw="", title=work.title, authors=work.authors, year=work.year
+        )
         same_doi = normalize_doi(work.doi) is not None and normalize_doi(work.doi) == normalize_doi(
             crossref_work.doi
         )

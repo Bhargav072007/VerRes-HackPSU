@@ -3,9 +3,10 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
-from app.providers.cache import MemoryCache, PostgresCache
-from app.providers.http import DAY, Circuit, Gateway, Policy, retry_after
-from app.providers.models import HTTPResult
+
+from api.app.providers.cache import MemoryCache, PostgresCache
+from api.app.providers.http import DAY, Circuit, Gateway, Policy, retry_after
+from api.app.providers.models import HTTPResult
 
 POLICIES = {
     "test": Policy("https://provider.example", 1000, 1, 2),
@@ -196,7 +197,7 @@ async def test_mixed_public_private_dns_is_rejected():
 
 
 async def test_response_size_bound_and_cleanup(monkeypatch):
-    monkeypatch.setattr("app.providers.http.MAX_BYTES", 16)
+    monkeypatch.setattr("api.app.providers.http.MAX_BYTES", 16)
     async with Gateway(
         POLICIES,
         resolver=public_dns,
@@ -280,10 +281,11 @@ async def test_cache_db_adapter():
     class Pool:
         async def fetchrow(self, query, key):
             assert key == "key" and "expires_at > now()" in query
-            return {"status": 200, "body": b"{}", "headers": "{}"}
+            return {"payload": '{"status":200,"body_base64":"e30=","headers":{}}'}
 
         async def execute(self, query, *params):
             assert params[-1] == DAY and "ON CONFLICT" in query
+            assert "payload" in query and "body,headers" not in query
 
     cache = PostgresCache(Pool())
     assert (await cache.get("key")).cached

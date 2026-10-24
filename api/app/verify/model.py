@@ -3,14 +3,16 @@
 import html
 import json
 import secrets
+from copy import deepcopy
 from pathlib import Path
 from typing import Protocol
 
 from pydantic import BaseModel
 
-from app.providers.http import Gateway
+from api.app.providers.http import Gateway
 
 PROMPTS = Path(__file__).parent.parent / "prompts"
+PROMPT_VERSIONS = {"judge": "v2", "adjudicate": "v2"}
 
 
 class ModelFailure(Exception):
@@ -32,8 +34,11 @@ def untrusted(data: object) -> str:
 
 
 async def call_model(model: Model, task: str, data: object, schema: type[BaseModel]):
+    version = PROMPT_VERSIONS.get(task, "v1")
     system = (
-        (PROMPTS / "preamble.v1.md").read_text() + "\n" + (PROMPTS / f"{task}.v1.md").read_text()
+        (PROMPTS / "preamble.v1.md").read_text()
+        + "\n"
+        + (PROMPTS / f"{task}.{version}.md").read_text()
     )
     response = await model.complete(
         task=task, system=system, data=untrusted(data), schema=schema.model_json_schema()
@@ -41,6 +46,30 @@ async def call_model(model: Model, task: str, data: object, schema: type[BaseMod
     if not isinstance(response, str) or len(response) > 100_000:
         raise ModelFailure("model output is missing or oversized")
     return schema.model_validate_json(response)
+
+
+def strict_schema(schema: dict) -> dict:
+    """Render shared schemas for strict JSON providers without changing contracts.
+
+    Public Pydantic defaults remain intact. The provider must explicitly emit every
+    object property; nullable fields retain their existing null alternatives.
+    """
+    result = deepcopy(schema)
+
+    def visit(node):
+        if isinstance(node, dict):
+            node.pop("default", None)
+            if node.get("type") == "object" and "properties" in node:
+                node["required"] = list(node["properties"])
+                node["additionalProperties"] = False
+            for value in node.values():
+                visit(value)
+        elif isinstance(node, list):
+            for value in node:
+                visit(value)
+
+    visit(result)
+    return result
 
 
 class JSONGatewayModel:
@@ -87,7 +116,7 @@ class JSONGatewayModel:
                 ],
                 "response_format": {
                     "type": "json_schema",
-                    "json_schema": {"name": task, "strict": True, "schema": schema},
+                    "json_schema": {"name": task, "strict": True, "schema": strict_schema(schema)},
                 },
             },
         )

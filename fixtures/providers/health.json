@@ -1,0 +1,6 @@
+{
+  "healthy": {"status": 200, "body": "true"},
+  "not_ready": {"status": 200, "body": "false"},
+  "unavailable": {"status": 503, "body": "unavailable"},
+  "unexpected": {"status": 200, "body": "<html>proxy</html>"}
+}

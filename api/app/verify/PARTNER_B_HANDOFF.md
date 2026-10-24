@@ -1,187 +1,144 @@
-# Partner B implementation and integration handoff
+# Partner B integration handoff
 
-Base: `5243e4789a1b4bee2b3502a7d5d74bfd9e33c45b` (README and license only).
-Branch: `codex/partner-b-backend`.
+Branch: `codex/partner-b-backend`. Integrated upstream `fc9e48e`, containing A1 shared
+contracts, A2 jobs/SSE and D1 frontend. Published branch history is retained with a merge;
+no force push or merge of PR #2 is required.
 
-The user approved provisional Partner B models because Lane A contracts are absent.
-No `contracts/`, HTTP routes, jobs, SSE, migrations, deployment, or frontend are implemented
-here. These modules expose Python interfaces for the integrator. Shared contract
-compatibility remains **unverified until Lane A supplies its schemas**. Do not treat the
-provisional statuses as an agreed public API. No C7 requirement was supplied.
+## Public interfaces
 
-## Development
+`contracts/schema.py` and `contracts/interfaces.py` are unchanged. These concrete classes
+implement the exact async protocols and return the shared Pydantic models:
 
-From the repository root, with Python 3.12:
-
-```sh
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -r api/requirements-partner-b.lock.txt
-.venv/bin/python -m pip install --no-deps -e .
-.venv/bin/python -m pytest -q
-.venv/bin/ruff check api
-.venv/bin/ruff format --check api
-```
-
-The lock file records the installed environment used for validation. Runtime and test
-dependency ranges are in `pyproject.toml`. All tests block real sockets and DNS. HTTP/model
-fixtures are synthetic, explicitly not recorded demo papers, human ground truth, or live
-provider validation. A single offline integration test composes real TEI parsing,
-metadata resolution, source PDF extraction, retrieval, and quote-validated verification.
-
-## Scope and dependency order
-
-| Deliverable | Implementation | Dependencies and acceptance |
+| Protocol | Implementation | Methods and return types |
 |---|---|---|
-| B1 | `ingest/tei.py`, `ingest/pdf.py` | Safe TEI parsing, stable sentence IDs, bibliography pointers and neighboring sentences; GROBID configured at 60 seconds. Malformed/partial data yields structured results. |
-| B2 | `providers/http.py`, `cache.py`, `metadata.py`, `providers.yaml` | Reused async clients, rate/concurrency limits, bounded jitter retries, Retry-After, circuit breakers, TTL caching, Crossref/OpenAlex/arXiv clients. |
-| B3 | `resolve/existence.py` | B1+B2: identifier agreement; weighted title/author/year/venue search with score/margin gates; uncertainty on outages/unknown coverage. Corroborating provider metadata retains OA access and abstract provenance. |
-| B4 | `resolve/retraction.py` | B2+Lane A table: Retraction Watch CSV import adapter and date-aware OpenAlex/RW checks. Known correction/concern records are excluded. Missing dates/sources are incomplete. |
-| B5 | `resolve/doi.py` | B3: separate invalid syntax, unresolved DOI, mismatch, disagreement, and incomplete metadata. |
-| B6 | `ingest/pdf.py` | PDF fixtures: white/near-white fill, tiny font, render mode 3, off-page characters, instruction patterns; findings describe suspicious artifacts, never intent. Coordinates are page-relative top-left. |
-| B7 | `ingest/pdf.py` | B1: PDF fallback recovers text with partial status and no invented references or links. |
-| C1 | `eval/bakeoff.py`, `eval/pairs.jsonl` | Scaffolding ready; real completion requires 40 human-labeled pairs from 3 supplied papers and configured model runs. Empty dataset deliberately shipped. |
-| C2 | `sources/acquire.py` | B2: OA PDF, then arXiv PDF, then Crossref JATS/OpenAlex index abstract. Rejects unverifiable PDF identity or blank/scanned pages. |
-| C3 | `verify/model.py`, `models.py`, `retrieval.py`, `pipeline.py`, `prompts/` | C2: batches of 10, 1-3 atomic claims, ~200-word BM25 chunks/top 8 plus abstract, strict versioned JSON prompts. |
-| C4 | `verify/gates.py` | C3: normalized quote matching at 0.95, protecting numbers/negation, passage IDs, evidence-level restrictions, explicit review reasons and worst-case aggregation. |
-| C5 | `verify/pipeline.py` | C4: severe full-text findings require different model IDs/families, unanchored whole-source read, matching labels and independently verified evidence. Context overflow returns uncertainty. |
-| C6 | `graph/build.py` | B1: at most 12 short nodes with valid supplied sentence IDs; invalid/duplicate/cyclic relationships dropped. Citation results color nodes after verification. |
+| `Ingest` | `api.app.ingest.service.IngestService` | `parse_pdf(data) -> Paper`; `scan_hidden_text(data) -> list[HiddenTextFinding]` |
+| `Resolve` | `api.app.resolve.service.ResolveService` | `resolve_reference(reference) -> ExistenceResult`; `check_retraction(existence, paper_date) -> RetractionResult` |
+| `Sources` | `api.app.sources.service.SourceService` | `fetch_source(existence) -> SourceDocument` |
+| `Verify` | `api.app.verify.service.VerifyService` | `verify_citation(citation, source) -> SupportResult` |
+| `Graph` | `api.app.graph.service.GraphService` | `build_claim_map(paper) -> ClaimMap` |
 
-This bootstrap is one review candidate with logical commits, since none of the foundation
-contracts or application structure existed. It exceeds the playbook's suggested small-PR
-size. Future changes should be split by the deliverables above after the interfaces freeze.
+The public boundary uses shared names and enums: `VERIFIED` (not `FOUND`),
+`ABSTRACT_ONLY`/`METADATA_ONLY`, `RetractionStatus.NONE`/`UNKNOWN`, and evidence strength
+`INSUFFICIENT`. `NEEDS_REVIEW` support always includes `needs_review_reason`. Definitive
+support always includes verified source receipts, and severe labels set `adjudicated`
+only after agreement by different model IDs and families.
 
-## Python interfaces (all provisional)
+`ParsedPaper`, `ParsedReference`, `ParsedCitation`, `ParsedSentence`, `Work`, atomic-claim
+types and other internal processing records retain extraction/provider details. They
+are not application/API contracts. The public adapters perform explicit conversions;
+they never serialize private models into jobs or SSE. The judge uses `contracts.schema.Judgment`
+directly, and graph extraction uses `contracts.schema.ClaimMap` directly.
 
-```python
-parse_tei(data: bytes) -> ParseResult
-await ingest_pdf(data: bytes, gateway: Gateway) -> ParseResult
-fallback_pdf(data: bytes) -> ParseResult
-scan_hidden_text(data: bytes) -> HiddenScan
-await resolve_reference(ref: Reference, crossref, openalex, arxiv=None) -> ExistenceResult
-await check_doi(reference: Reference, crossref, openalex) -> DOICheck
-check_retraction(work: Work, citing_date: date | None,
-                 records: list[RetractionRecord] | None) -> RetractionResult
-await acquire_source(work: Work, gateway: Gateway, crossref_work=None) -> Source
-await classify_citations(citations: list[Citation], model: Model) -> dict[str, str]
-await verify_citation(citation: Citation, source: Source, primary: Model,
-                       adjudicator=None, citation_function=None) -> CitationVerification
-await build_graph(paper: Paper, model: Model) -> ClaimGraph
-color_graph(graph: ClaimGraph, paper: Paper,
-             results: list[CitationVerification]) -> ClaimGraph
-await run_bakeoff(pairs: list[EvalPair], models: list[Model],
-                   dataset_version: str, output: Path | None = None) -> dict
-```
-
-Keyword-only parameters remain keyword-only in actual code. `Record` uses strict
-Pydantic validation and forbids extra fields. Paper models live in `ingest/models.py`,
-metadata in `providers/models.py`, resolution models beside their functions, Source
-in `sources/acquire.py`, verification in `verify/models.py`, graph in `graph/build.py`.
-There are no numeric verdict confidence fields. Matching scores are internal heuristics.
-
-## Gateway and model configuration
+## Integration and lifecycle
 
 ```python
-import os
-from app.providers.http import Gateway, Policy, load_policies
-from app.providers.cache import PostgresCache
-from app.providers.metadata import Crossref, OpenAlex, Arxiv
+from api.app.providers.services import build_backend
+from api.app.settings import Settings
 
-policies = load_policies()
-# GROBID is a trusted configured service, not a URL taken from a document.
-policies["grobid"] = Policy(os.environ["GROBID_URL"], rate=1, period=1, concurrency=1)
-async with Gateway(policies, cache=PostgresCache(pool)) as gateway:
-    crossref = Crossref(gateway, mailto=os.environ["CROSSREF_MAILTO"])
-    openalex = OpenAlex(gateway, api_key=os.environ.get("OPENALEX_API_KEY"))
-    arxiv = Arxiv(gateway)
-    # Integrator calls module functions here, then persists/emits results in Lane A.
+# Lane A supplies its pool and configured Model adapters; no model name/key is guessed.
+async with build_backend(Settings(), pool=pool, primary=primary,
+                         adjudicator=adjudicator) as backend:
+    paper = await backend.ingest.parse_pdf(pdf_bytes)
+    hidden = await backend.ingest.scan_hidden_text(pdf_bytes)
+    existence = await backend.resolve.resolve_reference(paper.references[0])
+    retraction = await backend.resolve.check_retraction(existence, paper.paper_date)
+    source = await backend.sources.fetch_source(existence)
+    support = await backend.verify.verify_citation(paper.citations[0], source)
+    claim_map = await backend.graph.build_claim_map(paper)
 ```
 
-`Model` is a small provider-neutral protocol with `model_id`, `family`, and async
-`complete(task, system, data, schema) -> str`. `JSONGatewayModel` implements a configured
-chat-completions-compatible strict-JSON endpoint through this gateway. Configure an HTTPS
-provider policy, model identity, actual family, API key and conservative character context
-limit explicitly. Other API protocols need a `Model` adapter. Nothing chooses model names,
-invents credentials, or silently truncates a source. System prompts are separate from
-entity-escaped, nonce-delimited untrusted document data. Record these inputs/outputs and
-model IDs in Lane A's model-run storage; this change does not own that storage.
+The bundle owns/closes its gateway. Inject a gateway via `gateway=...` when supplying
+extra configured HTTPS model providers or deterministic transports. Model adapters sharing
+that gateway must use it within the bundle's lifetime. `openalex_daily_budget_usd` configures
+the OpenAlex guard separately from Lane A's `llm_daily_budget`. Missing Crossref identity
+or model configuration produces explicit incomplete/review outcomes.
 
-The OpenAlex budget guard reads `meta.cost_usd`; missing/invalid cost closes further paid
-requests until the next UTC day. Cached responses remain available without a new charge.
-This is a per-Gateway/per-process guard on reported costs, not a multi-worker hard spending
-cap; one completed request can cross the configured threshold. Lane A should provide
-shared accounting if multiple worker processes or hard cost reservations are required.
+The A2 `get_client(provider)` hook remains available with its shared-per-provider lifecycle,
+20-second read and 5-second connect timeouts. Existing main/health/lifespan behavior is
+preserved. Source downloads use the stricter gateway `safe_fetch`, not this compatibility
+hook. Lane A still owns job routes, SSE, persistence and the future A3 orchestrator; none
+of those modules, shared contracts, migrations, workflows or frontend files are changed
+relative to upstream. These services are injectable implementations, not a replacement
+job API or an implicit production orchestration change.
 
-Use `Gateway.safe_fetch` for source URLs only: HTTPS, no URL credentials or alternate
-ports, all DNS answers must be global, actual connection to a validated IP with original
-TLS SNI/Host, connection close to avoid cross-host TLS pool reuse, every redirect rechecked,
-20 MB decoded-body bound and 20-second overall network deadline. arXiv PDFs use arXiv's
-rate limiter. Provider methods use configured origins and do not follow arbitrary redirects.
-Cancellation propagates and releases slots; the gateway context manager closes clients.
+## Storage compatibility
 
-`MemoryCache` is ephemeral development storage. For production supply `PostgresCache`.
-Cache/database availability errors should not be interpreted as a missing citation.
+Adapters target the actual A1 tables from `infra/migrations/001_init.sql`; no new columns
+or migrations are required:
 
-## Lane A database proposals (not applied migrations)
+- `http_cache(cache_key, payload, expires_at)`: JSONB payload contains HTTP status,
+  base64-encoded body and headers. Invalid/incompatible cached payloads are misses.
+- `retraction_watch(doi, payload, updated_at)`: JSONB contains normalized DOI, nullable
+  retraction date, provenance and optional notice URL. CSV import preserves notice DOI
+  receipts and skips known non-retraction notices. Missing/invalid rows or unavailable
+  snapshots are not treated as evidence of non-retraction.
 
-The adapters expect the following minimal schema. Lane A must review/adapt or create it:
+`PostgresRetractions.lookup` returns `None` on unavailable/corrupt storage. Pass a complete,
+current RW snapshot to the resolver before relying on a clean chronological check. OpenAlex
+`is_retracted=True` without a dated notice remains `UNKNOWN`; a retraction is flagged as
+pre-existing only when it predates the citing paper.
 
-```sql
-CREATE TABLE http_cache (
-  cache_key text PRIMARY KEY,
-  status integer NOT NULL,
-  body bytea NOT NULL,
-  headers jsonb NOT NULL,
-  expires_at timestamptz NOT NULL
-);
-CREATE INDEX ON http_cache(expires_at);
-CREATE TABLE retraction_watch (
-  doi text PRIMARY KEY,
-  retracted_at date,
-  provenance text NOT NULL
-);
-```
+## Evidence and schema compatibility
 
-Use `await PostgresRetractions(pool).import_csv(csv_text)` to import the local snapshot;
-retain its source date/version externally and check rejected-row counts. Only pass an empty
-record list as a definitive lookup when the snapshot is known complete and current. Pass
-`None` when the RW source is unavailable. Missing/ambiguous citing or retraction dates remain
-incomplete. `is_retracted=True` without a dated RW record cannot establish chronology.
-Database adapters have fake-pool tests; a real PostgreSQL service was not supplied.
+`VerifyService` retains the supplied `SourcePassage.passage_id` through BM25 retrieval,
+quote checks and full-source adjudication. It rejects mismatched reference IDs, duplicate
+passage IDs, empty source passages and missing citation sentence IDs. It never regenerates
+passage IDs at the public boundary. Quotes require at least four words and normalized
+fuzzy similarity of 0.95, with numbers and negation protected. Abstract-only evidence
+cannot produce severe labels; full support requires DIRECT evidence.
 
-## Human evaluation
+Judge/adjudicator prompt version v2 uses shared enum names and shared Judgment schema.
+Historical v1 files remain available. The provider adapter renders defaults as explicit
+required properties for strict JSON output without mutating the shared schemas. Graph
+v1 uses shared node kinds/edges; invalid IDs, oversized nodes, duplicates and cycles are
+removed with a review reason. Graph extraction does not invent source receipts or
+evidence-based node status fields absent from the frozen contract.
 
-`pairs.jsonl` is empty because no demo papers or human labels were provided. Prepare one
-`EvalPair` JSON object per selected citation/atomic claim with `id`, `paper_id`,
-`citation_text`, `claim`, `source`, and initially null `human_label`, `labeled_by`,
-`label_reason`. Obtain the exact format with `EvalPair.model_json_schema()`.
-Select 40 pairs across the actual three demo papers; do not relabel synthetic test examples
-as demo ground truth. A human can inspect the input and label each row using:
+Source fetching retains HTTPS/public-DNS/redirect checks, pinned connections with original
+Host/TLS SNI, decoded-body limit of 20 MB, a 20-second network deadline, and arXiv throttling.
+Full-text identity is checked against available title/author metadata; failed/scanned
+extraction falls back to an abstract or explicit unavailable result. PDF extraction has
+no OCR or figure interpretation. Worker resource isolation remains a deployment concern.
+
+The shared `Reference` has no venue, work-type or PMID fields. Available raw reference text
+is preserved; additional extraction details remain internal. Without authoritative work
+type, an unrecognized record stays `CHECK_INCOMPLETE` rather than inferring index coverage
+from a DOI. arXiv IDs supply preprint coverage. A future optional work-type/venue extension
+can improve coverage, but this branch does not change contracts to obtain it.
+
+## Development and validation
+
+The merged root `pyproject.toml` is the sole dependency source. Existing A1/A2 pins are
+retained; parser, limiter, YAML/fuzzy matching and PDF test dependencies are added there.
+The incompatible bootstrap lock file is removed. Upstream Makefile commands are retained,
+and pytest collects both `tests/` and `api/tests/`:
 
 ```sh
-PYTHONPATH=api .venv/bin/python -m app.eval.bakeoff api/app/eval/pairs.jsonl
-PYTHONPATH=api .venv/bin/python -m app.eval.bakeoff api/app/eval/pairs.jsonl \
-  --label-id PAIR_ID --label SUPPORTED --annotator YOUR_NAME --reason 'Evidence explanation'
+.venv/bin/python -m pip install -e '.[dev]'
+make lint
+make test
+make openapi
+.venv/bin/python -m pip check
 ```
 
-Call `await run_bakeoff(pairs, [candidate1, candidate2], dataset_version=..., output=...)`
-with real configured Model adapters after labeling. It records source-dataset/prompt hashes,
-model IDs/families, UTC timestamp, predictions and measured metrics. `dataset_ready` is
-true only for 40 human-labeled rows from exactly 3 papers. `accuracy` measures raw judge
-labels against human labels, counting failed calls as incorrect; `admitted_accuracy` uses
-the deterministic gate (severe proposals remain review pending adjudication). Severe false
-positives count severe raw labels against non-severe human labels. Invalid structured-output
-and service-failure rates use all calls; quote-failure rate uses schema-valid outputs.
-Missing denominators are null, not invented zeroes. No scientific accuracy has been measured.
+Tests include the unchanged A1/A2 contract, health, database, upload/jobs and SSE suites,
+the original Partner B logic tests, and public-interface regressions. A deterministic
+integration test parses PDF/TEI, resolves metadata, acquires source PDF, verifies a citation,
+and round-trips every resulting public object through Report and the A2 SSE union. HTTP,
+model, PDF and database transports use explicit synthetic fixtures; no live network or
+scientific quality is claimed by these tests.
 
-## Review and remaining integration
+## Evaluation and remaining work
 
-Offline tests and Ruff are the validation available in this checkout. No independent
-review agent, real GROBID, PostgreSQL, scientific-provider calls, production orchestration,
-or model bake-off is represented as having run. Human cross-review is still required.
+`api/app/eval/pairs.jsonl` remains empty because the three actual demo papers and 40 human
+labels have not been supplied. `EvalPair.model_json_schema()` gives the labeling format;
+`python -m api.app.eval.bakeoff ...` manages labels, and `run_bakeoff` compares configured
+models. Reports include actual judge v2/schema hashes, dataset hash/version, model identity,
+UTC time, raw/admitted accuracy, severe false positives, service/JSON errors and quote
+failures. An abstention without a quote is not itself a fabricated-quote failure.
 
-Before production: freeze/map Lane A contracts and statuses; connect storage/orchestration;
-configure GROBID/provider identities and model adapters; import and version RW data; supply
-the three demo PDFs; label and run the scientific evaluation. PDF extraction lacks OCR and
-figure interpretation, and metadata title/author matching is a conservative heuristic.
-Hostile PDF resource isolation belongs in the ingestion worker boundary before deploying
-untrusted uploads. Fallback parsing deliberately cannot produce reliable citation links.
+Real GROBID/PostgreSQL/provider/model integration and the scientific bake-off still require
+configured services/data. A3 orchestration and model-run persistence remain Lane A work.
+No C7 requirement was supplied. The OpenAlex guard uses reported `meta.cost_usd` per process,
+allows cached records after its limit, and closes new paid requests when cost metadata is
+unknown. It is not a distributed reservation system or a hard pre-request spending cap.

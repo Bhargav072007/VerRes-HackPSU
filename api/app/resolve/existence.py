@@ -6,8 +6,8 @@ from typing import Literal
 from pydantic import Field
 from rapidfuzz.fuzz import token_set_ratio
 
-from app.ingest.models import Record, Reference
-from app.providers.models import Work
+from api.app.ingest.models import ParsedReference, Record
+from api.app.providers.models import Work
 
 
 class ExistenceResult(Record):
@@ -28,13 +28,13 @@ def title_similarity(left, right) -> float:
     return token_set_ratio(normalize(left), normalize(right)) / 100 if left and right else 0
 
 
-def author_agrees(ref: Reference, work: Work) -> bool:
+def author_agrees(ref: ParsedReference, work: Work) -> bool:
     return bool(
         ref.authors and work.authors and normalize(ref.authors[0]) == normalize(work.authors[0])
     )
 
 
-def agrees(ref: Reference, work: Work) -> bool:
+def agrees(ref: ParsedReference, work: Work) -> bool:
     return (
         title_similarity(ref.title, work.title) >= 0.90
         and author_agrees(ref, work)
@@ -44,7 +44,7 @@ def agrees(ref: Reference, work: Work) -> bool:
     )
 
 
-def metadata_mismatch(ref: Reference, work: Work) -> bool:
+def metadata_mismatch(ref: ParsedReference, work: Work) -> bool:
     return bool(
         (ref.title and work.title and title_similarity(ref.title, work.title) < 0.9)
         or (ref.authors and work.authors and not author_agrees(ref, work))
@@ -52,7 +52,7 @@ def metadata_mismatch(ref: Reference, work: Work) -> bool:
     )
 
 
-def score(ref: Reference, work: Work) -> float:
+def score(ref: ParsedReference, work: Work) -> float:
     year = ref.year is not None and work.year is not None and abs(ref.year - work.year) <= 1
     return (
         0.6 * title_similarity(ref.title, work.title)
@@ -83,7 +83,9 @@ def combine_works(works: list[Work]) -> Work:
     )
 
 
-async def resolve_reference(ref: Reference, crossref, openalex, arxiv=None) -> ExistenceResult:
+async def resolve_reference(
+    ref: ParsedReference, crossref, openalex, arxiv=None
+) -> ExistenceResult:
     if ref.kind.lower() in {"book", "web", "website", "software", "dataset"}:
         return ExistenceResult(
             status="UNCHECKABLE", reason="reference type is outside index coverage"

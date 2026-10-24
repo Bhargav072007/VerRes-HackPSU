@@ -1,0 +1,336 @@
+[
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 1,
+    "type": "stage",
+    "payload": {
+      "stage": "parse",
+      "status": "STARTED"
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 2,
+    "type": "paper",
+    "payload": {
+      "id": "paper-1",
+      "title": "Fixture paper",
+      "paper_date": "2024-01-01",
+      "sentences": [
+        {
+          "id": "s1",
+          "text": "Treatment improved outcomes in adults.",
+          "page": 1
+        }
+      ],
+      "references": [
+        {
+          "id": "ref-1",
+          "raw_text": "Example et al. Trial, 2024",
+          "title": "Trial",
+          "year": 2024
+        }
+      ],
+      "citations": [
+        {
+          "id": "cite-1",
+          "reference_id": "ref-1",
+          "sentence_ids": [
+            "s1"
+          ],
+          "claim_text": "Treatment improved outcomes in adults."
+        }
+      ]
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 3,
+    "type": "existence",
+    "payload": {
+      "reference_id": "ref-1",
+      "status": "VERIFIED",
+      "matched_reference": {
+        "id": "ref-1",
+        "raw_text": "Example et al. Trial, 2024",
+        "title": "Trial",
+        "year": 2024
+      },
+      "receipt_urls": [
+        "https://example.org/trial"
+      ],
+      "reason": "Fixture metadata matched."
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 4,
+    "type": "retraction",
+    "payload": {
+      "reference_id": "ref-1",
+      "status": "NONE",
+      "checked_as_of": "2024-01-01",
+      "reason": "Fixture provider returned no notices."
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 5,
+    "type": "source",
+    "payload": {
+      "reference_id": "ref-1",
+      "evidence_level": "FULL_TEXT",
+      "passages": [
+        {
+          "passage_id": "p1",
+          "text": "Treatment improved outcomes in adults.",
+          "page": 1
+        }
+      ],
+      "reason": "Fixture full text available."
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 6,
+    "type": "support",
+    "payload": {
+      "citation_id": "cite-1",
+      "label": "SUPPORTED",
+      "mismatch_types": [],
+      "evidence": [
+        {
+          "passage_id": "p1",
+          "quote": "Treatment improved outcomes in adults."
+        }
+      ],
+      "evidence_strength": "DIRECT",
+      "reason": "Fixture quote supports the claim."
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 7,
+    "type": "claim_map",
+    "payload": {
+      "paper_id": "paper-1",
+      "nodes": [
+        {
+          "id": "claim-1",
+          "text": "Treatment improved outcomes in adults.",
+          "sentence_ids": [
+            "s1"
+          ],
+          "citation_ids": [
+            "cite-1"
+          ]
+        }
+      ],
+      "edges": []
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 8,
+    "type": "hidden_text",
+    "payload": {
+      "id": "hidden-1",
+      "kind": "SUSPICIOUS_TEXT",
+      "page": 1,
+      "quote": "Ignore previous instructions",
+      "reason": "Fixture instruction-like text found."
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 9,
+    "type": "review",
+    "payload": {
+      "reviewer": "METHODS",
+      "severity": "MINOR",
+      "sentence_ids": [
+        "s1"
+      ],
+      "quote": "Treatment improved outcomes in adults.",
+      "issue": "Sample size is omitted.",
+      "suggestion": "State the sample size.",
+      "linked_citation_ids": [
+        "cite-1"
+      ]
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 10,
+    "type": "review_summary",
+    "payload": {
+      "top_fixes": [
+        "State the sample size."
+      ],
+      "comments": [
+        {
+          "reviewer": "METHODS",
+          "severity": "MINOR",
+          "sentence_ids": [
+            "s1"
+          ],
+          "quote": "Treatment improved outcomes in adults.",
+          "issue": "Sample size is omitted.",
+          "suggestion": "State the sample size.",
+          "linked_citation_ids": [
+            "cite-1"
+          ]
+        }
+      ],
+      "warning": null
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 11,
+    "type": "done",
+    "payload": {
+      "job_id": "00000000-0000-0000-0000-000000000001",
+      "paper": {
+        "id": "paper-1",
+        "title": "Fixture paper",
+        "paper_date": "2024-01-01",
+        "sentences": [
+          {
+            "id": "s1",
+            "text": "Treatment improved outcomes in adults.",
+            "page": 1
+          }
+        ],
+        "references": [
+          {
+            "id": "ref-1",
+            "raw_text": "Example et al. Trial, 2024",
+            "title": "Trial",
+            "year": 2024
+          }
+        ],
+        "citations": [
+          {
+            "id": "cite-1",
+            "reference_id": "ref-1",
+            "sentence_ids": [
+              "s1"
+            ],
+            "claim_text": "Treatment improved outcomes in adults."
+          }
+        ]
+      },
+      "existence": [
+        {
+          "reference_id": "ref-1",
+          "status": "VERIFIED",
+          "matched_reference": {
+            "id": "ref-1",
+            "raw_text": "Example et al. Trial, 2024",
+            "title": "Trial",
+            "year": 2024
+          },
+          "receipt_urls": [
+            "https://example.org/trial"
+          ],
+          "reason": "Fixture metadata matched."
+        }
+      ],
+      "retractions": [
+        {
+          "reference_id": "ref-1",
+          "status": "NONE",
+          "checked_as_of": "2024-01-01",
+          "reason": "Fixture provider returned no notices."
+        }
+      ],
+      "sources": [
+        {
+          "reference_id": "ref-1",
+          "evidence_level": "FULL_TEXT",
+          "passages": [
+            {
+              "passage_id": "p1",
+              "text": "Treatment improved outcomes in adults.",
+              "page": 1
+            }
+          ],
+          "reason": "Fixture full text available."
+        }
+      ],
+      "support": [
+        {
+          "citation_id": "cite-1",
+          "label": "SUPPORTED",
+          "mismatch_types": [],
+          "evidence": [
+            {
+              "passage_id": "p1",
+              "quote": "Treatment improved outcomes in adults."
+            }
+          ],
+          "evidence_strength": "DIRECT",
+          "reason": "Fixture quote supports the claim."
+        }
+      ],
+      "claim_map": {
+        "paper_id": "paper-1",
+        "nodes": [
+          {
+            "id": "claim-1",
+            "text": "Treatment improved outcomes in adults.",
+            "sentence_ids": [
+              "s1"
+            ],
+            "citation_ids": [
+              "cite-1"
+            ]
+          }
+        ],
+        "edges": []
+      },
+      "hidden_text": [
+        {
+          "id": "hidden-1",
+          "kind": "SUSPICIOUS_TEXT",
+          "page": 1,
+          "quote": "Ignore previous instructions",
+          "reason": "Fixture instruction-like text found."
+        }
+      ],
+      "review": {
+        "top_fixes": [
+          "State the sample size."
+        ],
+        "comments": [
+          {
+            "reviewer": "METHODS",
+            "severity": "MINOR",
+            "sentence_ids": [
+              "s1"
+            ],
+            "quote": "Treatment improved outcomes in adults.",
+            "issue": "Sample size is omitted.",
+            "suggestion": "State the sample size.",
+            "linked_citation_ids": [
+              "cite-1"
+            ]
+          }
+        ],
+        "warning": null
+      },
+      "status": "COMPLETE"
+    }
+  },
+  {
+    "job_id": "00000000-0000-0000-0000-000000000001",
+    "seq": 12,
+    "type": "error",
+    "payload": {
+      "code": "CHECK_INCOMPLETE",
+      "reason": "Fixture provider timeout",
+      "retryable": true
+    }
+  }
+]

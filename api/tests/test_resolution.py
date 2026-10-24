@@ -4,17 +4,18 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 import respx
-from app.ingest.models import Reference
-from app.providers.http import DAY, Gateway
-from app.providers.metadata import Arxiv, Crossref, OpenAlex
-from app.providers.models import ProviderResult, Work
-from app.resolve.existence import resolve_reference, score
-from app.resolve.retraction import RetractionRecord, check_retraction, read_watch_csv
+
+from api.app.ingest.models import ParsedReference
+from api.app.providers.http import DAY, Gateway
+from api.app.providers.metadata import Arxiv, Crossref, OpenAlex
+from api.app.providers.models import ProviderResult, Work
+from api.app.resolve.existence import resolve_reference, score
+from api.app.resolve.retraction import RetractionRecord, check_retraction, read_watch_csv
 
 
 @pytest.fixture
 def reference():
-    return Reference(
+    return ParsedReference(
         id="b1",
         raw="Smith 2024 A controlled study of animal inflammation.",
         title="A controlled study of animal inflammation",

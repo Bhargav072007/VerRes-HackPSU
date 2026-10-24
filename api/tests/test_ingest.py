@@ -1,8 +1,9 @@
 import httpx
 import pytest
-from app.ingest.pdf import fallback_pdf, ingest_pdf, scan_hidden_text
-from app.ingest.tei import identifiers, parse_tei
-from app.providers.http import Gateway, Policy
+
+from api.app.ingest.pdf import fallback_pdf, ingest_pdf, scan_hidden_text
+from api.app.ingest.tei import identifiers, parse_tei
+from api.app.providers.http import Gateway, Policy
 
 
 def test_tei_links_context_and_stable_ids(tei):

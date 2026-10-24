@@ -12,9 +12,9 @@ from pdfminer.pdfparser import PDFSyntaxError
 from pdfminer.psparser import PSEOF
 from pdfplumber.utils.exceptions import PdfminerException
 
-from app.ingest.models import HiddenScan, HiddenSpan, Paper, ParseResult, Sentence
-from app.ingest.tei import parse_tei
-from app.providers.http import MAX_BYTES, Gateway
+from api.app.ingest.models import HiddenScan, HiddenSpan, ParsedPaper, ParsedSentence, ParseResult
+from api.app.ingest.tei import parse_tei
+from api.app.providers.http import MAX_BYTES, Gateway
 
 INSTRUCTIONS = re.compile(
     r"ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|"
@@ -51,7 +51,7 @@ def fallback_pdf(data: bytes) -> ParseResult:
                 for part in re.split(r"(?<=[.!?])\s+|\n\s*\n", page.extract_text() or ""):
                     if part.strip():
                         sentences.append(
-                            Sentence(
+                            ParsedSentence(
                                 id=f"s{len(sentences) + 1:05d}",
                                 text=part.strip(),
                                 section=f"Page {page_no}",
@@ -60,7 +60,7 @@ def fallback_pdf(data: bytes) -> ParseResult:
         return ParseResult(
             status="PARTIAL" if sentences else "FAILED",
             parser="pdfplumber",
-            paper=Paper(sentences=sentences),
+            paper=ParsedPaper(sentences=sentences),
             reasons=["fallback text only; bibliography and citation links unavailable"],
         )
     except PDF_ERRORS:
@@ -121,10 +121,10 @@ def scan_hidden_text(data: bytes) -> HiddenScan:
                 for char in page.chars:
                     categories = []
                     fill = char.get("non_stroking_color")
-                    channels = fill if isinstance(fill, (list, tuple)) else [fill]
+                    channels = fill if isinstance(fill, list | tuple) else [fill]
                     white = (
                         len(channels) in (1, 3)
-                        and all(isinstance(c, (int, float)) and c >= 0.98 for c in channels)
+                        and all(isinstance(c, int | float) and c >= 0.98 for c in channels)
                     ) or (len(channels) == 4 and all(c <= 0.02 for c in channels))
                     if white:
                         categories.append("WHITE_FILL")

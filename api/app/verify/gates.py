@@ -3,8 +3,8 @@ import unicodedata
 
 from rapidfuzz.fuzz import ratio
 
-from app.sources.acquire import Source
-from app.verify.models import Finding, Judgment, Passage
+from api.app.sources.acquire import Source
+from api.app.verify.models import Finding, Judgment, Passage
 
 SEVERE = {"NOT_SUPPORTED", "CONTRADICTED"}
 
@@ -63,6 +63,8 @@ def uncertain(source: Source, reason: str, models: list[str] | None = None) -> F
 def gate(
     judgment: Judgment, passages: list[Passage], source: Source, model_id: str, *, adjudicated=False
 ) -> Finding:
+    if judgment.label == "NEEDS_REVIEW":
+        return uncertain(source, judgment.reason, [model_id])
     if source.evidence_level == "NONE":
         return uncertain(source, "source evidence is unavailable", [model_id])
     if judgment.label in SEVERE and source.evidence_level != "FULL_TEXT":
@@ -77,7 +79,7 @@ def gate(
     ]
     if not valid or len(valid) != len(judgment.evidence):
         return uncertain(source, "evidence quote or passage could not be verified", [model_id])
-    if judgment.evidence_strength == "NONE":
+    if judgment.evidence_strength == "INSUFFICIENT":
         return uncertain(source, "judge supplied no evidentiary support", [model_id])
     if judgment.label == "SUPPORTED" and judgment.evidence_strength != "DIRECT":
         return uncertain(source, "indirect evidence cannot establish full support", [model_id])
@@ -90,6 +92,7 @@ def gate(
         reason=judgment.reason,
         evidence=valid,
         evidence_level=source.evidence_level,
+        evidence_strength=judgment.evidence_strength,
         model_ids=[model_id],
         source_work_id=source.work_id,
         source_origin=source.origin,
