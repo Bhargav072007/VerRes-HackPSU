@@ -36,3 +36,8 @@ or fixture stubs; business logic and SSE streaming follow in later PRs.
 The Compose file is for local development: PostgreSQL uses trust authentication and both
 service ports bind only to loopback. `compose.prod.yml` and `Caddyfile` are deployment
 scaffolds; production configuration is not implemented in A1.
+
+Partner B's contract-compatible ingestion, resolution, source, verification and graph
+implementations are available through `api.app.providers.services.build_backend`.
+See the [integration handoff](api/app/verify/PARTNER_B_HANDOFF.md) for dependency injection,
+JSONB storage compatibility, scientific evaluation tooling and remaining A3 wiring.
