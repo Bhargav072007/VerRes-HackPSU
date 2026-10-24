@@ -168,7 +168,8 @@ async def test_openalex_normalization():
     ) as gateway:
         result = await OpenAlex(gateway).search("test")
         assert result.works[0].doi == "10.1234/a"
-        assert result.works[0].authors == ["Smith"]
+        assert result.works[0].authors == ["Jane Smith"]
+        assert result.works[0].author_names_are_full
         assert result.works[0].is_retracted is False
 
 
@@ -188,7 +189,12 @@ async def test_arxiv_atom_identifier():
 
 
 def test_retraction_dates_and_missing_sources(work):
-    before = RetractionRecord(doi=work.doi, retracted=date(2023, 1, 1), provenance="fixture")
+    before = RetractionRecord(
+        doi=work.doi,
+        retracted=date(2023, 1, 1),
+        provenance="fixture",
+        notice_url="https://doi.org/10.1234/notice",
+    )
     after = before.model_copy(update={"retracted": date(2025, 1, 1)})
     assert check_retraction(work, date(2024, 1, 1), [before]).status == "RETRACTED"
     assert check_retraction(work, date(2024, 1, 1), [after]).status == "NOT_RETRACTED"

@@ -10,7 +10,7 @@ from defusedxml.common import DefusedXmlException
 
 from api.app.ingest.models import ParsedReference, Record
 from api.app.ingest.pdf import PDF_ERRORS, valid_pdf
-from api.app.providers.http import Gateway
+from api.app.providers.http import MAX_BYTES, Gateway
 from api.app.providers.metadata import normalize_doi
 from api.app.providers.models import Work
 from api.app.resolve.existence import agrees, metadata_mismatch, normalize, title_similarity
@@ -52,11 +52,16 @@ def abstract_text(work: Work) -> str | None:
 
 
 def extract_full_pdf(data: bytes, work: Work) -> str | None:
-    if not valid_pdf(data):
+    if not valid_pdf(data) or len(data) > MAX_BYTES:
         return None
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             if not pdf.pages or len(pdf.pages) > 2000:
+                return None
+            # A text layer can contain only running headers while the actual study
+            # is rasterized/outlined. Without OCR/vision, graphical PDFs cannot establish
+            # whole-source coverage. Use the real abstract or abstain instead.
+            if any(page.images or page.curves or page.rects for page in pdf.pages):
                 return None
             pages = [page.extract_text() or "" for page in pdf.pages]
             # Blank/scanned pages mean text coverage cannot justify whole-source negatives.

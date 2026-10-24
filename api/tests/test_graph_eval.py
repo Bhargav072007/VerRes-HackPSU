@@ -79,6 +79,7 @@ async def test_bakeoff_records_actual_fixture_outcomes(claim, source, tmp_path):
     report = await run_bakeoff(pairs, models, dataset_version="synthetic-test-only", output=path)
     assert path.exists() and not report["dataset_ready"]
     assert report["models"]["model1"]["metrics"]["accuracy"] == 1
+    assert report["models"]["model1"]["vendor"] == models[0].vendor
     assert report["models"]["model2"]["metrics"]["invalid_json_rate"] == 1
     assert report["models"]["model2"]["metrics"]["accuracy"] == 0
 

@@ -91,7 +91,7 @@ async def test_grobid_timeout_falls_back(pdf_bytes):
         attempts=1,
     ) as gateway:
         parsed = await ingest_pdf(pdf_bytes(), gateway)
-    assert parsed.status == "PARTIAL" and parsed.parser == "pdfplumber"
+    assert parsed.status == "PARTIAL" and parsed.parser == "pypdfium2"
 
 
 def test_identifier_regex():
