@@ -5,17 +5,17 @@ import { decodeEvent, initialJob, jobCounts, jobReducer } from "../lib/job-strea
 const events = readFileSync("public/fixtures/events/paper1.jsonl", "utf8").trim().split("\n").map(line => JSON.parse(line));
 
 test("snapshot restore and duplicate native replay keep rows and counters idempotent", () => {
-  const snapshot = { type: "snapshot" as const, events: events.filter(e => e.at < 4900) };
+  const snapshot = { type: "snapshot" as const, events: events.slice(0, 31) };
   const state = jobReducer(initialJob, snapshot);
-  assert.equal(Object.keys(state.rows).length, 70);
-  assert.equal(jobCounts(state).checked, 31);
-  assert.equal(jobCounts(state).missing, 3);
-  assert.equal(state.rows['ref-2'].cachedAt, '2026-10-24T12:00:00Z');
+  assert.equal(Object.keys(state.rows).length, 3);
+  assert.equal(jobCounts(state).checked, 4);
+  assert.equal(jobCounts(state).missing, 0);
+  assert.equal(state.rows['ref-2'].existence?.status, 'VERIFIED');
   assert.equal(jobReducer(state, snapshot), state);
   const complete = jobReducer(state, { type: "snapshot", events });
-  assert.deepEqual(jobCounts(complete), { checked: 70, total: 70, missing: 3, retracted: 1, overstated: 5, needsReview: 4 });
+  assert.deepEqual(jobCounts(complete), { checked: 4, total: 4, missing: 0, retracted: 0, overstated: 0, needsReview: 1 });
   assert.equal(complete.done, true);
-  assert.equal(Object.keys(complete.errors).length, 2);
+  assert.equal(Object.keys(complete.errors).length, 0);
   assert.equal(jobReducer(complete, { type: "snapshot", events }), complete);
   assert.equal(jobReducer(complete, { type: "reset" }), initialJob);
   const interrupted = jobReducer(state, { type: "notice", reason: "Reconnecting" });

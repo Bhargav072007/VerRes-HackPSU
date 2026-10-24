@@ -1,0 +1,77 @@
+import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { replayReport } from "../lib/report";
+const report = replayReport(readFileSync("public/fixtures/events/paper1.jsonl", "utf8").trim().split("\n").map(line => JSON.parse(line)))!;
+
+for (const width of [1440, 390]) test(`completed report at ${width}px: filters, receipts, keyboard and tabs`, async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", e => errors.push(e.message));
+  page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
+  await page.setViewportSize({ width, height: 1000 });
+  await page.route("**/jobs/completed", route => route.fulfill({ json: report }));
+  await page.goto("/report/completed");
+  await expect(page.getByRole("heading", { name: report.paper!.title! })).toBeVisible();
+  await expect(page.getByLabel("3 references", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-citation-id]")).toHaveCount(4);
+  await expect(page.locator("[data-source-id]")).toHaveCount(3);
+  await expect(page.locator('[data-source-id="ref-1"]')).toContainText("cited 2x");
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400); // Let the 350ms counter animation settle before screenshots.
+  await page.screenshot({ path: info.outputPath(`report-${width}.png`), fullPage: true });
+  await page.getByRole("button", { name: "Problems only", exact: true }).click();
+  await expect(page.locator("[data-sentence-id]")).toHaveCount(1);
+  await expect(page.locator("[data-source-id]")).toHaveCount(2);
+  await expect(page.locator('[data-source-id="ref-1"]')).toHaveCount(0);
+  await page.keyboard.press("j");
+  await expect(page.locator('[data-citation-id="cite-2"]')).toBeFocused();
+  await page.evaluate(() => window.addEventListener("verres:open-evidence", e => { document.body.dataset.evidence = (e as CustomEvent).detail.citationId; }));
+  await page.keyboard.press("Enter");
+  await expect(page.locator("body")).toHaveAttribute("data-evidence", "cite-2");
+  await page.keyboard.press("j"); await expect(page.locator('[data-citation-id="cite-3"]')).toBeFocused();
+  await page.keyboard.press("k"); await expect(page.locator('[data-citation-id="cite-2"]')).toBeFocused();
+  await page.locator('[data-source-id="ref-2"] summary').click();
+  await expect(page.getByRole("blockquote")).toContainText("children were not enrolled.");
+  await page.screenshot({ path: info.outputPath(`problems-${width}.png`), fullPage: true });
+  await page.getByRole("button", { name: "Needs review", exact: true }).click();
+  await expect(page.locator("[data-source-id]")).toHaveCount(1);
+  await expect(page.locator('[data-citation-id="cite-3"]')).toBeVisible();
+  await page.getByRole("button", { name: "All", exact: true }).click();
+  await expect(page.locator("[data-sentence-id]")).toHaveCount(2);
+  await page.getByRole("tab", { name: "Claim graph" }).click();
+  await expect(page.getByRole("heading", { name: "Claim graph" })).toBeVisible();
+  await page.getByRole("tab", { name: "Report", exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("reduced motion, unavailable text and hostile external data remain readable", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/jobs/reduced", route => route.fulfill({ json: report }));
+  await page.goto("/report/reduced");
+  await expect(page.locator("[data-underline]")).toHaveCSS("transform", "none");
+  if (process.env.NEXT_PUBLIC_MOCK === "1") return;
+  await page.route("**/jobs/malformed", route => route.fulfill({ json: { status: "COMPLETE", paper: { sentences: [null] } } }));
+  await page.goto("/report/malformed");
+  await expect(page.locator("main").getByRole("alert")).toContainText("check is incomplete");
+  await page.route("**/jobs/malformed", route => route.fulfill({ json: { status: "CHECK_INCOMPLETE", paper: null } }));
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByText("Paper text is unavailable. Needs review.")).toBeVisible();
+});
+
+test("paper scrolling synchronizes the source pane and API text is never HTML", async ({ page }) => {
+  test.skip(process.env.NEXT_PUBLIC_MOCK === "1", "Uses a long snapshot to exercise scrolling");
+  const long = structuredClone(report);
+  long.paper!.sentences![0].section = "Introduction";
+  long.paper!.sentences![1].section = "Conclusion";
+  long.paper!.sentences!.splice(1, 0, ...Array.from({ length: 30 }, (_, i) => ({ id: `extra-${i}`, text: "Additional paper text. ".repeat(10), section: "Methods", page: 2 })));
+  long.paper!.sentences!.push(...Array.from({ length: 10 }, (_, i) => ({ id: `appendix-${i}`, text: "Supplementary paper text. ".repeat(10), section: "Appendix", page: 3 })));
+  long.paper!.title = '<img src=x onerror="alert(1)">';
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route("**/jobs/long", route => route.fulfill({ json: long }));
+  await page.goto("/report/long");
+  await expect(page.getByRole("heading", { name: long.paper!.title })).toBeVisible();
+  await expect(page.locator("main img")).toHaveCount(0);
+  await page.locator("aside details").evaluateAll(nodes => nodes.forEach(n => n.setAttribute("open", "")));
+  await page.locator('[data-sentence-id="s2"]').evaluate(node => window.scrollTo({ top: window.scrollY + node.getBoundingClientRect().top - 180, behavior: "instant" }));
+  await expect.poll(() => page.locator("aside > div").last().evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+});
