@@ -21,29 +21,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Job */
+        post: operations["create_job_jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Snapshot */
+        get: operations["snapshot_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/{job_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Events */
+        get: operations["events_jobs__job_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** HealthResponse */
-        HealthResponse: {
+        /** Accepted */
+        Accepted: {
             /**
-             * Status
-             * @enum {string}
+             * Job Id
+             * Format: uuid
              */
-            status: "ok" | "CHECK_INCOMPLETE";
-            /**
-             * Db
-             * @enum {string}
-             */
-            db: "ok" | "CHECK_INCOMPLETE";
-            /**
-             * Grobid
-             * @enum {string}
-             */
-            grobid: "ok" | "CHECK_INCOMPLETE";
-            /** Reason */
-            reason?: string | null;
+            job_id: string;
         };
         /** Citation */
         Citation: {
@@ -227,6 +266,31 @@ export interface components {
          * @enum {string}
          */
         ExistenceStatus: "VERIFIED" | "VERIFIED_WITH_DISCREPANCIES" | "DOI_MISMATCH" | "AMBIGUOUS" | "NOT_FOUND" | "UNCHECKABLE" | "CHECK_INCOMPLETE";
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HealthResponse */
+        HealthResponse: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "CHECK_INCOMPLETE";
+            /**
+             * Db
+             * @enum {string}
+             */
+            db: "ok" | "CHECK_INCOMPLETE";
+            /**
+             * Grobid
+             * @enum {string}
+             */
+            grobid: "ok" | "CHECK_INCOMPLETE";
+            /** Reason */
+            reason?: string | null;
+        };
         /** HiddenTextEvent */
         HiddenTextEvent: {
             /**
@@ -262,20 +326,78 @@ export interface components {
             /** Reason */
             reason: string;
         };
-        /** Judgment */
-        Judgment: {
-            label: components["schemas"]["SupportLabel"];
-            /** Mismatch Types */
-            mismatch_types?: components["schemas"]["MismatchType"][];
-            /** Evidence */
-            evidence?: components["schemas"]["EvidenceSpan"][];
+        /** JobFailure */
+        JobFailure: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
+        /** JobRow */
+        JobRow: {
             /**
-             * Evidence Strength
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Status
              * @enum {string}
              */
-            evidence_strength: "DIRECT" | "INDIRECT" | "INSUFFICIENT";
+            status: "QUEUED" | "RUNNING" | "COMPLETE" | "NEEDS_REVIEW" | "CHECK_INCOMPLETE";
+            /** Input */
+            input: {
+                [key: string]: string;
+            };
+            /** Client Ip */
+            client_ip: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** JobSnapshot */
+        JobSnapshot: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            paper?: components["schemas"]["Paper"] | null;
+            /** Existence */
+            existence?: components["schemas"]["ExistenceResult"][];
+            /** Retractions */
+            retractions?: components["schemas"]["RetractionResult"][];
+            /** Sources */
+            sources?: components["schemas"]["SourceDocument"][];
+            /** Support */
+            support?: components["schemas"]["SupportResult"][];
+            claim_map?: components["schemas"]["ClaimMap"] | null;
+            /** Hidden Text */
+            hidden_text?: components["schemas"]["HiddenTextFinding"][];
+            review?: components["schemas"]["ReviewSummary"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "QUEUED" | "RUNNING" | "COMPLETE" | "NEEDS_REVIEW" | "CHECK_INCOMPLETE";
             /** Reason */
-            reason: string;
+            reason?: string | null;
+            job: components["schemas"]["JobRow"];
+            /** Events */
+            events: (components["schemas"]["StageEvent"] | components["schemas"]["PaperEvent"] | components["schemas"]["ExistenceEvent"] | components["schemas"]["RetractionEvent"] | components["schemas"]["SourceEvent"] | components["schemas"]["SupportEvent"] | components["schemas"]["ClaimMapEvent"] | components["schemas"]["HiddenTextEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["ReviewSummaryEvent"] | components["schemas"]["DoneEvent"] | components["schemas"]["ErrorEvent"])[];
+            /** Stages */
+            stages?: components["schemas"]["StagePayload"][];
+            /** Errors */
+            errors?: components["schemas"]["ErrorPayload"][];
+            /** Review Comments */
+            review_comments?: components["schemas"]["ReviewComment"][];
         };
         /**
          * MismatchType
@@ -658,6 +780,34 @@ export interface components {
              */
             adjudicated: boolean;
         };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
+        /** Judgment */
+        Judgment: {
+            label: components["schemas"]["SupportLabel"];
+            /** Mismatch Types */
+            mismatch_types?: components["schemas"]["MismatchType"][];
+            /** Evidence */
+            evidence?: components["schemas"]["EvidenceSpan"][];
+            /**
+             * Evidence Strength
+             * @enum {string}
+             */
+            evidence_strength: "DIRECT" | "INDIRECT" | "INSUFFICIENT";
+            /** Reason */
+            reason: string;
+        };
         VerResContract: components["schemas"]["Report"] | components["schemas"]["Judgment"] | (components["schemas"]["StageEvent"] | components["schemas"]["PaperEvent"] | components["schemas"]["ExistenceEvent"] | components["schemas"]["RetractionEvent"] | components["schemas"]["SourceEvent"] | components["schemas"]["SupportEvent"] | components["schemas"]["ClaimMapEvent"] | components["schemas"]["HiddenTextEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["ReviewSummaryEvent"] | components["schemas"]["DoneEvent"] | components["schemas"]["ErrorEvent"]);
         SSEEvent: components["schemas"]["StageEvent"] | components["schemas"]["PaperEvent"] | components["schemas"]["ExistenceEvent"] | components["schemas"]["RetractionEvent"] | components["schemas"]["SourceEvent"] | components["schemas"]["SupportEvent"] | components["schemas"]["ClaimMapEvent"] | components["schemas"]["HiddenTextEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["ReviewSummaryEvent"] | components["schemas"]["DoneEvent"] | components["schemas"]["ErrorEvent"];
     };
@@ -685,6 +835,236 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    create_job_jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Arxiv Id */
+                    arxiv_id?: string | null;
+                    /** Doi */
+                    doi?: string | null;
+                } & (unknown | unknown);
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Accepted"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    snapshot_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSnapshot"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    events_jobs__job_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
                 };
             };
         };

@@ -27,7 +27,7 @@ export function useJobStream(id: string) {
       if (process.env.NEXT_PUBLIC_MOCK === "1") {
         const response = await fetch("/fixtures/events/paper1.jsonl", { signal: abort.signal });
         if (!response.ok) throw new Error("Fixture unavailable");
-        const events = (await response.text()).trim().split("\n").map(line => JSON.parse(line));
+        const events = (await response.text()).trim().split("\n").map((line, index) => ({ ...JSON.parse(line), at: index * 100 }));
         if (abort.signal.aborted) return;
         const key = `verres:mock:${id}`;
         let started = Date.now();
