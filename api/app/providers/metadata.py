@@ -40,7 +40,7 @@ def openalex_work(item: dict) -> Work:
     location = item.get("best_oa_location") or {}
     source = (item.get("primary_location") or {}).get("source") or {}
     authors = [
-        a["author"]["display_name"].split()[-1]
+        a["author"]["display_name"].strip()
         for a in item.get("authorships", [])
         if isinstance(a.get("author", {}).get("display_name"), str)
         and a["author"]["display_name"].split()
@@ -51,6 +51,7 @@ def openalex_work(item: dict) -> Work:
         title=item.get("title"),
         doi=normalize_doi(item.get("doi")),
         authors=authors,
+        author_names_are_full=True,
         year=item.get("publication_year"),
         venue=source.get("display_name"),
         oa_url=location.get("pdf_url"),
@@ -196,9 +197,11 @@ class Arxiv:
                         title=" ".join(title.split()),
                         year=int(published[:4]),
                         authors=[
-                            a.findtext(ns + "name", "").split()[-1]
+                            a.findtext(ns + "name", "").strip()
                             for a in item.findall(ns + "author")
+                            if a.findtext(ns + "name", "").strip()
                         ],
+                        author_names_are_full=True,
                         abstract=item.findtext(ns + "summary"),
                     )
                 )

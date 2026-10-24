@@ -10,6 +10,7 @@ class Work(Record):
     id: str
     title: str | None = None
     authors: list[str] = Field(default_factory=list)
+    author_names_are_full: bool = False
     year: int | None = None
     venue: str | None = None
     doi: str | None = None

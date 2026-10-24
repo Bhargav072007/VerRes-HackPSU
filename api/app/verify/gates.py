@@ -1,8 +1,6 @@
 import re
 import unicodedata
 
-from rapidfuzz.fuzz import ratio
-
 from api.app.sources.acquire import Source
 from api.app.verify.models import Finding, Judgment, Passage
 
@@ -10,7 +8,9 @@ SEVERE = {"NOT_SUPPORTED", "CONTRADICTED"}
 
 
 def normalize_quote(value: str) -> str:
-    value = unicodedata.normalize("NFKC", value).casefold()
+    # Preserve case: scientific units such as mM and mm are not interchangeable.
+    # Compatibility folding would also turn 10⁵ into 105, changing the magnitude.
+    value = unicodedata.normalize("NFC", value)
     return " ".join(
         value.translate(
             str.maketrans(
@@ -27,25 +27,19 @@ def normalize_quote(value: str) -> str:
     )
 
 
-def _protected(value: str) -> tuple[list[str], list[str]]:
-    return (
-        re.findall(r"\d+(?:[.,]\d+)*%?", value),
-        re.findall(r"\b(?:not|no|never|neither|without|cannot|can't|didn't|doesn't)\b", value),
-    )
-
-
 def quote_matches(quote: str, passage: str) -> bool:
     quote, passage = normalize_quote(quote), normalize_quote(passage)
     if len(quote.split()) < 4:
         return False
-    if quote in passage:
+    # Edit similarity cannot establish a verbatim receipt: a single character can
+    # invert a result. Boundaries also prevent quoting "effective" from "ineffective".
+    for match in re.finditer(r"(?<!\w)" + re.escape(quote) + r"(?!\w)", passage):
+        before, after = passage[: match.start()], passage[match.end() :]
+        if quote[0].isdigit() and before and before[-1] in "+-−⁺⁻.,/%":
+            continue
+        if quote[-1].isdigit() and after and (after[0] in "%/^" or re.match(r"[.,]\d", after)):
+            continue
         return True
-    words, wanted = passage.split(), quote.split()
-    for length in range(max(1, len(wanted) - 1), len(wanted) + 2):
-        for start in range(len(words) - length + 1):
-            window = " ".join(words[start : start + length])
-            if _protected(window) == _protected(quote) and ratio(quote, window) >= 95:
-                return True
     return False
 
 
@@ -67,6 +61,8 @@ def gate(
         return uncertain(source, judgment.reason, [model_id])
     if source.evidence_level == "NONE":
         return uncertain(source, "source evidence is unavailable", [model_id])
+    if len(judgment.evidence) > 3:
+        return uncertain(source, "judge returned more than three evidence quotes", [model_id])
     if judgment.label in SEVERE and source.evidence_level != "FULL_TEXT":
         return uncertain(
             source, "abstract-only evidence cannot establish a severe finding", [model_id]

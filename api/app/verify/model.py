@@ -22,6 +22,7 @@ class ModelFailure(Exception):
 class Model(Protocol):
     model_id: str
     family: str
+    vendor: str | None
 
     async def complete(self, *, task: str, system: str, data: str, schema: dict) -> str: ...
 
@@ -33,6 +34,13 @@ def untrusted(data: object) -> str:
     return f'<untrusted nonce="{nonce}">{value}</untrusted>'
 
 
+def output_schema(task: str, schema: type[BaseModel]) -> dict:
+    result = schema.model_json_schema()
+    if task in {"judge", "adjudicate"}:
+        result["properties"]["evidence"]["maxItems"] = 3
+    return result
+
+
 async def call_model(model: Model, task: str, data: object, schema: type[BaseModel]):
     version = PROMPT_VERSIONS.get(task, "v1")
     system = (
@@ -41,11 +49,14 @@ async def call_model(model: Model, task: str, data: object, schema: type[BaseMod
         + (PROMPTS / f"{task}.{version}.md").read_text()
     )
     response = await model.complete(
-        task=task, system=system, data=untrusted(data), schema=schema.model_json_schema()
+        task=task, system=system, data=untrusted(data), schema=output_schema(task, schema)
     )
     if not isinstance(response, str) or len(response) > 100_000:
         raise ModelFailure("model output is missing or oversized")
-    return schema.model_validate_json(response)
+    result = schema.model_validate_json(response)
+    if task in {"judge", "adjudicate"} and len(result.evidence) > 3:
+        raise ModelFailure("judge returned more than three evidence quotes")
+    return result
 
 
 def strict_schema(schema: dict) -> dict:
@@ -89,6 +100,7 @@ class JSONGatewayModel:
         api_key: str,
         max_input_chars: int,
         path="/v1/chat/completions",
+        vendor: str | None = None,
     ):
         if not model_id or not family or not api_key or max_input_chars <= 0:
             raise ValueError("model identity, family, credentials and context limit are required")
@@ -96,6 +108,7 @@ class JSONGatewayModel:
             raise ValueError("model endpoint must use HTTPS")
         self.gateway, self.provider, self.path = gateway, provider, path
         self.model_id, self.family = model_id, family
+        self.vendor = vendor
         self.api_key, self.max_input_chars = api_key, max_input_chars
 
     async def complete(self, *, task, system, data, schema) -> str:

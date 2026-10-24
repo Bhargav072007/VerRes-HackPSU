@@ -13,7 +13,7 @@ def validate_claim_map(proposed: ClaimMap, paper: Paper) -> ClaimMap:
     reasons = []
     ids, valid_nodes = set(), []
     sentences = {s.id for s in paper.sentences}
-    citations = {c.id for c in paper.citations}
+    citations = {c.id: set(c.sentence_ids) for c in paper.citations}
     for node in proposed.nodes:
         if (
             len(valid_nodes) >= 12
@@ -23,7 +23,8 @@ def validate_claim_map(proposed: ClaimMap, paper: Paper) -> ClaimMap:
             or len(node.text.split()) > 20
             or not node.sentence_ids
             or not set(node.sentence_ids) <= sentences
-            or not set(node.citation_ids) <= citations
+            or not set(node.citation_ids) <= citations.keys()
+            or any(not citations[c].intersection(node.sentence_ids) for c in node.citation_ids)
         ):
             reasons.append("invalid, duplicate or oversized node dropped")
             continue

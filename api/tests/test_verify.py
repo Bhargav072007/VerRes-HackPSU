@@ -22,7 +22,7 @@ from api.tests.helpers import FixtureModel, judgment
             "Before. The treatment reduced inflammation. After.",
             True,
         ),
-        ("THE treatment reduced inflammation.", "The treatment reduced inflammation.", True),
+        ("THE treatment reduced inflammation.", "The treatment reduced inflammation.", False),
         (
             "The treatment reduced inflammation in mice.",
             "The treatment did not reduce inflammation in mice.",
@@ -42,7 +42,7 @@ from api.tests.helpers import FixtureModel, judgment
         (
             "The treatment reduced inflammatoin in mice.",
             "The treatment reduced inflammation in mice.",
-            True,
+            False,
         ),
     ],
 )

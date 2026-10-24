@@ -107,6 +107,8 @@ class ResolveService(Resolve):
             "RETRACTED": RetractionStatus.RETRACTED,
             "NOT_RETRACTED": RetractionStatus.NONE,
             "CHECK_INCOMPLETE": RetractionStatus.UNKNOWN,
+            "CORRECTED": RetractionStatus.CORRECTED,
+            "EXPRESSION_OF_CONCERN": RetractionStatus.EXPRESSION_OF_CONCERN,
         }[checked.status]
         return RetractionResult(
             reference_id=existence.reference_id,
