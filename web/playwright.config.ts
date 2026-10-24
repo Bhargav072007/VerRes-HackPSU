@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: "*.spec.ts",
   workers: 1,
   outputDir: "playwright-results",
-  use: { baseURL: "http://127.0.0.1:3000", channel: "chrome" },
+  use: { baseURL: "http://localhost:3000", channel: "chrome" },
   webServer: {
     command: "npm run start",
     url: "http://127.0.0.1:3000",
