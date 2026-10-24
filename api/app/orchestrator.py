@@ -1,1 +1,357 @@
-"""Agent A implementation follows in a later PR."""
+"""Contract-only job runner; provider failures become reviewable receipts."""
+
+import asyncio
+import json
+import logging
+import os
+from dataclasses import dataclass
+
+from pydantic import TypeAdapter
+
+from api.app.db import JobFailure
+from api.app.providers.services import build_backend
+from api.app.review import ReviewStub
+from contracts.schema import (
+    ClaimMap,
+    ExistenceResult,
+    HiddenTextFinding,
+    Paper,
+    Report,
+    RetractionResult,
+    ReviewSummary,
+    SourceDocument,
+    SupportResult,
+)
+
+logger = logging.getLogger(__name__)
+DEADLINE_SECONDS = 300
+
+
+class JobBusy(Exception):
+    """Admission raced with another worker; keep the queued job scheduled."""
+
+
+@dataclass
+class Services:
+    backend: object
+    review: ReviewStub
+
+    async def aclose(self):
+        await self.backend.__aexit__(None, None, None)
+
+
+def build_services(settings, pool=None):
+    if os.getenv("STUBS") == "1":
+        from api.app.stubs import FixtureServices
+
+        backend = FixtureServices()
+    else:
+        backend = build_backend(settings, pool=pool)
+    return Services(backend, ReviewStub())
+
+
+def fallback(kind, row_id, reason):
+    common = {"reason": reason}
+    return {
+        "existence": lambda: ExistenceResult(
+            reference_id=row_id, status="CHECK_INCOMPLETE", **common
+        ),
+        "retraction": lambda: RetractionResult(reference_id=row_id, status="UNKNOWN", **common),
+        "source": lambda: SourceDocument(
+            reference_id=row_id, evidence_level="METADATA_ONLY", status="CHECK_INCOMPLETE", **common
+        ),
+        "support": lambda: SupportResult(
+            citation_id=row_id,
+            label="NEEDS_REVIEW",
+            evidence_strength="INSUFFICIENT",
+            needs_review_reason=reason,
+            **common,
+        ),
+        "claim_map": lambda: ClaimMap(
+            paper_id=row_id, status="NEEDS_REVIEW", needs_review_reason=reason
+        ),
+        "hidden_text": lambda: [
+            HiddenTextFinding(id="scan-incomplete", kind="CHECK_INCOMPLETE", quote="", **common)
+        ],
+        "review_summary": lambda: ReviewSummary(warning=reason),
+        "paper": lambda: Paper(id=row_id, status="NEEDS_REVIEW", needs_review_reason=reason),
+    }[kind]()
+
+
+class Pipeline:
+    def __init__(self, bus, services, settings, *, deadline=DEADLINE_SECONDS):
+        self.bus, self.services, self.settings = bus, services, settings
+        self.deadline = deadline
+        self.pending = set()
+
+    async def emit(self, kind, payload):
+        result = await self.bus.emit(self.job_id, kind, payload.model_dump(mode="json"))
+        if isinstance(result, JobFailure):
+            if result.code == "rate_limited":
+                raise JobBusy()
+            raise RuntimeError("Could not persist pipeline event")
+
+    async def stage(self, name, status, reason=None):
+        from contracts.events import StagePayload
+
+        await self.emit("stage", StagePayload(stage=name, status=status, reason=reason))
+        if status == "STARTED":
+            self.pending.add(name)
+        else:
+            self.pending.discard(name)
+
+    async def call(self, name, kind, row_id, operation, result_type):
+        await self.stage(name, "STARTED")
+        reason = None
+        try:
+            result = await operation()
+            items = result if isinstance(result, list) else [result]
+            expected = HiddenTextFinding if kind == "hidden_text" else result_type
+            if not all(isinstance(item, expected) for item in items):
+                raise TypeError("Expected contract result")
+            adapter = TypeAdapter(result_type)
+            result = adapter.validate_python(adapter.dump_python(result, mode="json"))
+            for item in items:
+                identity = getattr(item, "reference_id", getattr(item, "citation_id", None))
+                if identity is not None and identity != row_id:
+                    raise ValueError("Result belongs to another row")
+            if kind == "claim_map" and result.paper_id != row_id:
+                raise ValueError("Map belongs to another paper")
+        except Exception as error:
+            reason = f"{name.split(':')[0]} failed ({type(error).__name__}); needs review"
+            logger.warning(
+                "stage failed job_id=%s ref_id=%s row_id=%s stage=%s error=%s",
+                self.job_id,
+                next(
+                    (c.reference_id for c in self.report.paper.citations if c.id == row_id), row_id
+                )
+                if self.report.paper
+                else row_id,
+                row_id,
+                name,
+                type(error).__name__,
+            )
+            result = fallback(kind, row_id, reason)
+        await self.stage(name, "CHECK_INCOMPLETE" if reason else "COMPLETED", reason)
+        return result
+
+    async def row(self, kind, row_id, operation, result_type):
+        result = await self.call(f"{kind}:{row_id}", kind, row_id, operation, result_type)
+        await self.emit(kind, result)
+        getattr(
+            self.report, {"retraction": "retractions", "source": "sources"}.get(kind, kind)
+        ).append(result)
+        return result
+
+    async def reference(self, reference):
+        backend, paper = self.services.backend, self.report.paper
+        existence = await self.row(
+            "existence",
+            reference.id,
+            lambda: backend.resolve.resolve_reference(reference),
+            ExistenceResult,
+        )
+        await self.row(
+            "retraction",
+            reference.id,
+            lambda: backend.resolve.check_retraction(existence, paper.paper_date),
+            RetractionResult,
+        )
+        source = await self.row(
+            "source", reference.id, lambda: backend.sources.fetch_source(existence), SourceDocument
+        )
+        await asyncio.gather(
+            *(
+                self.row(
+                    "support",
+                    citation.id,
+                    lambda c=citation: backend.verify.verify_citation(c, source),
+                    SupportResult,
+                )
+                for citation in paper.citations
+                if citation.reference_id == reference.id
+            )
+        )
+
+    async def scan(self, data):
+        findings = await self.call(
+            "hidden_text",
+            "hidden_text",
+            self.report.paper.id,
+            lambda: self.services.backend.ingest.scan_hidden_text(data),
+            list[HiddenTextFinding],
+        )
+        self.report.hidden_text = findings
+        self.scanned = True
+        for finding in findings:
+            await self.emit("hidden_text", finding)
+
+    async def graph(self):
+        self.report.claim_map = await self.call(
+            "build_claim_map",
+            "claim_map",
+            self.report.paper.id,
+            lambda: self.services.backend.graph.build_claim_map(self.report.paper),
+            ClaimMap,
+        )
+
+    async def flow(self, data):
+        backend = self.services.backend
+        self.report.paper = await self.call(
+            "parse_pdf",
+            "paper",
+            f"paper-{self.job_id}",
+            lambda: backend.ingest.parse_pdf(data),
+            Paper,
+        )
+        paper = self.report.paper
+        if paper.status == "NEEDS_REVIEW" and not paper.sentences:
+            return paper.needs_review_reason or "PDF parsing failed"
+        await self.emit("paper", paper)
+        async with asyncio.TaskGroup() as tasks:
+            tasks.create_task(self.scan(data))
+            graph = tasks.create_task(self.graph())
+            prep = tasks.create_task(
+                self.call(
+                    "review_prep",
+                    "review_summary",
+                    paper.id,
+                    lambda: self.services.review.prepare(paper),
+                    ReviewSummary,
+                )
+            )
+            await asyncio.gather(*(self.reference(reference) for reference in paper.references))
+            await self.fill_rows("Citation reference is missing")
+            await prep
+            self.report.review = await self.call(
+                "run_review_panel",
+                "review_summary",
+                paper.id,
+                lambda: self.services.review.run_review_panel(paper, self.report.support),
+                ReviewSummary,
+            )
+            for comment in self.report.review.comments:
+                await self.emit("review", comment)
+            await self.emit("review_summary", self.report.review)
+            await graph
+            await self.stage("claim_map", "STARTED")
+            await self.emit("claim_map", self.report.claim_map)
+            await self.stage("claim_map", "COMPLETED")
+        return None
+
+    async def fill_rows(self, reason):
+        paper = self.report.paper
+        for kind, field, id_field, rows in (
+            ("existence", "existence", "reference_id", paper.references),
+            ("retraction", "retractions", "reference_id", paper.references),
+            ("source", "sources", "reference_id", paper.references),
+            ("support", "support", "citation_id", paper.citations),
+        ):
+            completed = {getattr(result, id_field) for result in getattr(self.report, field)}
+            for row in rows:
+                if row.id not in completed:
+                    name = f"{kind}:{row.id}"
+                    if name not in self.pending:
+                        await self.stage(name, "STARTED")
+                    result = fallback(kind, row.id, reason)
+                    await self.emit(kind, result)
+                    await self.stage(name, "CHECK_INCOMPLETE", reason)
+                    getattr(self.report, field).append(result)
+
+    async def run_job(self, job_id):
+        from api.app.routes.jobs import load_pdf
+
+        self.job_id = job_id
+        self.report = Report(job_id=job_id, status="COMPLETE")
+        self.scanned = False
+        reason = None
+        try:
+            async with asyncio.timeout(self.deadline):
+                row = await self.bus.jobs.get(job_id)
+                if row is None or row["status"] not in ("QUEUED", "RUNNING"):
+                    return
+                await self.stage("intake", "STARTED")
+                job_input = row["input"]
+                if isinstance(job_input, str):
+                    job_input = json.loads(job_input)
+                data = await load_pdf(job_input, self.settings)
+                reason = data.message if isinstance(data, JobFailure) else None
+                await self.stage("intake", "CHECK_INCOMPLETE" if reason else "COMPLETED", reason)
+                if not reason:
+                    reason = await self.flow(data)
+        except TimeoutError:
+            reason = "timed out"
+            if self.report.paper is not None:
+                await self.fill_rows(reason)
+                if not self.scanned:
+                    self.report.hidden_text = fallback("hidden_text", "", reason)
+                    for finding in self.report.hidden_text:
+                        await self.emit("hidden_text", finding)
+                if self.report.review is None:
+                    self.report.review = fallback("review_summary", "", reason)
+                    await self.emit("review_summary", self.report.review)
+                if self.report.claim_map is None:
+                    self.report.claim_map = fallback("claim_map", self.report.paper.id, reason)
+                await self.emit("claim_map", self.report.claim_map)
+        for stage in sorted(self.pending):
+            await self.stage(stage, "CHECK_INCOMPLETE", reason or "Stage interrupted")
+        await self.stage("summary", "STARTED")
+        if reason:
+            from contracts.events import ErrorPayload
+
+            await self.emit("error", ErrorPayload(code="CHECK_INCOMPLETE", reason=reason))
+            self.report.status, self.report.reason = "CHECK_INCOMPLETE", reason
+        elif (
+            self.report.paper.status == "NEEDS_REVIEW"
+            or any(
+                r.status not in ("VERIFIED", "VERIFIED_WITH_DISCREPANCIES")
+                for r in self.report.existence
+            )
+            or any(r.status != "NONE" for r in self.report.retractions)
+            or any(r.status == "CHECK_INCOMPLETE" for r in self.report.sources)
+            or any(r.label != "SUPPORTED" for r in self.report.support)
+            or self.report.hidden_text
+            or self.report.claim_map.status == "NEEDS_REVIEW"
+            or self.report.review.warning
+        ):
+            self.report.status = "NEEDS_REVIEW"
+        await self.stage("summary", "COMPLETED")
+        await self.emit("done", self.report)
+
+
+class Runner:
+    def __init__(self, bus, services, settings, tasks):
+        self.bus, self.services, self.settings, self.tasks = bus, services, settings, tasks
+        self.active = {}
+        # Leave pool connections available for event transactions while leases are held.
+        self.slots = asyncio.Semaphore(3)
+
+    def start(self, job_id):
+        if job_id not in self.active:
+            task = asyncio.create_task(self.run_job(job_id))
+            self.active[job_id] = task
+            self.tasks.add(task)
+            task.add_done_callback(lambda done: self.finished(job_id, done))
+        return self.active[job_id]
+
+    async def run_job(self, job_id):
+        async with self.slots, self.bus.jobs.lease(job_id) as locked:
+            if locked:
+                while True:
+                    try:
+                        await Pipeline(self.bus, self.services, self.settings).run_job(job_id)
+                        return
+                    except JobBusy:
+                        await asyncio.sleep(0.25)
+
+    def finished(self, job_id, task):
+        self.active.pop(job_id, None)
+        self.tasks.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            logger.error(
+                "job interrupted job_id=%s error=%s", job_id, type(task.exception()).__name__
+            )
+
+    async def recover(self):
+        for row in await self.bus.jobs.unfinished():
+            self.start(row["id"])

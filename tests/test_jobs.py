@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import json
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -22,6 +22,8 @@ from tests.conftest import FIXTURES
 def job_app(monkeypatch, tmp_path, job_pool):
     monkeypatch.setattr(main, "create_pool", AsyncMock(return_value=job_pool))
     monkeypatch.setattr(main, "run_migrations", AsyncMock())
+    # A2 tests exercise intake/journal independently; A3 tests run the real runner.
+    monkeypatch.setattr(main.Runner, "start", Mock())
     return main.create_app(
         Settings(
             _env_file=None, env="dev", data_dir=tmp_path, frontend_origin="https://frontend.example"

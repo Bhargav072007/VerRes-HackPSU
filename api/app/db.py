@@ -1,5 +1,6 @@
 import hashlib
 import json
+from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -91,6 +92,27 @@ class Jobs:
     async def get(self, job_id: UUID):
         return await self.pool.fetchrow("SELECT * FROM jobs WHERE id = $1", job_id)
 
+    async def unfinished(self):
+        return await self.pool.fetch(
+            "SELECT id FROM jobs WHERE status IN ('RUNNING', 'QUEUED') "
+            "ORDER BY (status = 'RUNNING') DESC, created_at"
+        )
+
+    @asynccontextmanager
+    async def lease(self, job_id):
+        # Session lock prevents two API workers from recovering the same job.
+        async with self.pool.acquire() as connection:
+            locked = await connection.fetchval(
+                "SELECT pg_try_advisory_lock(hashtextextended($1, 0))", str(job_id)
+            )
+            try:
+                yield locked
+            finally:
+                if locked:
+                    await connection.execute(
+                        "SELECT pg_advisory_unlock(hashtextextended($1, 0))", str(job_id)
+                    )
+
     async def read_events(self, job_id: UUID, after: int):
         rows = await self.pool.fetch(
             "SELECT job_id, seq, type, payload FROM job_events "
@@ -165,6 +187,33 @@ class Jobs:
                 event.type,
                 event.payload.model_dump_json(),
             )
+            if event.type not in ("stage", "error", "done"):
+                payload = event.payload.model_dump(mode="json")
+                row_id = next(
+                    (
+                        payload[key]
+                        for key in ("reference_id", "citation_id", "id", "paper_id")
+                        if key in payload
+                    ),
+                    payload.get("reviewer", event.type),
+                )
+                if event.type == "review":
+                    identity = [
+                        payload["reviewer"],
+                        sorted(payload["sentence_ids"]),
+                        payload["quote"],
+                        payload["issue"],
+                    ]
+                    row_id = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
+                await connection.execute(
+                    "INSERT INTO job_results (job_id, type, row_id, payload) "
+                    "VALUES ($1, $2, $3, $4::jsonb) "
+                    "ON CONFLICT (job_id, type, row_id) DO UPDATE SET payload = EXCLUDED.payload",
+                    job_id,
+                    event.type,
+                    row_id,
+                    event.payload.model_dump_json(),
+                )
             await connection.execute(
                 "UPDATE jobs SET status = $2, updated_at = now() WHERE id = $1", job_id, status
             )

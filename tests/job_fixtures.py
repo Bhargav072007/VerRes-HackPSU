@@ -15,6 +15,8 @@ class FixturePool:
     def __init__(self):
         self.rows = {}
         self.events = []
+        self.results = {}
+        self.leases = set()
         self.sql = []
         self.lock = asyncio.Lock()
         self.close = AsyncMock()
@@ -28,13 +30,13 @@ class FixturePool:
     @asynccontextmanager
     async def transaction(self):
         async with self.lock:
-            previous = deepcopy((self.rows, self.events))
+            previous = deepcopy((self.rows, self.events, self.results))
             try:
                 yield self
                 if self.fail_commit:
                     raise asyncpg.PostgresConnectionError("private commit failure")
             except BaseException:
-                self.rows, self.events = previous
+                self.rows, self.events, self.results = previous
                 raise
 
     async def execute(self, sql, *args):
@@ -57,8 +59,14 @@ class FixturePool:
             self.events.append({"job_id": job_id, "seq": seq, "type": kind, "payload": payload})
         elif sql.startswith("UPDATE jobs"):
             self.rows[args[0]].update(status=args[1], updated_at=datetime.now(UTC))
+        elif sql.startswith("INSERT INTO job_results"):
+            assert "ON CONFLICT (job_id, type, row_id) DO UPDATE" in sql
+            self.results[tuple(args[:3])] = json.loads(args[3])
         else:
-            assert "pg_advisory_xact_lock(739122)" in sql
+            if "pg_advisory_unlock" in sql:
+                self.leases.remove(args[0])
+            else:
+                assert "pg_advisory_xact_lock(739122)" in sql
 
     async def fetchrow(self, sql, *args):
         self.sql.append(sql)
@@ -84,6 +92,11 @@ class FixturePool:
 
     async def fetchval(self, sql, *args):
         self.sql.append(sql)
+        if "pg_try_advisory_lock" in sql:
+            if args[0] in self.leases:
+                return False
+            self.leases.add(args[0])
+            return True
         if "FOR UPDATE" in sql:
             return self.rows.get(args[0], {}).get("status")
         if "MAX(seq)" in sql:
@@ -96,8 +109,15 @@ class FixturePool:
         assert "count(*)" in sql
         return sum(row["status"] == "RUNNING" for row in self.rows.values())
 
-    async def fetch(self, sql, job_id, after):
+    async def fetch(self, sql, *args):
         self.sql.append(sql)
+        if "status IN" in sql:
+            return [
+                {"id": row["id"]}
+                for row in self.rows.values()
+                if row["status"] in ("RUNNING", "QUEUED")
+            ]
+        job_id, after = args
         assert "ORDER BY seq" in sql
         return deepcopy([e for e in self.events if e["job_id"] == job_id and e["seq"] > after])
 
