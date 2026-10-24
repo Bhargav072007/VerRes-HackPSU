@@ -65,7 +65,9 @@ class Jobs:
     def __init__(self, pool: asyncpg.Pool):
         self.pool = pool
 
-    async def create(self, client_ip: str, job_input: dict, *, running: bool = False):
+    async def create(
+        self, client_ip: str, job_input: dict, *, running: bool = False, exempt_hourly: bool = False
+    ):
         async with self.pool.acquire() as connection, connection.transaction():
             # Shared by admission and QUEUED -> RUNNING transitions across workers.
             await connection.execute("SELECT pg_advisory_xact_lock(739122)")
@@ -75,7 +77,7 @@ class Jobs:
                 "count(*) FILTER (WHERE status = 'RUNNING') AS running FROM jobs",
                 client_ip,
             )
-            if counts["hourly"] >= 5 or counts["running"] >= 3:
+            if (not exempt_hourly and counts["hourly"] >= 5) or counts["running"] >= 3:
                 return JobFailure(
                     code="rate_limited", message="Job limit reached; try again later."
                 )

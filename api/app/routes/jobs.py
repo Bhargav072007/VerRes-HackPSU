@@ -275,7 +275,10 @@ async def fake_job(request: Request):
     if bus is None:
         return error("CHECK_INCOMPLETE", "Job storage is unavailable.")
     job_id = await bus.jobs.create(
-        request.client.host if request.client else "unknown", {"demo": "fixture"}, running=True
+        request.client.host if request.client else "unknown",
+        {"demo": "fixture"},
+        running=True,
+        exempt_hourly=request.app.state.settings.env == "dev",
     )
     if isinstance(job_id, JobFailure):
         return error(job_id.code, job_id.message)
