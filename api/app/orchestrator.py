@@ -10,7 +10,9 @@ from pydantic import TypeAdapter
 
 from api.app.db import JobFailure
 from api.app.providers.services import build_backend
-from api.app.review import ReviewStub
+from api.app.review import ReviewPanel, ReviewStub
+from api.app.verify.model import JSONGatewayModel, Model
+from contracts.interfaces import Review
 from contracts.schema import (
     ClaimMap,
     ExistenceResult,
@@ -34,20 +36,40 @@ class JobBusy(Exception):
 @dataclass
 class Services:
     backend: object
-    review: ReviewStub
+    review: Review
+    model_gateway: object = None
 
     async def aclose(self):
-        await self.backend.__aexit__(None, None, None)
+        try:
+            await self.backend.__aexit__(None, None, None)
+        finally:
+            if self.model_gateway:
+                await self.model_gateway.aclose()
 
 
-def build_services(settings, pool=None):
+def build_services(settings, pool=None, *, model: Model | None = None):
+    model_gateway = None
     if os.getenv("STUBS") == "1":
         from api.app.stubs import FixtureServices
 
         backend = FixtureServices()
+        review = ReviewStub()
     else:
+        if model is None and settings.openai_api_key and os.getenv("REVIEW_MODEL"):
+            from api.app.providers.http import Gateway, Policy
+
+            model_gateway = Gateway({"review": Policy("https://api.openai.com", 4, 1, 3)})
+            model = JSONGatewayModel(
+                model_gateway,
+                provider="review",
+                model_id=os.environ["REVIEW_MODEL"],
+                family="openai",
+                api_key=settings.openai_api_key.get_secret_value(),
+                max_input_chars=100_000,
+            )
         backend = build_backend(settings, pool=pool)
-    return Services(backend, ReviewStub())
+        review = ReviewPanel(model)
+    return Services(backend, review, model_gateway)
 
 
 def fallback(kind, row_id, reason):
@@ -208,30 +230,37 @@ class Pipeline:
         if paper.status == "NEEDS_REVIEW" and not paper.sentences:
             return paper.needs_review_reason or "PDF parsing failed"
         await self.emit("paper", paper)
+        review = self.services.review
+        if isinstance(review, ReviewPanel):
+            review = ReviewPanel(
+                review.model, report=self.report, on_review=lambda c: self.emit("review", c)
+            )
         async with asyncio.TaskGroup() as tasks:
-            tasks.create_task(self.scan(data))
+            scan = tasks.create_task(self.scan(data))
             graph = tasks.create_task(self.graph())
             prep = tasks.create_task(
                 self.call(
                     "review_prep",
                     "review_summary",
                     paper.id,
-                    lambda: self.services.review.prepare(paper),
+                    lambda: review.prepare(paper),
                     ReviewSummary,
                 )
             )
             await asyncio.gather(*(self.reference(reference) for reference in paper.references))
             await self.fill_rows("Citation reference is missing")
             await prep
+            await scan
             self.report.review = await self.call(
                 "run_review_panel",
                 "review_summary",
                 paper.id,
-                lambda: self.services.review.run_review_panel(paper, self.report.support),
+                lambda: review.run_review_panel(paper, self.report.support),
                 ReviewSummary,
             )
-            for comment in self.report.review.comments:
-                await self.emit("review", comment)
+            if not isinstance(review, ReviewPanel):
+                for comment in self.report.review.comments:
+                    await self.emit("review", comment)
             await self.emit("review_summary", self.report.review)
             await graph
             await self.stage("claim_map", "STARTED")
