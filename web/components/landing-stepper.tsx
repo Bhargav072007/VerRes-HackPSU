@@ -25,35 +25,35 @@ function Swap({ on, t, from, to, tone }: { on: boolean; t: Transition; from: str
 }
 
 function Parse(p: Play) {
-  return <ol className="demo-lines">{demo.parse.map((l, i) => <motion.li key={l.line} initial={false} animate={p.play ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }} transition={at(p, i * .09)}><span className="demo-line-number">{String(l.line).padStart(2, "0")}</span>{l.text}</motion.li>)}</ol>;
+  return <ol className="demo-lines">{demo.parse.map((l, i) => <motion.li key={l.line} initial={false} animate={p.play ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }} transition={at(p, i * .35, .4)}><span className="demo-line-number">{String(l.line).padStart(2, "0")}</span>{l.text}</motion.li>)}</ol>;
 }
 function Resolve(p: Play) {
-  return <ul className="demo-rows">{demo.resolve.map((r, i) => <li key={r.id}><span><strong>{r.byline}</strong><em>{r.title}</em></span><Swap on={p.play} t={at(p, .35 + i * .22, .16)} from="CHECKING" to={r.label} tone={r.tone} /></li>)}</ul>;
+  return <ul className="demo-rows">{demo.resolve.map((r, i) => <li key={r.id}><span><strong>{r.byline}</strong><em>{r.title}</em></span><Swap on={p.play} t={at(p, .5 + i * .35, .2)} from="CHECKING" to={r.label} tone={r.tone} /></li>)}</ul>;
 }
 function Retraction(p: Play) {
-  return <ul className="demo-rows">{demo.retraction.map((r, i) => <li key={r.id}><span><strong>{r.byline}</strong><em>{r.title}</em>{r.notice && <motion.a href={r.notice} target="_blank" rel="noreferrer" className="demo-notice" initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, .7)}>Retraction notice ↗</motion.a>}</span>
-    {r.retracted ? <motion.span className="demo-stamp" initial={false} animate={p.play ? { opacity: 1, scale: 1, rotate: -3 } : { opacity: 0, scale: 1.4, rotate: -8 }} transition={at(p, .45, .2)}>Retracted{r.year ? ` ${r.year}` : ""}</motion.span>
-      : <motion.span className="status-pill sage" initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, .2 + i * .12)}>No retraction found</motion.span>}</li>)}</ul>;
+  return <ul className="demo-rows">{demo.retraction.map((r, i) => <li key={r.id}><span><strong>{r.byline}</strong><em>{r.title}</em>{r.notice && <motion.a href={r.notice} target="_blank" rel="noreferrer" className="demo-notice" initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, 1.5, .3)}>Retraction notice ↗</motion.a>}</span>
+    {r.retracted ? <motion.span className="demo-stamp" initial={false} animate={p.play ? { opacity: 1, scale: 1, rotate: -3 } : { opacity: 0, scale: 1.4, rotate: -8 }} transition={at(p, 1, .25)}>Retracted{r.year ? ` ${r.year}` : ""}</motion.span>
+      : <motion.span className="status-pill sage" initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, .3 + i * .3, .3)}>No retraction found</motion.span>}</li>)}</ul>;
 }
 function Sources(p: Play) {
   const loaded = { opacity: p.play ? 1 : 0 };
   return <figure className="demo-source"><figcaption><span className="source-identifier">{demo.source.identifier}</span><span>{demo.source.level}</span></figcaption>
     <div className="demo-source-body">
-      <motion.blockquote initial={false} animate={loaded} transition={at(p, 1.25, .3)}>{demo.source.passage ?? "Source text is unavailable. Needs review."}</motion.blockquote>
-      <motion.div aria-hidden className="demo-skeleton" initial={false} animate={{ opacity: p.play ? 0 : 1 }} transition={at(p, 1.2, .2)}>{[92, 100, 84, 96, 60].map((w, i) => <span key={i} style={{ width: `${w}%` }}>{!p.reduced && <motion.i initial={{ x: "-100%" }} animate={p.play ? { x: "100%" } : { x: "-100%" }} transition={p.play ? { duration: .6, repeat: 1, ease: "linear" } : { duration: 0 }} />}</span>)}</motion.div>
+      <motion.blockquote initial={false} animate={loaded} transition={at(p, 2.1, .4)}>{demo.source.passage ?? "Source text is unavailable. Needs review."}</motion.blockquote>
+      <motion.div aria-hidden className="demo-skeleton" initial={false} animate={{ opacity: p.play ? 0 : 1 }} transition={at(p, 2, .25)}>{[92, 100, 84, 96, 60].map((w, i) => <span key={i} style={{ width: `${w}%` }}>{!p.reduced && <motion.i initial={{ x: "-100%" }} animate={p.play ? { x: "100%" } : { x: "-100%" }} transition={p.play ? { duration: .8, repeat: 2, ease: "linear" } : { duration: 0 }} />}</span>)}</motion.div>
     </div></figure>;
 }
 function Verify(p: Play) {
   const [glyph, label] = [demo.verify.verdict === "PARTIALLY_SUPPORTED" ? "◐" : demo.verify.verdict === "SUPPORTED" ? "✓" : "?", verdicts[demo.verify.verdict][0]];
-  return <div className="demo-verify"><p className="demo-claim"><span>{demo.verify.claim}</span><motion.span aria-hidden className="demo-claim-sweep" initial={false} animate={{ clipPath: p.play ? "inset(0 0% 0 0)" : "inset(0 100% 0 0)" }} transition={at(p, .1, .5)}>{demo.verify.claim}</motion.span></p>
-    <motion.blockquote initial={false} animate={p.play ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }} transition={at(p, .75)}>“{demo.verify.quote ?? "No verified source quote available."}”</motion.blockquote>
-    <motion.span className="hero-chip brass" initial={false} animate={chipIn(p.play)} transition={at(p, 1, .16)}><span aria-hidden>{glyph}</span> {label}</motion.span></div>;
+  return <div className="demo-verify"><p className="demo-claim"><span>{demo.verify.claim}</span><motion.span aria-hidden className="demo-claim-sweep" initial={false} animate={{ clipPath: p.play ? "inset(0 0% 0 0)" : "inset(0 100% 0 0)" }} transition={at(p, .2, .9)}>{demo.verify.claim}</motion.span></p>
+    <motion.blockquote initial={false} animate={p.play ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }} transition={at(p, 1.3, .4)}>“{demo.verify.quote ?? "No verified source quote available."}”</motion.blockquote>
+    <motion.span className="hero-chip brass" initial={false} animate={chipIn(p.play)} transition={at(p, 1.9, .16)}><span aria-hidden>{glyph}</span> {label}</motion.span></div>;
 }
 function Review(p: Play) {
   const words = (demo.review.areaChair ?? "Area chair summary unavailable.").split(" ");
-  return <div className="demo-review"><ul>{demo.review.panel.map((r, i) => <motion.li key={r.id} className="hero-chip blue" initial={false} animate={chipIn(p.play)} transition={at(p, .1 + i * .09, .16)}><strong>{r.id}</strong> {r.name} · {r.major} major{r.minor ? ` · ${r.minor} minor` : ""}</motion.li>)}</ul>
+  return <div className="demo-review"><ul>{demo.review.panel.map((r, i) => <motion.li key={r.id} className="hero-chip blue" initial={false} animate={chipIn(p.play)} transition={at(p, .2 + i * .25, .16)}><strong>{r.id}</strong> {r.name} · {r.major} major{r.minor ? ` · ${r.minor} minor` : ""}</motion.li>)}</ul>
     <p className="demo-ac-label">Area chair · top priority</p>
-    <p className="demo-ac"><span className="sr-only">{words.join(" ")}</span>{words.map((w, i) => <motion.span key={i} aria-hidden initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, .45 + i * .035, .08)}>{w} </motion.span>)}{!p.reduced && p.play && <motion.span aria-hidden className="demo-caret" initial={{ opacity: 1 }} animate={{ opacity: [1, 0, 1] }} transition={{ duration: .9, repeat: 3, delay: .45 + words.length * .035 }} />}</p></div>;
+    <p className="demo-ac"><span className="sr-only">{words.join(" ")}</span>{words.map((w, i) => <motion.span key={i} aria-hidden initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, .9 + i * .06, .1)}>{w} </motion.span>)}{!p.reduced && p.play && <motion.span aria-hidden className="demo-caret" initial={{ opacity: 1 }} animate={{ opacity: [1, 0, 1] }} transition={{ duration: .9, repeat: 3, delay: .9 + words.length * .06 }} />}</p></div>;
 }
 const demos = [Parse, Resolve, Retraction, Sources, Verify, Review];
 
