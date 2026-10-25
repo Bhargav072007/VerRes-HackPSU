@@ -52,7 +52,7 @@ for (const how of ["os", "reader"] as const) test(`D16 reduced motion (${how}) s
   await page.locator("[data-stage-card='5']").scrollIntoViewIfNeeded();
   await expect(page.locator("[data-stage-card='5'] .hero-chip")).toHaveCSS("opacity", "1");
   await expect(page.locator(".blur-reveal")).toHaveCSS("filter", "none");
-  await expect(page.locator(".phone-rise")).toHaveCSS("transform", "none");
+  await expect(page.locator(".phone-focus")).toHaveCSS("filter", "none");
 });
 
 test("D16 sticky nav, stepper rail, blur, cl-flash and dot matrix", async ({ page }) => {
