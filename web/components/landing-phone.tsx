@@ -16,7 +16,7 @@ export function LandingPhone() {
  return <section ref={section} id="anywhere" className="phone-moment section-container" aria-labelledby="phone-title">
   <div className="phone-copy"><h2 id="phone-title" className="editorial-title">The same evidence, <strong>wherever you read.</strong></h2><p>A reference can exist without supporting the sentence that cites it. Inspect the claim beside the passage, then follow its source.</p></div>
   <motion.div className="phone-focus" style={{ y, scale, opacity, filter }}>
-   <MockupImage scene="iphone-report" reveal={false} sizes="(max-width: 700px) 90vw, 50vw" alt="The BERT finding and its inline reviewer note in a VerRes report on a phone, over an open journal" />
+   <MockupImage scene="iphone-report" reveal={false} sizes="(max-width: 700px) 90vw, 50vw" alt="The BERT finding and its inline reviewer note in a VerRes report, on a phone held over a desk" />
   </motion.div>
  </section>;
 }
