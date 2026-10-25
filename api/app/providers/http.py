@@ -183,7 +183,12 @@ class Gateway:
                 result = await self._request(provider, url, method, ttl, timeout, **kwargs)
                 if result.status == 200 and not result.cached and not result.error:
                     try:
-                        cost = result.json()["meta"]["cost_usd"]
+                        payload = result.json()
+                        if "meta" not in payload or "cost_usd" not in payload.get("meta", {}):
+                            # Single-work lookups carry no meta; count a conservative estimate.
+                            self.spent_usd += 0.0002
+                            return result
+                        cost = payload["meta"]["cost_usd"]
                         if isinstance(cost, bool) or not isinstance(cost, int | float):
                             raise ValueError("invalid cost")
                         if not math.isfinite(cost) or cost < 0:
