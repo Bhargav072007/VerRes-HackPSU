@@ -291,7 +291,7 @@ html[data-reader-theme=dark] .verdict-chip{background:#F3EBDD}html[data-reader-t
 .paper-slot-number{flex:none;width:4ch;white-space:nowrap;font:14px/1.35 var(--font-mono);color:var(--stone)}.paper-slot-body{display:grid;flex:1;min-width:0}.paper-slot-body>*{grid-area:1/1}
 .paper-slot-empty{align-self:center;height:1px;border-top:1px dashed var(--border-strong)}.paper-slot-fill{position:relative;display:grid;gap:2px;padding-left:10px}.paper-slot-bar{position:absolute;left:0;top:1px;bottom:1px;width:3px;transform-origin:top}
 .paper-slot-ref{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.paper-slot-ref em{color:var(--stone)}
-.hero-tally{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px;position:relative;z-index:2}.hero-tally li{padding:5px 11px;border:1px solid;border-radius:999px;background:var(--surface);font:500 14px/1.2 var(--font-inter)}
+.hero-tally{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:24px}.hero-tally li{white-space:nowrap;padding:5px 11px;border:1px solid;border-radius:999px;background:var(--surface);font:500 14px/1.2 var(--font-inter)}
 .hero-scroll-caption{font:14px/1.4 var(--font-mono);color:var(--stone);margin-top:10px}
 @media(min-width:900px){
  .hero-scene{position:relative;height:220vh}.hero-stage{position:sticky;top:0;height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;justify-items:center;overflow:hidden;padding:clamp(18px,3.5vh,40px) 24px 16px}
@@ -302,9 +302,9 @@ html[data-reader-theme=dark] .verdict-chip{background:#F3EBDD}html[data-reader-t
 @media(max-width:899px){
  .hero-stage{width:calc(100% - 40px);margin:auto;padding:50px 0 48px}.hero-paper-slot{margin-top:32px}.hero-paper{padding:20px 18px;transform:none!important}.paper-references{grid-template-columns:1fr;grid-auto-flow:row;grid-template-rows:none}.hero-tally{justify-content:flex-start}.hero-scroll-caption{display:none}
 }
-@media(prefers-reduced-motion:reduce) and (min-width:900px){.hero-card-flight{opacity:0!important}.hero-paper{transform:none!important}}
+@media(prefers-reduced-motion:reduce) and (min-width:900px){.hero-card-flight{opacity:0!important}.hero-paper{transform:scale(var(--fit,1))!important}}
 @media(prefers-reduced-motion:reduce){.paper-slot-fill,.paper-slot-verdict,.hero-tally{opacity:1!important;transform:none!important}.paper-slot-bar{transform:none!important}.paper-slot-empty{opacity:0!important}}
-@media(min-width:900px){html[data-a11y-motion=reduce] .hero-card-flight{opacity:0!important}html[data-a11y-motion=reduce] .hero-paper{transform:none!important}}html[data-a11y-motion=reduce] :is(.paper-slot-fill,.paper-slot-verdict,.hero-tally){opacity:1!important;transform:none!important}html[data-a11y-motion=reduce] .paper-slot-bar{transform:none!important}html[data-a11y-motion=reduce] .paper-slot-empty{opacity:0!important}
+@media(min-width:900px){html[data-a11y-motion=reduce] .hero-card-flight{opacity:0!important}html[data-a11y-motion=reduce] .hero-paper{transform:scale(var(--fit,1))!important}}html[data-a11y-motion=reduce] :is(.paper-slot-fill,.paper-slot-verdict,.hero-tally){opacity:1!important;transform:none!important}html[data-a11y-motion=reduce] .paper-slot-bar{transform:none!important}html[data-a11y-motion=reduce] .paper-slot-empty{opacity:0!important}
 .sticky-nav{position:fixed;inset:0 0 auto;z-index:40;background:var(--surface);border-bottom:1px solid var(--hairline);will-change:transform}.sticky-nav-inner{display:flex;align-items:center;gap:28px;max-width:1280px;margin:auto;padding:10px 40px;font-size:14px}.sticky-nav .brand{font-size:20px}.sticky-nav .brand-mark{width:24px;height:24px}
 .sticky-nav-label{position:relative;display:inline-flex;overflow:hidden;min-width:13ch;font:14px/1.4 var(--font-mono);color:var(--stone);white-space:nowrap}.sticky-nav-label>span{display:block}
 .sticky-nav nav{display:flex;gap:24px;margin-left:auto}.sticky-nav nav a{color:var(--stone);transition:color .14s ease-out}.sticky-nav nav a[aria-current]{color:var(--ink)}.sticky-nav .pill-button{min-height:40px;padding:8px 18px;font-size:14px}

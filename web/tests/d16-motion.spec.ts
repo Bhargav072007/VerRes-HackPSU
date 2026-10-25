@@ -27,7 +27,7 @@ test("D16 desktop hero: one pinned scene at most 220vh, cards fly in and land as
   await heroAt(page, 1);
   await expect.poll(() => page.locator(".paper-slot-fill").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
   await expect.poll(() => page.locator(".hero-card-flight").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "0"))).toBe(true);
-  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(([\d.]+), 0, 0, \2, 0, 0\))$/);
 });
 
 test("D16 mobile hero does not pin; chips pop once in view", async ({ page }) => {
@@ -45,7 +45,7 @@ for (const how of ["os", "reader"] as const) test(`D16 reduced motion (${how}) s
   if (how === "os") await page.emulateMedia({ reducedMotion: "reduce" }); else await page.evaluate(() => { document.documentElement.dataset.a11yMotion = "reduce"; });
   expect(await page.locator(".hero-scene").evaluate(n => (n as HTMLElement).offsetHeight)).toBe(layout);
   await heroAt(page, 0);
-  await expect(page.locator(".hero-paper")).toHaveCSS("transform", "none");
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(([\d.]+), 0, 0, \2, 0, 0\))$/);
   await expect.poll(() => page.locator(".paper-slot-fill").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
   await expect.poll(() => page.locator(".hero-card-flight").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "0"))).toBe(true);
   await page.locator("[data-stage-card='5']").scrollIntoViewIfNeeded();

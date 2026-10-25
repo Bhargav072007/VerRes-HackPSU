@@ -94,7 +94,7 @@ test("reduced motion shows every word immediately and disables CSS animations", 
     await expect(word).toHaveCSS("transform", "none");
   }
   await page.getByRole("button", { name: /Choose PDF/ }).hover();
-  await expect(page.locator(".hero-paper")).toHaveCSS("transform", "none");
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(([\d.]+), 0, 0, \2, 0, 0\))$/);
   await page.screenshot({
     path: testInfo.outputPath("reduced-motion.png"),
     fullPage: true,

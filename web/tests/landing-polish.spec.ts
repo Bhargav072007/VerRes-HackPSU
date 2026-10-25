@@ -57,7 +57,7 @@ test("D9 flags uncertain results, preserves receipts and honors the in-app motio
   await expect(page.locator("[data-reference-id=ref-1]")).toContainText("Not found in Crossref, OpenAlex or arXiv");
   await page.goto("/");
   await page.evaluate(() => { document.documentElement.dataset.a11yMotion = "reduce"; });
-  await expect(page.locator(".hero-paper")).toHaveCSS("transform", "none");
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(([\d.]+), 0, 0, \2, 0, 0\))$/);
 
 });
 

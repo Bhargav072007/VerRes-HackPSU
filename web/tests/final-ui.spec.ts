@@ -88,7 +88,7 @@ for (const width of [1440, 390]) test(`D14 reader preferences persist, themes co
   }
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-reader-theme", "light");
-  await expect(page.locator(".hero-paper")).toHaveCSS("transform", "none");
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(([\d.]+), 0, 0, \2, 0, 0\))$/);
   await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
   expect(errors).toEqual([]);
 });

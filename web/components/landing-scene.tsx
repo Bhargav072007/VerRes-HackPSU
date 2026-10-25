@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion, useInView, useMotionValueEvent, useScroll, useTransform, type MotionValue } from "motion/react";
+import { motion, type MotionStyle, useInView, useMotionValueEvent, useScroll, useTransform, type MotionValue } from "motion/react";
 import { Ban, CircleCheck, CircleDashed, CircleHelp, CircleX, Link2Off, SearchX, type LucideIcon } from "lucide-react";
 import { countWord, findingStyles, heroCards, heroPaper, heroTally, type HeroChip } from "@/lib/landing-data";
 import { useMediaQuery, useSceneReducedMotion } from "./landing-chrome";
@@ -53,7 +53,7 @@ function HeroCard({ index, progress, target, reduced }: { index: number; progres
 // A numbered reference slot on the paper: empty rule until its card lands, then the reference with its finding.
 function PaperSlot({ index, filled, reduced, delay }: { index: number; filled: boolean; reduced: boolean; delay: number }) {
   const card = heroCards[index], style = findingStyles[card.chip], quick = reduced ? { duration: 0 } : null;
-  return <li className="paper-slot" data-slot={index + 1} data-filled={filled} data-chip={card.chip}>
+  return <li className="paper-slot hero-slot" data-slot={index + 1} data-filled={filled} data-chip={card.chip}>
     <span className="paper-slot-number">[{index + 1}]</span>
     <span className="paper-slot-body">
       <motion.span aria-hidden className="paper-slot-empty" initial={false} animate={{ opacity: filled ? 0 : 1 }} transition={quick ?? { duration: .12, delay }} />
@@ -71,8 +71,10 @@ export function LandingScene() {
   const reduced = useSceneReducedMotion(), pinned = !useMediaQuery("(max-width: 899px)");
   const { scrollYProgress } = useScroll({ target: scene, offset: ["start start", "end end"] });
   const progress = useTransform(scrollYProgress, p => reduced ? 1 : p);
-  const paperY = useTransform(progress, [0, RISE_END], ["34%", "0%"]), paperScale = useTransform(progress, [0, RISE_END], [.94, 1]);
   const [targets, setTargets] = useState<Target[]>([]);
+  // `fit` shrinks the paper (transform only) so the whole page, tally included, fits the stage at any desktop height.
+  const [fit, setFit] = useState(1);
+  const paperY = useTransform(progress, [0, RISE_END], ["34%", "0%"]), paperScale = useTransform(progress, p => fit * (.94 + .06 * clamp01(p / RISE_END)));
   const [landed, setLanded] = useState(0);
   const listSeen = useInView(list, { once: true, amount: .4 });
   useMotionValueEvent(progress, "change", p => setLanded(landedBy(p)));
@@ -84,12 +86,15 @@ export function LandingScene() {
       // Slots are measured with offsets (transform-free) against the untransformed paper slot.
       const origin = paperSlot.current.getBoundingClientRect();
       const cards = [...stage.current.querySelectorAll<HTMLElement>(".hero-card-slot")];
-      if (!cards.length) return; // Mobile shows no flying cards.
+      if (!cards.length) { setFit(1); return; } // Mobile shows no flying cards and does not scale the paper.
+      const page = paper.current, f = Math.min(1, paperSlot.current.clientHeight / page.offsetHeight), mid = page.offsetLeft + page.offsetWidth / 2;
+      setFit(f);
       setTargets([...paper.current.querySelectorAll<HTMLElement>(".paper-slot")].map((slot, i) => {
         let x = slot.offsetLeft, y = slot.offsetTop;
         for (let n = slot.offsetParent as HTMLElement | null; n && n !== paper.current && paper.current!.contains(n); n = n.offsetParent as HTMLElement | null) { x += n.offsetLeft; y += n.offsetTop; }
         const r = cards[i].getBoundingClientRect();
-        return { dx: origin.left + paper.current!.offsetLeft + x + slot.offsetWidth / 2 - (r.left + r.width / 2), dy: origin.top + paper.current!.offsetTop + y + slot.offsetHeight / 2 - (r.top + r.height / 2), scale: Math.min(1.4, slot.offsetWidth / cards[i].offsetWidth) };
+        // The paper scales by `f` from its top centre.
+        return { dx: origin.left + mid + (x + slot.offsetWidth / 2 - page.offsetWidth / 2) * f - (r.left + r.width / 2), dy: origin.top + page.offsetTop + (y + slot.offsetHeight / 2) * f - (r.top + r.height / 2), scale: Math.min(1.4, slot.offsetWidth * f / cards[i].offsetWidth) };
       }));
     };
     const observer = new ResizeObserver(measure);
@@ -108,17 +113,17 @@ export function LandingScene() {
       </div>
       {pinned && <ul className="hero-cards" aria-hidden>{heroCards.map((card, i) => <HeroCard key={card.id} index={i} progress={progress} target={targets[i]} reduced={reduced} />)}</ul>}
       <div ref={paperSlot} className="hero-paper-slot">
-        <motion.div ref={paper} className="hero-paper" style={pinned ? { y: paperY, scale: paperScale } : undefined}>
+        <motion.div ref={paper} className="hero-paper" style={pinned ? { y: paperY, scale: paperScale, "--fit": fit } as MotionStyle : undefined}>
           <p className="paper-title">{heroPaper.title}</p>
           <p className="paper-byline">{heroPaper.byline}</p>
           <p className="paper-abstract"><span>Abstract.</span> {heroPaper.abstract.join(" ")}</p>
           <p className="paper-references-heading">References</p>
           <ol ref={list} className="paper-references" aria-label="References with their findings">{heroCards.map((card, i) => <PaperSlot key={card.id} index={i} filled={isFilled(i)} reduced={reduced} delay={pinned ? 0 : i * .12} />)}</ol>
-        </motion.div>
-      </div>
-      <motion.ul className="hero-tally" aria-label="Findings across the eight references" initial={false} animate={{ opacity: tallyShown ? 1 : 0, y: tallyShown || reduced ? 0 : 6 }} transition={{ duration: reduced ? 0 : .24, delay: pinned || reduced ? 0 : heroCards.length * .12 }}>
+          <motion.ul className="hero-tally" aria-label="Findings across the eight references" initial={false} animate={{ opacity: tallyShown ? 1 : 0, y: tallyShown || reduced ? 0 : 6 }} transition={{ duration: reduced ? 0 : .24, delay: pinned || reduced ? 0 : heroCards.length * .12 }}>
         {heroTally.map(({ chip, count }) => <li key={chip} style={{ color: findingStyles[chip].text, borderColor: findingStyles[chip].color }}>{count} {findingStyles[chip].short}</li>)}
       </motion.ul>
+        </motion.div>
+      </div>
       <p className="hero-scroll-caption" aria-hidden>Scroll. {countWord(heroCards.length)} references, one reviewed page.</p>
     </div>
   </section>;
