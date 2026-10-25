@@ -48,13 +48,25 @@ async def status(request: Request):
             "model_id": model.model_id if model else None,
             "vendor": model.vendor if model else None,
             "family": model.family if model else None,
-            "state": result["providers"]["model"]["state"] if model else "UNCONFIGURED",
+            "state": result["providers"]
+            .get("gemini" if getattr(model, "provider", None) == "gemini" else "model", {})
+            .get("state", "UNCONFIGURED")
+            if model
+            else "UNCONFIGURED",
         }
         for role, model in (
             ("primary", services.primary_model if services else None),
             ("adjudicator", services.adjudicator_model if services else None),
         )
     }
+    if services and services.adjudicator_unconfigured_reason:
+        result["models"]["adjudicator"]["reason"] = services.adjudicator_unconfigured_reason
+    if services and services.model_gateway and "review" in services.model_gateway.policies:
+        result["providers"]["openai"] = dict(result["providers"]["model"])
+    if services and getattr(services.primary_model, "provider", None) == "gemini":
+        result["providers"]["model"] = dict(
+            result["providers"].get("gemini", {"state": "UNCONFIGURED"})
+        )
     try:
         if state.event_bus is None:
             raise OSError()

@@ -24,6 +24,8 @@ DEFAULT_PRICES = {
     "gpt-4.1-mini": [0.40, 1.60],
     "gpt-4.1": [2.00, 8.00],
     "gpt-4.1-nano": [0.10, 0.40],
+    # Google standard paid text rates, checked 2026-10-25; override as rates change.
+    "gemini-3.6-flash": [1.50, 7.50],
 }
 
 
@@ -33,6 +35,7 @@ def provider_group(name):
         "crossref_query": "crossref",
         "arxiv-intake": "arxiv",
         "review": "model",
+        "gemini": "model",
     }.get(name, name)
 
 
@@ -45,13 +48,19 @@ class DemoCircuit(Circuit):
 
 
 class ResilientGateway(Gateway):
-    def __init__(self, *args, jobs=None, **kwargs):
+    def __init__(self, *args, jobs=None, price_overrides=None, **kwargs):
         super().__init__(*args, **kwargs)
-        groups = {provider_group(name): DemoCircuit() for name in self.policies}
-        self.circuits = {name: groups[provider_group(name)] for name in self.policies}
+        groups = {
+            ("gemini" if name == "gemini" else provider_group(name)): DemoCircuit()
+            for name in self.policies
+        }
+        self.circuits = {
+            name: groups["gemini" if name == "gemini" else provider_group(name)]
+            for name in self.policies
+        }
         self.jobs = jobs
         self.accounting_incomplete = False
-        self.model_prices = model_prices()
+        self.model_prices = model_prices(price_overrides)
 
     async def _request(self, provider, url, method, ttl, timeout, **kwargs):  # noqa: ASYNC109
         group = provider_group(provider)
@@ -110,7 +119,7 @@ class ResilientGateway(Gateway):
 
     def breaker_states(self):
         return {
-            provider_group(name): {
+            ("gemini" if name == "gemini" else provider_group(name)): {
                 "state": "OPEN"
                 if circuit.open_until > self.clock()
                 else ("HALF_OPEN" if circuit.open_until else "CLOSED"),
@@ -122,11 +131,11 @@ class ResilientGateway(Gateway):
         }
 
 
-def model_prices():
+def model_prices(value=None):
     """Merge valid per-million price pairs without trusting external configuration."""
     prices = dict(DEFAULT_PRICES)
     try:
-        overrides = json.loads(os.getenv("MODEL_PRICES", "{}"))
+        overrides = json.loads(value if value is not None else os.getenv("MODEL_PRICES", "{}"))
         if not isinstance(overrides, dict):
             raise ValueError("expected a model-price mapping")
         for model, rates in overrides.items():
@@ -151,6 +160,8 @@ def model_cost(payload, *, prices=None, request_model=None):
     try:
         prices = model_prices() if prices is None else prices
         model = payload.get("model") or request_model
+        if isinstance(model, str):
+            model = model.removeprefix("models/")
         matched = next(
             (
                 name
@@ -170,9 +181,10 @@ def model_cost(payload, *, prices=None, request_model=None):
         ):
             return None, True
         # Only the documented GPT-4.1 family gets a 75% cached-input discount.
-        discount = 0.75 if matched in DEFAULT_PRICES else 0
+        discount = 0.75 if matched in {"gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"} else 0
         cost = ((prompt - cached * discount) * rates[0] + completion * rates[1]) / 1_000_000
-        return (cost, matched is None) if math.isfinite(cost) else (None, True)
+        estimated = matched is None or isinstance(model, str) and model.startswith("gemini-")
+        return (cost, estimated) if math.isfinite(cost) else (None, True)
     except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
         return None, True
 

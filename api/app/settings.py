@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     model_primary: str | None = None
     model_adjudicator: str | None = None
     review_model: str | None = None
+    model_prices: str | None = None
     gemini_api_key: SecretStr | None = None
     openalex_api_key: SecretStr | None = None
     crossref_mailto: str | None = None

@@ -129,6 +129,7 @@ class JSONGatewayModel:
         max_input_chars: int,
         path="/v1/chat/completions",
         vendor: str | None = None,
+        temperature: float | None = 0,
     ):
         if not model_id or not family or not api_key or max_input_chars <= 0:
             raise ValueError("model identity, family, credentials and context limit are required")
@@ -137,6 +138,7 @@ class JSONGatewayModel:
         self.gateway, self.provider, self.path = gateway, provider, path
         self.model_id, self.family = model_id, family
         self.vendor = vendor
+        self.temperature = temperature
         self.api_key, self.max_input_chars = api_key, max_input_chars
 
     async def complete(self, *, task, system, data, schema) -> str:
@@ -152,7 +154,7 @@ class JSONGatewayModel:
             headers={"Authorization": f"Bearer {self.api_key}"},
             json={
                 "model": self.model_id,
-                "temperature": 0,
+                **({"temperature": self.temperature} if self.temperature is not None else {}),
                 "messages": [
                     {"role": "system", "content": system},
                     {"role": "user", "content": data},

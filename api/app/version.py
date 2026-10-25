@@ -2,5 +2,5 @@
 
 import os
 
-PIPELINE_VERSION = "0.3.0"
+PIPELINE_VERSION = "0.3.1"
 GIT_SHA = os.environ.get("GIT_SHA", "dev")
