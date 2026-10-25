@@ -73,3 +73,16 @@ test("report checks remain honest, warnings never bounce, and reduced motion dis
   await page.goto("/report/incomplete-d10");
   await expect(page.getByLabel("Checks summary").getByText("PASSED", { exact: true })).toHaveCount(1);
 });
+
+test("report and portaled receipts inherit the global publisher tokens", async ({ page }) => {
+  await page.route("**/jobs/shared-tokens", route => route.fulfill({ json: reviewFixture() }));
+  await page.goto("/report/shared-tokens");
+  await expect(page.locator(".report-summary")).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--radius-modal", "24px");
+    document.documentElement.style.setProperty("--brass-tint", "rgb(248, 240, 208)");
+  });
+  await expect(page.locator(".report-summary")).toHaveCSS("border-radius", "24px");
+  await page.locator('[data-citation-id="cite-2"]').click();
+  await expect(page.getByRole("dialog").locator(".matched-span").first()).toHaveCSS("background-color", "rgb(248, 240, 208)");
+});

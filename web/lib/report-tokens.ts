@@ -1,14 +1,8 @@
-// Temporary report scope; names and values match DESIGN_SPEC sections 1–2.
+// Report-only styles consume the publisher tokens defined in app/globals.css.
 export const reportTokens = `
 .report-root,.report-overlay {
- --snow:#f6f6f5;--surface:#ffffff;--ink:#1b1b19;--graphite:#3a3a38;--inkwell:#3a3a38;--stone:#706f6c;--muted:#ececea;--fog:#9c9b98;--cloud:#ececea;
- --hairline:rgba(0,0,0,.08);--border:var(--hairline);--border-strong:rgba(0,0,0,.12);--divider:rgba(0,0,0,.06);
- --brass:#c49a3c;--brass-text:#8a6b25;--brass-tint:#fbf5e6;--sage:#7a9b87;--sage-text:#4e6b5c;--sage-tint:#edf4f0;--red:#b42318;--red-tint:#fef3f2;--blue-ink:#46677a;--blue-tint:#ebf2f6;
+ --muted:var(--cloud);--border:var(--hairline);
  --verdict-SUPPORTED:var(--sage-text);--verdict-VERIFIED:var(--sage-text);--verdict-NONE:var(--sage-text);--verdict-PARTIALLY_SUPPORTED:var(--brass-text);--verdict-NEEDS_REVIEW:var(--blue-ink);
- --radius-button:12px;--radius-input:10px;--radius-card:16px;--radius-modal:20px;--radius-pill:9999px;
- --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-6:24px;--space-8:32px;--space-12:48px;
- --shadow-1:0 8px 24px #1b1b1912,0 1px 2px #1b1b190a;--shadow-2:0 18px 48px #1b1b1914,0 2px 8px #1b1b190a;--shadow-3:0 26px 80px #1b1b191a,0 4px 14px #1b1b190d;
- --motion-fast:.14s;--motion-base:.22s;--motion-slow:.36s;--ease-standard:cubic-bezier(.2,0,0,1);--ease-out-soft:cubic-bezier(.2,.7,.2,1);
  --foreground:var(--ink);--muted-foreground:#686762;--background:var(--snow);--primary:var(--graphite);--secondary:var(--cloud);--card:var(--surface);color:var(--ink);
 }
 .report-root {max-width:1280px!important;--reader-ink:var(--ink)}
@@ -46,9 +40,6 @@ export const reportTokens = `
 .report-root .react-flow__attribution a {color:var(--muted-foreground)}
 .report-root .report-graph [data-id] {transition:opacity var(--motion-fast)}
 .report-root .report-graph .react-flow__minimap {border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-1)}
-@keyframes settle {from {opacity:0;transform:scale(.985)}to {opacity:1;transform:none}}
-@keyframes msg-in {from {opacity:0;transform:translateY(8px)}to {opacity:1;transform:none}}
-@keyframes page-in {from {opacity:0;transform:translateY(6px)}to {opacity:1;transform:none}}
 @keyframes drop-in {from {opacity:0;transform:translateY(-4px) scale(.98)}to {opacity:1;transform:none}}
 @keyframes panel-in {from {opacity:0;transform:translateX(16px)}to {opacity:1;transform:none}}
 @keyframes panel-out {to {opacity:0;transform:translateX(16px)}}
