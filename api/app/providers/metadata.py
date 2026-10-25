@@ -13,6 +13,13 @@ def normalize_doi(value: str | None) -> str | None:
     return value.lower() if re.fullmatch(r"10\.\d{4,9}/\S+", value, re.I) else None
 
 
+def normalize_openalex_id(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(r"(?:https://openalex\.org/)?(W[1-9]\d*)", value.strip(), re.I)
+    return match.group(1).upper() if match else None
+
+
 def first_string(value):
     return value[0] if isinstance(value, list) and value and isinstance(value[0], str) else None
 
@@ -54,7 +61,7 @@ def openalex_work(item: dict) -> Work:
         year=item.get("publication_year"),
         venue=source.get("display_name"),
         oa_url=location.get("pdf_url"),
-        is_retracted=item.get("is_retracted"),
+        is_retracted=item.get("is_retracted") if type(item.get("is_retracted")) is bool else None,
         abstract_inverted_index=item.get("abstract_inverted_index"),
         abstract_origin="openalex" if item.get("abstract_inverted_index") else None,
     )
@@ -121,9 +128,10 @@ class OpenAlex:
 
     async def lookup(self, doi: str) -> ProviderResult:
         value = normalize_doi(doi)
-        if not value:
-            return ProviderResult(provider="openalex", definitive=False, reason="invalid DOI")
-        return await self._get("/works/" + quote("https://doi.org/" + value, safe=""), {}, True)
+        identifier = "https://doi.org/" + value if value else normalize_openalex_id(doi)
+        if not identifier:
+            return ProviderResult(provider="openalex", definitive=False, reason="invalid work ID")
+        return await self._get("/works/" + quote(identifier, safe=""), {}, True)
 
     async def search(self, title: str) -> ProviderResult:
         return await self._get("/works", {"search": title, "per-page": 5})
