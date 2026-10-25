@@ -11,14 +11,18 @@ import { citationVerdict, loadReport, matchesFilter, referenceVerdict, reportCou
 import { verdicts, VerdictBadge } from "@/components/verdict-badge";
 import { EvidencePanel } from "@/components/evidence-panel";
 import { getFlag, subscribeFlag, updateFlag } from "@/lib/evidence";
+import { PeerReview } from "./peer-review";
+import { applyReviewEvent, reviewState } from "@/lib/review";
+import { decodeEvent } from "@/lib/job-stream";
 
 const counters = ["References", "Not found", "DOI mismatch", "Retracted", "Overstated", "Needs review"];
-const tabs = ["Report", "Claim graph", "Peer review", "Integrity"];
+const tabs = ["Report", "Peer review", "Claim graph", "Integrity"];
 const filters: Filter[] = ["All", "Problems only", "Needs review"];
 
 export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidence?: (citationId: string) => void }) {
   const [report, setReport] = useState<Report | null>(null), [loading, setLoading] = useState(true), [attempt, setAttempt] = useState(0);
-  const [filter, setFilter] = useState<Filter>("All"), [tab, setTab] = useState("Report"), [selected, setSelected] = useState("");
+  const [filter, setFilter] = useState<Filter>("All"), [view, setTab] = useState("Report"), [selected, setSelected] = useState("");
+  const [located, setLocated] = useState("");
   const reader = useRef<HTMLDivElement>(null), sources = useRef<HTMLDivElement>(null), reduced = useReducedMotion();
   const flag = useSyncExternalStore(subscribeFlag, getFlag, () => "");
   const paper = report?.paper, citations = paper?.citations ?? [], references = paper?.references ?? [];
@@ -26,19 +30,46 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
   const sentences = (paper?.sentences ?? []).filter(s => filter === "All" || visibleCitations.some(c => c.sentence_ids?.includes(s.id)));
   const sections = Array.from(new Set(sentences.map(s => s.section || "Paper text")));
   const counts = report ? reportCounts(report) : counters.map(() => 0);
+  const peerAvailable = loading || !!report && reviewState(report).present;
+  const tab = view === "Peer review" && !peerAvailable ? "Report" : view;
 
   useEffect(() => {
     const abort = new AbortController();
+    let stream: EventSource | undefined;
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       const data = await loadReport(id, abort.signal);
       if (abort.signal.aborted) return;
       setReport(data); setLoading(false);
-      if (data?.status === "RUNNING" || data?.status === "QUEUED") timer = setTimeout(refresh, 2000);
+      if (data?.status === "RUNNING" || data?.status === "QUEUED") {
+        if (!stream && process.env.NEXT_PUBLIC_MOCK !== "1") {
+          const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+          stream = new EventSource(`${base}/jobs/${encodeURIComponent(id)}/events`);
+          for (const type of ["review", "review_summary", "hidden_text", "stage", "done"]) stream.addEventListener(type, message => {
+            if (!(message instanceof MessageEvent)) return;
+            try {
+              const event = decodeEvent({ type, seq: Number(message.lastEventId), payload: JSON.parse(message.data) });
+              if (event) setReport(current => current ? applyReviewEvent(current, event) : current);
+              if (event?.type === "done") { stream?.close(); clearTimeout(timer); void refresh(); }
+            } catch { /* Polling recovers unreadable events without blocking the report. */ }
+          });
+        }
+        timer = setTimeout(refresh, 2000);
+      } else stream?.close();
     }
     void refresh();
-    return () => { abort.abort(); clearTimeout(timer); };
+    return () => { abort.abort(); stream?.close(); clearTimeout(timer); };
   }, [id, attempt]);
+
+  useEffect(() => {
+    if (tab !== "Report" || !located) return;
+    const frame = requestAnimationFrame(() => {
+      const row = document.getElementById(located);
+      row?.focus({ preventScroll: true });
+      row?.scrollIntoView({ block: "center", behavior: reduced ? "instant" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [tab, located, reduced]);
 
   useEffect(() => {
     if (tab !== "Report") return;
@@ -87,7 +118,7 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
       <dl className="grid grid-cols-3 border-t md:grid-cols-6">{counters.map((label, i) => <div key={label} className="border-r px-4 py-5 last:border-r-0 md:px-6"><dd aria-label={`${counts[i]} ${label.toLowerCase()}`} className="text-2xl font-medium tabular-nums"><NumberFlow aria-hidden value={counts[i]} animated={!reduced} transformTiming={{ duration: 350, easing: "ease-out" }} spinTiming={{ duration: 350, easing: "ease-out" }} opacityTiming={{ duration: 180, easing: "ease-out" }} /></dd><dt className="mt-1 text-[10px] text-muted-foreground">{label}</dt></div>)}</dl>
     </section>
     <Tabs value={tab} onValueChange={setTab} className="mt-7 gap-6">
-      <TabsList aria-label="Report views" variant="line" className="w-full justify-start gap-1 border-b pb-3 sm:gap-5">{tabs.map(name => <TabsTrigger key={name} value={name} className="flex-none px-1 text-xs sm:px-2 sm:text-sm">{name}</TabsTrigger>)}</TabsList>
+      <TabsList aria-label="Report views" variant="line" className="w-full justify-start gap-1 border-b pb-3 sm:gap-5">{tabs.filter(name => name !== "Peer review" || peerAvailable).map(name => <TabsTrigger key={name} value={name} className="flex-none px-1 text-xs sm:px-2 sm:text-sm">{name}</TabsTrigger>)}</TabsList>
       <TabsContent value="Report">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div role="group" aria-label="Filter findings" className="flex rounded-lg border bg-white p-1">{filters.map(name => <button key={name} type="button" aria-pressed={filter === name} onClick={() => setFilter(name)} className={`rounded-md px-3 py-2 text-[11px] ${filter === name ? "bg-secondary font-medium" : "text-muted-foreground"}`}>{name}</button>)}</div><p className="text-[10px] text-muted-foreground"><kbd>j</kbd> / <kbd>k</kbd> flags · <kbd>Enter</kbd> evidence</p></div>
         {loading && <p role="status" className="rounded-xl border bg-white p-8 text-sm">Loading your report…</p>}
@@ -100,10 +131,10 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
               {sections.map(section => <section key={section} className="mb-8 last:mb-0"><h3 className="mb-4 text-[10px] tracking-[.15em] text-muted-foreground uppercase">{section}</h3>{sentences.filter(s => (s.section || "Paper text") === section).map(s => {
                 const markers = visibleCitations.filter(c => c.sentence_ids?.includes(s.id));
                 const underline = markers.some(c => ["NOT_SUPPORTED", "CONTRADICTED"].includes(citationVerdict(report, c)));
-                return <p key={s.id} data-sentence-id={s.id} data-first-reference={markers[0]?.reference_id} className="mb-5 scroll-mt-12 font-serif text-[17px] leading-7 last:mb-0"><span className="relative">{s.text}{underline && <motion.span aria-hidden data-underline className="pointer-events-none absolute inset-x-0 bottom-0 border-b-2" initial={reduced ? false : { scaleX: 0 }} animate={{ scaleX: 1 }} style={{ transformOrigin: "left", borderColor: "#b423184d" }} transition={motionTokens.fade} />}</span>{markers.map(c => {
+                return <p key={s.id} id={`sentence-${s.id}`} tabIndex={-1} data-highlighted={located === `sentence-${s.id}`} data-sentence-id={s.id} data-first-reference={markers[0]?.reference_id} className="mb-5 scroll-mt-12 font-serif text-[17px] leading-7 last:mb-0 data-[highlighted=true]:bg-secondary data-[highlighted=true]:outline"><span className="relative">{s.text}{underline && <motion.span aria-hidden data-underline className="pointer-events-none absolute inset-x-0 bottom-0 border-b-2" initial={reduced ? false : { scaleX: 0 }} animate={{ scaleX: 1 }} style={{ transformOrigin: "left", borderColor: "#b423184d" }} transition={motionTokens.fade} />}</span>{markers.map(c => {
                   const verdict = citationVerdict(report, c), [label, color, Icon] = verdicts[verdict];
                   const number = references.findIndex(r => r.id === c.reference_id) + 1;
-                  return <sup key={c.id} className="ml-1 inline-block font-sans"><button type="button" data-citation-id={c.id} data-flag={verdict !== "SUPPORTED"} aria-label={`Citation ${number}: ${label}. Open evidence`} title={`${label} · Open evidence`} onClick={() => openEvidence(c.id)} onFocus={() => setSelected(c.id)} className="relative inline-flex min-h-6 min-w-7 items-center justify-center gap-0.5 overflow-hidden rounded border px-1 align-middle text-[10px]" style={{ color, borderColor: color }}><motion.span key={verdict} aria-hidden className="absolute inset-0 origin-bottom" style={{ backgroundColor: color, opacity: .1 }} initial={reduced ? false : { scaleY: 0 }} animate={{ scaleY: 1 }} transition={motionTokens.fade} /><Icon size={10} aria-hidden />{number || "?"}</button></sup>;
+                  return <sup key={c.id} className="ml-1 inline-block font-sans"><button type="button" id={`citation-${c.id}`} data-highlighted={located === `citation-${c.id}`} data-citation-id={c.id} data-flag={verdict !== "SUPPORTED"} aria-label={`Citation ${number}: ${label}. Open evidence`} title={`${label} · Open evidence`} onClick={() => openEvidence(c.id)} onFocus={() => setSelected(c.id)} className="relative inline-flex min-h-6 min-w-7 items-center justify-center gap-0.5 overflow-hidden rounded border px-1 align-middle text-[10px] data-[highlighted=true]:ring-2 data-[highlighted=true]:ring-foreground/40" style={{ color, borderColor: color }}><motion.span key={verdict} aria-hidden className="absolute inset-0 origin-bottom" style={{ backgroundColor: color, opacity: .1 }} initial={reduced ? false : { scaleY: 0 }} animate={{ scaleY: 1 }} transition={motionTokens.fade} /><Icon size={10} aria-hidden />{number || "?"}</button></sup>;
                 })}</p>;
               })}</section>)}
             </article>
@@ -125,7 +156,8 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
           <p aria-live="polite" className="sr-only">{selected ? `Evidence selected for ${selected}` : ""}</p>
         </>}
       </TabsContent>
-      {tabs.slice(1).map(name => <TabsContent key={name} value={name} className="rounded-xl border bg-white px-6 py-14 text-center"><FileSearch size={24} className="mx-auto text-muted-foreground" /><h2 className="mt-4 font-serif text-2xl">{name}</h2><p className="mt-2 text-sm text-muted-foreground">This view is coming soon. Citation receipts are available in the Report tab.</p></TabsContent>)}
+      <TabsContent value="Peer review"><PeerReview report={report} onLocate={target => { setFilter("All"); setLocated(target); setTab("Report"); }} /></TabsContent>
+      {tabs.slice(2).map(name => <TabsContent key={name} value={name} className="rounded-xl border bg-white px-6 py-14 text-center"><FileSearch size={24} className="mx-auto text-muted-foreground" /><h2 className="mt-4 font-serif text-2xl">{name}</h2><p className="mt-2 text-sm text-muted-foreground">This view is coming soon. Citation receipts are available in the Report tab.</p></TabsContent>)}
     </Tabs>
     {report && <EvidencePanel report={report} citationId={flag} onClose={() => updateFlag("")} />}
   </main>;
