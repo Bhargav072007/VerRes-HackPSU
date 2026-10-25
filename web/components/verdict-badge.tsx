@@ -8,5 +8,5 @@ export const verdicts = {
 } as const;
 export function VerdictBadge({ status }: { status?: string }) {
   const [label, color, Icon] = status && Object.hasOwn(verdicts, status) ? verdicts[status as keyof typeof verdicts] : verdicts.NEEDS_REVIEW;
-  return <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium" style={{ color }}><Icon size={12} aria-hidden />{label}</span>;
+  return <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium" style={{ color: status === "PARTIALLY_SUPPORTED" ? "var(--foreground)" : color }}><Icon size={12} style={{ color }} aria-hidden />{label}</span>;
 }

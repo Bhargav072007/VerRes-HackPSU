@@ -48,16 +48,29 @@
   --radius-lg: 12px;
   --radius-xl: 12px;
 }
-* {
-  border-color: var(--border);
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 html {
   scroll-behavior: smooth;
 }
 body {
   margin: 0;
+  line-height: 1.6;
   background: var(--background);
   color: var(--foreground);
+}
+main {
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+main :is(h1, h2, h3) {
+  text-wrap: balance;
+}
+input {
+  min-width: 0;
 }
 button,
 a,

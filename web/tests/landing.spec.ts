@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 for (const width of [1440, 390]) {
   test(`landing at ${width}px, validation and samples`, async ({
@@ -79,16 +80,6 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#submission-error")).toHaveText(
       "Please choose a PDF file.",
     );
-    for (const sample of [
-      "Clean paper",
-      "Retracted reference",
-      "Planted problems",
-    ]) {
-      await page.getByRole("button", { name: sample }).click();
-      await expect(page.getByRole("status")).toContainText(
-        "Sample papers will be available soon.",
-      );
-    }
     expect(errors).toEqual([]);
   });
 }
@@ -108,4 +99,39 @@ test("reduced motion shows every word immediately and disables CSS animations", 
     path: testInfo.outputPath("reduced-motion.png"),
     fullPage: true,
   });
+});
+
+for (const [label, filename] of [
+  ["Attention Is All You Need", "paper1_attention.pdf"],
+  ["Cites a retracted paper", "paper2_retracted_reference.pdf"],
+  ["Planted problems", "paper3_planted_problems.pdf"],
+]) test(`sample ${filename} sends its actual PDF through multipart intake`, async ({ page }) => {
+  const pdf = readFileSync(`public/samples/${filename}`);
+  const events = readFileSync("public/fixtures/events/paper1.jsonl", "utf8").trim().split("\n").slice(0, 6).map(line => JSON.parse(line));
+  await page.route("**/jobs/sample", route => route.fulfill({ json: { events } }));
+  await page.route("**/jobs/sample/events", route => route.fulfill({ contentType: "text/event-stream", body: "retry: 60000\n\n" }));
+  await page.route("**/jobs", async route => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    expect(request.headers()["content-type"]).toContain("multipart/form-data; boundary=");
+    expect(request.postDataBuffer()!.includes(Buffer.from(`name="file"; filename="${filename}"`))).toBe(true);
+    expect(request.postDataBuffer()!.includes(pdf)).toBe(true);
+    await route.fulfill({ status: 202, json: { job_id: "sample" } });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: label, exact: true }).click();
+  await expect(page).toHaveURL("/check/sample");
+  await expect(page.locator("[data-reference-id]")).toHaveCount(3);
+});
+
+test("sample loading and intake failures explain how to retry", async ({ page }) => {
+  await page.route("**/samples/paper1_attention.pdf", route => route.fulfill({ body: "", contentType: "application/pdf" }));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Attention Is All You Need" }).click();
+  await expect(page.locator("#submission-error")).toContainText("This PDF is empty");
+  await expect(page.getByRole("button", { name: "Review my paper" })).toBeEnabled();
+  await page.route("**/jobs", route => route.fulfill({ json: { code: "CHECK_INCOMPLETE", message: "The review service is busy. Please try again." } }));
+  await page.getByRole("button", { name: "Planted problems" }).click();
+  await expect(page.locator("#submission-error")).toContainText("Please try again");
+  await expect(page.getByRole("button", { name: "Planted problems" })).toBeEnabled();
 });

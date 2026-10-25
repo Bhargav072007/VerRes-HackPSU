@@ -23,6 +23,12 @@ import {
 } from "@/lib/api";
 import { motionTokens } from "@/lib/motion";
 
+const samples = [
+  ["Attention Is All You Need", "paper1_attention.pdf"],
+  ["Cites a retracted paper", "paper2_retracted_reference.pdf"],
+  ["Planted problems", "paper3_planted_problems.pdf"],
+] as const;
+
 const features = [
   {
     icon: ScanText,
@@ -48,7 +54,6 @@ export function Landing() {
   const [file, setFile] = useState<File | null>(null);
   const [identifier, setIdentifier] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
-  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -60,7 +65,6 @@ export function Landing() {
         : validatePdf(files[0]);
     setFile(message ? null : files[0]);
     setIdentifier("");
-    setNotice("");
     setError(message ? { code: "file_invalid", message } : null);
     if (input.current) input.current.value = "";
   }
@@ -68,7 +72,6 @@ export function Landing() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
-    setNotice("");
     if (!file && !parseIdentifier(identifier)) {
       setError({
         code: "identifier_invalid",
@@ -88,17 +91,27 @@ export function Landing() {
     }
   }
 
-  function trySample() {
+  async function trySample(filename: string) {
+    if (busy) return;
+    setBusy(true);
     setError(null);
-    setNotice(
-      "Sample papers will be available soon. Upload a PDF or enter an identifier to start.",
-    );
+    try {
+      const response = await fetch(`/samples/${filename}`, { signal: AbortSignal.timeout(10_000) });
+      if (!response.ok) throw new Error("Sample unavailable");
+      const file = new File([await response.blob()], filename, { type: "application/pdf" });
+      const result = await createJob({ file });
+      if (result.ok) router.push(`/check/${encodeURIComponent(result.job_id)}`);
+      else { setError(result.error); setBusy(false); }
+    } catch {
+      setError({ code: "CHECK_INCOMPLETE", message: "This sample could not be loaded. Try again or upload your own PDF." });
+      setBusy(false);
+    }
   }
 
   return (
     <main
       id="main"
-      className="mx-auto max-w-6xl px-6 pt-12 pb-12 md:px-10 md:pt-16"
+      className="mx-auto max-w-6xl px-5 pt-12 pb-12 md:px-10 md:pt-20"
     >
       <section aria-labelledby="headline" className="text-center">
         <p className="mb-5 text-[10px] font-medium tracking-[.2em] text-muted-foreground uppercase">
@@ -106,7 +119,7 @@ export function Landing() {
         </p>
         <h1
           id="headline"
-          className="font-serif text-[clamp(3rem,7vw,5.5rem)] leading-[1.08] tracking-[-.055em]"
+          className="font-serif text-[clamp(2.75rem,7vw,5.5rem)] leading-[1.08] tracking-[-.045em]"
           aria-label="Proof, not vibes."
         >
           {"Proof, not vibes.".split(" ").map((word, i) => (
@@ -122,7 +135,7 @@ export function Landing() {
                   ? { duration: 0 }
                   : {
                       ...motionTokens.fade,
-                      delay: i * motionTokens.wordStagger,
+                      delay: i * motionTokens.stagger,
                     }
               }
             >
@@ -147,7 +160,7 @@ export function Landing() {
           transition={reduced ? { duration: 0 } : motionTokens.layout}
           className="rounded-xl border bg-white p-5 md:p-6"
         >
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium">
               Give your paper a second look.
             </h2>
@@ -156,7 +169,7 @@ export function Landing() {
             </span>
           </div>
           <div
-            className="drop-zone relative overflow-hidden rounded-lg border border-dashed"
+            className="drop-zone relative overflow-hidden rounded-lg border border-dashed border-[#85877e]"
             data-dragging={dragging}
             onDragOver={(event) => {
               event.preventDefault();
@@ -192,7 +205,7 @@ export function Landing() {
               disabled={busy}
               onClick={() => input.current?.click()}
               aria-describedby="file-hint submission-error"
-              className="flex w-full flex-col items-center px-4 py-7 disabled:cursor-wait"
+              className="flex w-full flex-col items-center rounded-lg px-4 py-7 focus-visible:-outline-offset-4 disabled:cursor-wait"
             >
               <span className="mb-4 flex size-10 items-center justify-center rounded-lg border bg-background">
                 {file ? (
@@ -250,10 +263,9 @@ export function Landing() {
               setIdentifier(event.target.value);
               setFile(null);
               setError(null);
-              setNotice("");
             }}
             placeholder="2401.12345 or 10.1000/xyz"
-            className="h-11 w-full rounded-md border bg-white px-3 text-sm placeholder:text-muted-foreground/70 disabled:opacity-60"
+            className="h-11 w-full rounded-md border border-[#85877e] bg-white px-3 text-sm placeholder:text-muted-foreground disabled:opacity-60"
           />
           {error && (
             <p
@@ -289,34 +301,26 @@ export function Landing() {
           </p>
         </motion.section>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <span className="mr-1 text-[11px] text-muted-foreground">
+          <span className="w-full text-center text-xs text-muted-foreground">
             Try a sample
           </span>
-          {["Clean paper", "Retracted reference", "Planted problems"].map(
-            (sample) => (
+          {samples.map(
+            ([label, filename]) => (
               <Button
-                key={sample}
+                key={filename}
                 type="button"
                 variant="outline"
                 size="sm"
                 disabled={busy}
-                onClick={trySample}
-                className="h-7 rounded-full bg-transparent px-3 text-[10px] font-normal"
+                onClick={() => void trySample(filename)}
+                className="min-h-10 rounded-full bg-transparent px-3 text-[11px] font-normal shadow-none"
               >
-                {sample}
+                {label}
                 <ArrowRight className="size-3" />
               </Button>
             ),
           )}
         </div>
-        {notice && (
-          <p
-            role="status"
-            className="mt-3 text-center text-xs leading-5 text-muted-foreground"
-          >
-            {notice}
-          </p>
-        )}
       </form>
 
       <section
