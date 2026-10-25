@@ -13,7 +13,7 @@ test("snapshot restore and duplicate native replay keep rows and counters idempo
   assert.equal(state.rows['ref-2'].existence?.status, 'VERIFIED');
   assert.equal(jobReducer(state, snapshot), state);
   const complete = jobReducer(state, { type: "snapshot", events });
-  assert.deepEqual(jobCounts(complete), { checked: 4, total: 4, missing: 0, retracted: 0, overstated: 0, needsReview: 1 });
+  assert.deepEqual(jobCounts(complete), { checked: 4, total: 4, missing: 0, retracted: 0, partiallySupported: 0, needsReview: 1 });
   assert.equal(complete.done, true);
   assert.equal(Object.keys(complete.errors).length, 0);
   assert.equal(jobReducer(complete, { type: "snapshot", events }), complete);

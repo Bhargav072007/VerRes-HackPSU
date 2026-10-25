@@ -20,15 +20,15 @@ export function evidenceDetails(report: Report, citation: Citation) {
   const retraction = report.retractions?.find(s => s.reference_id === citation.reference_id);
   const verdict = citationVerdict(report, citation), quotes = verifiedEvidence(report, citation);
   const incomplete = !support?.evidence?.length || quotes.length !== support.evidence.length;
-  const reason = verdict === "RETRACTED" ? retraction?.reason : verdict === "DOI_MISMATCH" || verdict === "NOT_FOUND" ? existence?.reason : support?.reason;
+  const reason = verdict === "RETRACTED" ? retraction?.reason : support?.reason;
   const pendingCheck = existence?.status !== "VERIFIED" ? existence?.reason || "Citation existence check incomplete."
     : retraction?.status !== "NONE" ? retraction?.reason || "Retraction check incomplete." : null;
   const needsReview = verdict !== "NEEDS_REVIEW" ? null
-    : pendingCheck || support?.needs_review_reason || (source?.status !== "AVAILABLE" ? source?.reason : null)
+    : support?.needs_review_reason || (source?.status !== "AVAILABLE" ? source?.reason : null)
       || (source?.evidence_level === "ABSTRACT_ONLY" ? "Abstract only: full text needed" : null)
       || (support?.label === "NEEDS_REVIEW" ? support.reason : null)
       || (incomplete ? "Verified source quotes are missing or could not be matched. Inspect the source." : null)
-      || support?.reason || "Claim support check incomplete. Inspect the available receipts.";
+      || support?.reason || pendingCheck || "Claim support check incomplete. Inspect the available receipts.";
   const urls = [...(existence?.receipt_urls ?? []), ...(retraction?.notice_urls ?? []), source?.url, source?.source_url, support?.source_url].filter((url): url is string => typeof url === "string");
   const doi = report.paper?.references?.find(r => r.id === citation.reference_id)?.doi;
   if (doi) urls.unshift(`https://doi.org/${doi}`);

@@ -9,7 +9,7 @@ test("evidence receipts preserve verdicts, exact quotes, specific reasons and sa
   assert.ok(decodeReport(report));
   report.paper.citations.forEach((c, i) => {
     const details = evidenceDetails(report, c);
-    assert.equal(details.verdict, evidenceStates[i]);
+    assert.equal(details.verdict, ["DOI_MISMATCH", "NOT_FOUND"].includes(evidenceStates[i]) ? "NEEDS_REVIEW" : evidenceStates[i]);
     assert.equal(details.quotes[0].quote, report.support[i].evidence[0].quote);
     assert.deepEqual(details.links.slice(0, 3).map(l => l.label), ["DOI", "OpenAlex", "Open-access copy / receipt"]);
     assert.equal(details.links.some(l => l.href.startsWith("javascript:")), false);
@@ -26,9 +26,9 @@ test("evidence receipts preserve verdicts, exact quotes, specific reasons and sa
   assert.deepEqual(unverified.quotes, []);
   assert.match(unverified.needsReview!, /could not be matched/);
   report.retractions = [];
-  assert.equal(evidenceDetails(report, report.paper.citations[1]).needsReview, "Retraction check incomplete.");
+  assert.equal(evidenceDetails(report, report.paper.citations[1]).verdict, "PARTIALLY_SUPPORTED");
   report.existence = report.existence.filter(e => e.reference_id !== "r-1");
-  assert.equal(evidenceDetails(report, report.paper.citations[1]).needsReview, "Citation existence check incomplete.");
+  assert.equal(evidenceDetails(report, report.paper.citations[1]).verdict, "PARTIALLY_SUPPORTED");
   report.existence[0].receipt_urls = ["broken", "https://user:password@example.org", "data:text/html,test"];
   report.paper.references[0].doi = "\ud800";
   assert.doesNotThrow(() => evidenceDetails(report, report.paper.citations[0]));

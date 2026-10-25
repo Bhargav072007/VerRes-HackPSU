@@ -29,6 +29,7 @@ export function EvidencePanel({ report, citationId, onClose, shared = false }: {
             </header>
             <div key={citation.id} className="min-h-0 overflow-y-auto overscroll-contain px-6 py-6 sm:px-8">
               <div className="flex flex-wrap items-center gap-2"><VerdictBadge status={data.verdict} />{data.mismatches.map((m, i) => <span key={i} className="rounded-md border bg-white px-2 py-1 text-[10px] text-muted-foreground">{m.replaceAll("_", " ").toLowerCase()}</span>)}</div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground"><span>Reference</span><VerdictBadge status={report.existence?.find(e => e.reference_id === citation.reference_id)?.status} /><span>Retraction</span><VerdictBadge status={report.retractions?.find(e => e.reference_id === citation.reference_id)?.status} /></div>
               {data.needsReview && <p role="status" className="mt-4 rounded-xl border bg-white p-4 text-sm font-medium leading-6">{data.needsReview}</p>}
               <div className="mt-6 grid items-start gap-4 md:grid-cols-2"><section className="rounded-xl border bg-white p-5">
                 <h3 className="mb-3 text-[10px] font-medium tracking-[.15em] text-muted-foreground uppercase">Your paper says</h3>
@@ -50,6 +51,7 @@ export function EvidencePanel({ report, citationId, onClose, shared = false }: {
               </section>
               </div><h3 className="mt-7 text-[10px] font-medium tracking-[.15em] text-muted-foreground uppercase">Why this verdict</h3>
               <p className="mt-3 text-sm leading-6">{data.verdict === "NOT_FOUND" ? "Not found in Crossref, OpenAlex or arXiv." : data.reason || "Claim support check incomplete. Needs review."}</p>
+              <p className="mt-3 text-xs leading-6 text-muted-foreground">{report.existence?.find(e => e.reference_id === citation.reference_id)?.reason}</p>
               {data.agreement && <p className="mt-4 inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs text-muted-foreground"><Users size={14} />{data.agreement}</p>}
               <Provenance label="Source" value={data.source && { ...data.source, source_url: data.source.source_url || data.source.url }} />
               <Provenance label="Claim check" value={data.support} />
