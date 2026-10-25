@@ -25,11 +25,14 @@ export function ReviewRoom({ id, log, autoNavigate = true }: { id: string; log: 
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
   }, [room.done, log.length]);
+  // Ask for the historical average only for a run that is still in progress.
+  const live = log.length > 0 && !room.done;
   useEffect(() => {
+    if (!live) return;
     const abort = new AbortController();
     fetch(`${base}/status`, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]) }).then(r => r.ok ? r.json() : null).then(data => { const avg = Number(data?.avg_duration_seconds); if (Number.isFinite(avg) && avg > 0) setAverage(avg); }).catch(() => {});
     return () => abort.abort();
-  }, []);
+  }, [live]);
   useEffect(() => {
     if (!room.done || doneRef.current) return;
     doneRef.current = true;

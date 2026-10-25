@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+// The review room asks the API for its average run time; keep tests off the network.
+test.beforeEach(async ({ page }) => { await page.route("**/status", route => route.fulfill({ json: { avg_duration_seconds: 30 } })); });
 import { readFileSync } from "node:fs";
 
 for (const width of [1440, 390]) {

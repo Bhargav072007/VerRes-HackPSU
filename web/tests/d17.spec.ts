@@ -46,11 +46,11 @@ test("D17 dot logo assembles in the logo's colours and bursts on click", async (
 
 test("D17 footer mark is a keyboard-focusable back-to-top control", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 }); await page.goto("/");
-  const mark = page.getByRole("button", { name: "Back to top" });
+  const mark = page.locator("footer").getByRole("button", { name: "Back to top" });
   await mark.scrollIntoViewIfNeeded();
   await page.getByRole("link", { name: "GitHub" }).focus(); await page.keyboard.press("Shift+Tab");
   await expect(mark).toBeFocused();
-  await expect(mark.locator(".footer-mark-sheen")).toHaveCount(1);
+  await expect(mark.locator(".logo-mark-sheen")).toHaveCount(1);
   await page.keyboard.press("Enter");
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 });

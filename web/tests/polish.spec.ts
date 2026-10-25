@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+// The review room asks the API for its average run time; keep tests off the network.
+test.beforeEach(async ({ page }) => { await page.route("**/status", route => route.fulfill({ json: { avg_duration_seconds: 30 } })); });
 import { readFileSync } from "node:fs";
 import { replayReport } from "../lib/report";
 
@@ -23,7 +25,7 @@ for (const width of [1440, 390]) {
         await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "VerRes — read your paper like Reviewer 2 would");
         if (name === "live") {
           await expect(page.locator('[data-chip="Verified"]')).toHaveCount(3);
-          await expect(page.getByText("Happening now")).toBeVisible();
+          await expect(page.getByRole("region", { name: "Review room" })).toBeVisible();
           if (reducedMotion === "reduce") await expect(page.locator("[data-reference-id]").first()).toHaveCSS("transform", "none");
         }
         if (name === "report") await expect(page.locator("[data-citation-id]")).toHaveCount(4);

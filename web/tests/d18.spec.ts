@@ -60,3 +60,14 @@ for (const [name, url] of [["landing", "/"], ["review room", "/check/axe-sample"
   const { violations } = await new AxeBuilder({ page }).analyze();
   expect(violations.map(v => `${v.id}: ${v.nodes.slice(0, 3).map(n => n.target.join(" ")).join(" | ")}`)).toEqual([]);
 });
+
+for (const theme of ["light", "dark"] as const) test(`D18 ${theme} snapshots: hero at p=1 and the report`, async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(t => { try { localStorage.setItem("verres-theme", t); } catch { /* storage optional */ } }, theme);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/"); await page.evaluate(() => document.fonts.ready);
+  await heroAt(page, 1);
+  await expect(page.locator(".hero-paper")).toHaveScreenshot(`hero-paper-${theme}.png`, { animations: "disabled", maxDiffPixelRatio: .01 });
+  await page.goto("/report/sample-paper3"); await expect(page.getByRole("article", { name: "Paper text" })).toBeVisible();
+  await expect(page.locator(".summary-table")).toHaveScreenshot(`report-summary-${theme}.png`, { animations: "disabled", maxDiffPixelRatio: .01 });
+});
