@@ -634,6 +634,8 @@ export interface components {
             code: string;
             /** Message */
             message: string;
+            /** Retry After Seconds */
+            retry_after_seconds?: number | null;
         };
         /** JobRow */
         JobRow: {

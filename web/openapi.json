@@ -2126,6 +2126,17 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "retry_after_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After Seconds"
           }
         },
         "additionalProperties": false,
