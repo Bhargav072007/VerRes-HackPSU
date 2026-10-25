@@ -14,15 +14,19 @@ import { getFlag, subscribeFlag, updateFlag } from "@/lib/evidence";
 import { PeerReview } from "./peer-review";
 import { applyReviewEvent, reviewState } from "@/lib/review";
 import { decodeEvent } from "@/lib/job-stream";
+import { loadSharedReport } from "@/lib/sharing";
+import { ReportActions } from "./report-actions";
+import { HiddenText } from "./hidden-text";
 
 const counters = ["References", "Not found", "DOI mismatch", "Retracted", "Overstated", "Needs review"];
 const tabs = ["Report", "Peer review", "Claim graph", "Integrity"];
 const filters: Filter[] = ["All", "Problems only", "Needs review"];
 
-export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidence?: (citationId: string) => void }) {
+export function ReportReader({ id, shared = false, onOpenEvidence }: { id: string; shared?: boolean; onOpenEvidence?: (citationId: string) => void }) {
   const [report, setReport] = useState<Report | null>(null), [loading, setLoading] = useState(true), [attempt, setAttempt] = useState(0);
   const [filter, setFilter] = useState<Filter>("All"), [view, setTab] = useState("Report"), [selected, setSelected] = useState("");
   const [located, setLocated] = useState("");
+  const [expired, setExpired] = useState(false);
   const reader = useRef<HTMLDivElement>(null), sources = useRef<HTMLDivElement>(null), reduced = useReducedMotion();
   const flag = useSyncExternalStore(subscribeFlag, getFlag, () => "");
   const paper = report?.paper, citations = paper?.citations ?? [], references = paper?.references ?? [];
@@ -38,10 +42,12 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
     let stream: EventSource | undefined;
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
-      const data = await loadReport(id, abort.signal);
+      const result = shared ? await loadSharedReport(id, abort.signal) : { report: await loadReport(id, abort.signal), expired: false };
+      const data = result.report;
       if (abort.signal.aborted) return;
+      setExpired(result.expired);
       setReport(data); setLoading(false);
-      if (data?.status === "RUNNING" || data?.status === "QUEUED") {
+      if (!shared && (data?.status === "RUNNING" || data?.status === "QUEUED")) {
         if (!stream && process.env.NEXT_PUBLIC_MOCK !== "1") {
           const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
           stream = new EventSource(`${base}/jobs/${encodeURIComponent(id)}/events`);
@@ -59,7 +65,7 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
     }
     void refresh();
     return () => { abort.abort(); stream?.close(); clearTimeout(timer); };
-  }, [id, attempt]);
+  }, [id, attempt, shared]);
 
   useEffect(() => {
     if (tab !== "Report" || !located) return;
@@ -108,9 +114,10 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
   }
 
   return <main id="main" className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-10">
-    <Link href="/" className="inline-flex items-center gap-2 text-xs text-muted-foreground"><ArrowLeft size={14} /> Back to VerRes</Link>
+    <div className="flex flex-wrap items-center justify-between gap-4"><Link href="/" className="inline-flex items-center gap-2 text-xs text-muted-foreground"><ArrowLeft size={14} /> Back to VerRes</Link>{report && <ReportActions id={id} shared={shared} />}</div>
+    {report && <HiddenText findings={report.hidden_text} />}
     <section aria-label="Report summary" className="mt-7 overflow-hidden rounded-xl border bg-white">
-      <div className="p-6 md:p-8"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-[10px] tracking-[.2em] text-muted-foreground uppercase">Pre-submission report</p>{report && <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><FileSearch size={14} />{["RUNNING", "QUEUED"].includes(report.status) ? "Review in progress" : "Review complete"}</span>}</div>
+      <div className="p-6 md:p-8"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-[10px] tracking-[.2em] text-muted-foreground uppercase">{shared ? "Shared report" : "Pre-submission report"}</p>{report && <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><FileSearch size={14} />{["RUNNING", "QUEUED"].includes(report.status) ? "Review in progress" : "Review complete"}</span>}</div>
         <h1 className="mt-4 max-w-3xl font-serif text-[28px] leading-tight md:text-4xl">{paper?.title || (loading ? "Gathering your report…" : "Your paper review")}</h1>
         {!!paper?.authors?.length && <p className="mt-3 text-xs text-muted-foreground">{paper.authors.join(" · ")}</p>}
         <p className="mt-4 text-xs leading-6 text-muted-foreground">Every finding has a receipt. Start with the flagged claims, then follow the evidence.</p>
@@ -122,12 +129,12 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
       <TabsContent value="Report">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div role="group" aria-label="Filter findings" className="flex rounded-lg border bg-white p-1">{filters.map(name => <button key={name} type="button" aria-pressed={filter === name} onClick={() => setFilter(name)} className={`rounded-md px-3 py-2 text-[11px] ${filter === name ? "bg-secondary font-medium" : "text-muted-foreground"}`}>{name}</button>)}</div><p className="text-[10px] text-muted-foreground"><kbd>j</kbd> / <kbd>k</kbd> flags · <kbd>Enter</kbd> evidence</p></div>
         {loading && <p role="status" className="rounded-xl border bg-white p-8 text-sm">Loading your report…</p>}
-        {!loading && !report && <div role="alert" className="rounded-xl border bg-white p-8"><VerdictBadge /><p className="my-4 text-sm">The report could not be loaded. The check is incomplete.</p><button className="rounded-md border px-4 py-2 text-xs" onClick={() => setAttempt(n => n + 1)}>Try again</button></div>}
+        {!loading && !report && <div role="alert" className="rounded-xl border bg-white p-8"><VerdictBadge /><p className="my-4 text-sm">{expired ? "This link expired or was revoked" : "The report could not be loaded. The check is incomplete."}</p>{!expired && <button className="rounded-md border px-4 py-2 text-xs" onClick={() => setAttempt(n => n + 1)}>Try again</button>}</div>}
         {report && <>
           {(report.reason || report.status === "CHECK_INCOMPLETE" || paper?.needs_review_reason) && <div role="status" className="mb-5 rounded-xl border bg-white p-4 text-xs leading-6"><VerdictBadge /> <span>{report.reason || paper?.needs_review_reason || "Some checks could not be completed. Inspect the available receipts."}</span></div>}
           <div ref={reader} className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
             <article aria-label="Paper text" className="min-w-0 rounded-xl border bg-white p-6 md:p-8"><div className="mb-8 flex items-center justify-between border-b pb-4"><h2 className="flex items-center gap-2 text-xs font-medium"><BookOpen size={15} /> The paper</h2><span className="text-[10px] text-muted-foreground">{sentences.length} sentence{sentences.length === 1 ? "" : "s"}</span></div>
-              {!sentences.length && <p className="text-sm leading-6 text-muted-foreground">{paper?.sentences?.length ? "No findings match this filter." : "Paper text is unavailable. Needs review."}</p>}
+              {!sentences.length && <p className="text-sm leading-6 text-muted-foreground">{paper?.sentences?.length ? "No findings match this filter." : shared ? "Full paper text is omitted from shared reports. Inspect the claim receipts in Sources & receipts." : "Paper text is unavailable. Needs review."}</p>}
               {sections.map(section => <section key={section} className="mb-8 last:mb-0"><h3 className="mb-4 text-[10px] tracking-[.15em] text-muted-foreground uppercase">{section}</h3>{sentences.filter(s => (s.section || "Paper text") === section).map(s => {
                 const markers = visibleCitations.filter(c => c.sentence_ids?.includes(s.id));
                 const underline = markers.some(c => ["NOT_SUPPORTED", "CONTRADICTED"].includes(citationVerdict(report, c)));
@@ -159,6 +166,6 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
       <TabsContent value="Peer review"><PeerReview report={report} onLocate={target => { setFilter("All"); setLocated(target); setTab("Report"); }} /></TabsContent>
       {tabs.slice(2).map(name => <TabsContent key={name} value={name} className="rounded-xl border bg-white px-6 py-14 text-center"><FileSearch size={24} className="mx-auto text-muted-foreground" /><h2 className="mt-4 font-serif text-2xl">{name}</h2><p className="mt-2 text-sm text-muted-foreground">This view is coming soon. Citation receipts are available in the Report tab.</p></TabsContent>)}
     </Tabs>
-    {report && <EvidencePanel report={report} citationId={flag} onClose={() => updateFlag("")} />}
+    {report && <EvidencePanel report={report} citationId={flag} onClose={() => updateFlag("")} shared={shared} />}
   </main>;
 }

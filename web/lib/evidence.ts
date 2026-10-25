@@ -29,7 +29,7 @@ export function evidenceDetails(report: Report, citation: Citation) {
       || (support?.label === "NEEDS_REVIEW" ? support.reason : null)
       || (incomplete ? "Verified source quotes are missing or could not be matched. Inspect the source." : null)
       || support?.reason || "Claim support check incomplete. Inspect the available receipts.";
-  const urls = [...(existence?.receipt_urls ?? []), ...(retraction?.notice_urls ?? [])];
+  const urls = [...(existence?.receipt_urls ?? []), ...(retraction?.notice_urls ?? []), source?.url, source?.source_url, support?.source_url].filter((url): url is string => typeof url === "string");
   const doi = report.paper?.references?.find(r => r.id === citation.reference_id)?.doi;
   if (doi) urls.unshift(`https://doi.org/${doi}`);
   const links = Array.from(new Set(urls)).flatMap(href => {

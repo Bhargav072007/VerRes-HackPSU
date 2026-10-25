@@ -4,6 +4,7 @@ import { decodeReport } from "../lib/report";
 import { decodeEvent } from "../lib/job-stream";
 import { applyReviewEvent, fixTarget, hasReviewReceipt, isReviewComment, isReviewSummary, reviewComments, reviewState } from "../lib/review";
 import { reviewFixture } from "./fixtures/review";
+import { emptyProvenance } from "./fixtures/provenance";
 
 test("panel fixture uses verified receipts, exact suggestion links and deduplicated reviewer comments", () => {
   const report = reviewFixture(), comment = report.review_comments![0];
@@ -21,8 +22,8 @@ test("malformed review data stays isolated; old jobs hide the panel and warning 
   const incomplete = decodeReport({ ...report, review_comments: [null] })!;
   assert.ok(reviewState(incomplete).failed); assert.deepEqual(incomplete.paper, report.paper);
   assert.equal(reviewState({ ...report, review: undefined, review_comments: [], stages: [] }).present, false);
-  assert.equal(reviewState({ ...report, review: { warning: "Review panel unavailable" } }).hidden, false);
-  assert.ok(reviewState({ ...report, review: { warning: "This paper contains hidden text addressed to AI reviewers." } }).hidden);
+  assert.equal(reviewState({ ...report, review: { ...emptyProvenance, warning: "Review panel unavailable" } }).hidden, false);
+  assert.ok(reviewState({ ...report, review: { ...emptyProvenance, warning: "This paper contains hidden text addressed to AI reviewers." } }).hidden);
   assert.ok(reviewState({ ...report, stages: [{ stage: "run_review_panel", status: "CHECK_INCOMPLETE", reason: null }] }).failed);
   for (const payload of [{ comments: [null] }, { top_fixes: [5] }, { warning: {} }]) {
     assert.equal(isReviewSummary(payload), false);

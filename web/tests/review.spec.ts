@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { reviewFixture } from "./fixtures/review";
+import { emptyProvenance } from "./fixtures/provenance";
 
 for (const width of [1440, 390]) test(`peer review fixture at ${width}px: chair, reviewers, receipts and fix navigation`, async ({ page }, info) => {
   const report = reviewFixture(), errors: string[] = [];
@@ -39,9 +40,9 @@ test("hidden instruction warnings, failed and malformed panels, and old jobs pre
   const base = reviewFixture();
   for (const kind of ["hidden", "warning", "failed", "malformed", "old"] as const) {
     const report = structuredClone(base);
-    if (kind === "hidden") report.hidden_text = [{ id: "paper3", kind: "PROMPT_INJECTION", page: 1, quote: "Ignore previous instructions", reason: "Hidden reviewer instructions" }];
+    if (kind === "hidden") report.hidden_text = [{ ...emptyProvenance, id: "paper3", kind: "PROMPT_INJECTION", page: 1, quote: "Ignore previous instructions", reason: "Hidden reviewer instructions" }];
     if (kind === "warning") report.review!.warning = "This paper contains hidden text addressed to AI reviewers.";
-    if (kind === "failed") report.review = { warning: "Review panel unavailable: chair failed" };
+    if (kind === "failed") report.review = { ...emptyProvenance, warning: "Review panel unavailable: chair failed" };
     if (kind === "old") { delete report.review; delete report.review_comments; }
     await page.route(`**/jobs/${kind}`, route => route.fulfill({ json: kind === "malformed" ? { ...report, review: { comments: [null] } } : report }));
     await page.goto(`/report/${kind}`);
