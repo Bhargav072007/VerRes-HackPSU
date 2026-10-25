@@ -1,0 +1,32 @@
+{
+  "s1": {
+    "width": 1536,
+    "height": 1024,
+    "blurDataURL": "data:image/webp;base64,UklGRsgAAABXRUJQVlA4ILwAAABwBACdASoYABAAPu1iqU2ppaOiMAgBMB2JbACdMoACr2fzigPnV+u6nBYwAAD+ZtDAtgsZ73j+IAYbPD96JgOCZEW+5kfxHTNhXZdgI60/tn3arAFAZIZaZSzhvtXKZBkMlOmHNa2zSbfSnT0Z3YUZt6zUE+wDET1FqCgDsG722rN7b8SvJKirFf1Tj563/ElfQsjMdcy+S3t8iuz3DLP3SquImcXe/fethtNoelDRnQyzrXd0d8QJgmAAAA=="
+  },
+  "s2": {
+    "width": 1024,
+    "height": 1536,
+    "blurDataURL": "data:image/webp;base64,UklGRqoAAABXRUJQVlA4IJ4AAADwAwCdASoQABgAPu1iqU2ppaOiMAgBMB2JYwCdAB6XUs3B4dgfT4NgAP2zE8DCUTI756mXnbmb6B20tniCMd1a1iLgVsr7JnnfnhSwo67z1fiudrkU95Ymhj5T5UnBxlxZ9BK5apXkiNeFSsTP7b1MRDEubL5efFwS+pJ7ciEX2aHw7GnBlxRR0tUmnJtauEvmlUXFYGsAWgvcrAAAAA=="
+  },
+  "s3": {
+    "width": 1536,
+    "height": 1024,
+    "blurDataURL": "data:image/webp;base64,UklGRrYAAABXRUJQVlA4IKoAAACQBACdASoYABAAPu1iqU2ppaOiMAgBMB2JYwCdAYxsyZxR5t7QIxAzmpDBk2AA/aO78lgbKW0tnC9DqqJmdx80wXSw8MDhMFIPo+1Oy75Djy/lbSF6toKGuZCZudZ12dK/L+bRqLXx8qTJ1yGI1dJiB8RTBE7VOKbw3BJX4jlfnATm+hbAzvOhxiRtDy9cokiZ8D/UNsSvHYX09YBp4vBwn1Sstj7YVO6AAA=="
+  },
+  "s4": {
+    "width": 1536,
+    "height": 1024,
+    "blurDataURL": "data:image/webp;base64,UklGRr4AAABXRUJQVlA4ILIAAABwBACdASoYABAAPu1iqk2ppaQiMAgBMB2JYgCdEf/3bcQYYrDSjI9wJ232AAD+2tGMzoEmskcv2zCingD7ktpspq5TDprnTEBIjqM958FpymudDWVDu+A0/UZwgqQ8nCIQP1aiDWoZYoVEf01Lo+Rww4Bv0Hrv/4id1v96+HSxd+1wTa9GXvFTVa/vzDiLOn2cavMPvPfy/4ck1B4LPXEc0jZPtWc3hyd21ZDOqyIbQGAA"
+  },
+  "s5": {
+    "width": 1536,
+    "height": 1024,
+    "blurDataURL": "data:image/webp;base64,UklGRpgAAABXRUJQVlA4IIwAAADQAwCdASoYABAAPu1yrU+pp6QiMAgBMB2JQBWABBna7Vew0NdFfUAA/s3N8pbtCTT01Krj1r8lWKHC0r8I92b4zhR+kZui3gzWSzMo0rUtaM1yxzs04mKZMQ1tp26kTqHfEcXSvqD49g1ttAdlyIUighxh9YDhP0EzRp00acLOnLfo9EzIRgnROhqAAA=="
+  },
+  "iphone-report": {
+    "width": 1024,
+    "height": 1536,
+    "blurDataURL": "data:image/webp;base64,UklGRpIAAABXRUJQVlA4IIYAAABwBACdASoMABIAPtFUo0uoJKMhsAgBABoJQBOmUCrAAKr8mFc74obTNHL2AAD+2ivzQ9UsoSVm2rubfv6FRK+w1wDX93QHy3kc2HwKq2F2/4M7BAxqUsqPa85fr9cNNhMN/85oI966CXU3Qp3i0e3JsGDUKOnqxBczKXL+ECeW2xgmjQAAAA=="
+  }
+}

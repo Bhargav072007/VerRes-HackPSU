@@ -37,6 +37,7 @@ export function replayReport(events: unknown[]): Report | null {
 
 export async function loadReport(id: string, signal: AbortSignal): Promise<Report | null> {
   try {
+    if (id === "sample-paper3") return decodeReport((await import("@/tests/fixtures/prod/paper3-job.json")).default);
     const mock = process.env.NEXT_PUBLIC_MOCK === "1";
     const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
     const response = await fetch(mock ? "/fixtures/events/paper1.jsonl" : `${base}/jobs/${encodeURIComponent(id)}`, { cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]) });
@@ -80,6 +81,6 @@ export function reportCounts(report: Report) {
   return [refs.length, report.existence?.filter(e => e.status === "NOT_FOUND").length ?? 0,
     report.existence?.filter(e => e.status === "DOI_MISMATCH").length ?? 0,
     report.retractions?.filter(r => r.status === "RETRACTED").length ?? 0,
-    citations.filter(c => citationVerdict(report, c) === "PARTIALLY_SUPPORTED").length,
+    citations.filter(c => ["PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED"].includes(citationSupportVerdict(report, c))).length,
     refs.filter(r => referenceVerdict(report, r.id) === "NEEDS_REVIEW" || citations.some(c => c.reference_id === r.id && citationVerdict(report, c) === "NEEDS_REVIEW")).length];
 }

@@ -1,0 +1,11 @@
+{
+  "url": "http://127.0.0.1:3106",
+  "viewport": "1440x900",
+  "scrolledPx": 2077,
+  "tasks": 1467,
+  "longTasksOver50ms": 0,
+  "longestTaskMs": 3.8,
+  "layouts": 43,
+  "forcedLayoutsInScript": 0,
+  "totalLayoutMs": 10.6
+}

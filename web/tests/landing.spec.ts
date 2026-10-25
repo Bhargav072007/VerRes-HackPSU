@@ -13,10 +13,10 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: "Proof, not vibes." }),
+      page.getByRole("heading", { name: "Read your paper like Reviewer 2 would." }),
     ).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
-    await expect(page.locator("[data-reveal]").last()).toHaveCSS(
+    await expect(page.locator("h1[data-reveal]")).toHaveCSS(
       "opacity",
       "1",
     );
@@ -93,8 +93,8 @@ test("reduced motion shows every word immediately and disables CSS animations", 
     await expect(word).toHaveCSS("opacity", "1");
     await expect(word).toHaveCSS("transform", "none");
   }
-  await page.getByRole("button", { name: /Drop your paper here/ }).hover();
-  await expect(page.locator(".shimmer")).toHaveCSS("transition-duration", "0s");
+  await page.getByRole("button", { name: /Choose PDF/ }).hover();
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(([\d.]+), 0, 0, \2, 0, 0\))$/);
   await page.screenshot({
     path: testInfo.outputPath("reduced-motion.png"),
     fullPage: true,

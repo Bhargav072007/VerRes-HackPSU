@@ -39,7 +39,7 @@ for (const width of [1440, 390]) test(`claim graph at ${width}px: receipts, lege
     await page.mouse.click(point.x, point.y);
   }
   const sheet = page.getByRole("dialog");
-  await expect(sheet.getByRole("heading", { name: "Claim receipt", exact: true })).toBeVisible();
+  await expect(sheet.getByRole("heading", { name: "Claim evidence", exact: true })).toBeVisible();
   await expect(sheet).toContainText("Treatment benefits extend to children.");
   await expect(sheet).toContainText("Not supported");
   await expect(sheet.getByRole("blockquote")).toContainText("children were not enrolled.");
@@ -47,7 +47,7 @@ for (const width of [1440, 390]) test(`claim graph at ${width}px: receipts, lege
   await page.screenshot({ path: info.outputPath(`claim-receipt-${width}.png`), animations: "disabled" });
   await sheet.getByRole("button", { name: "Open in evidence panel" }).click();
   await expect(page.getByRole("tab", { name: "Report", exact: true, includeHidden: true })).toHaveAttribute("data-state", "active");
-  await expect(page.getByRole("dialog").getByRole("heading", { name: "Evidence receipt" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "Evidence details" })).toBeVisible();
   await expect(page).toHaveURL(/flag=cite-2/);
   await page.keyboard.press("Escape");
   await expect(page.locator('[data-citation-id="cite-2"]')).toBeInViewport();
@@ -117,7 +117,7 @@ for (const width of [1440, 390]) test(`peer review and claim graph share report 
   if (width < 640) await page.getByRole("list", { name: "Claim graph list" }).getByRole("button", { name: /Fixture trial 2/ }).click();
   else { await page.getByTestId("rf__edge-citation:claim-2:cite-2").focus(); await page.keyboard.press("Enter"); }
   await page.getByRole("dialog").getByRole("button", { name: "Open in evidence panel" }).click();
-  await expect(page.getByRole("dialog").getByRole("heading", { name: "Evidence receipt" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "Evidence details" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator('[data-citation-id="cite-2"]')).toBeInViewport();
   await expect(page.locator('[id="sentence-s1"]')).toHaveAttribute("data-highlighted", "false");

@@ -28,7 +28,7 @@ export function evidenceDetails(report: Report, citation: Citation) {
       || (source?.evidence_level === "ABSTRACT_ONLY" ? "Abstract only: full text needed" : null)
       || (support?.label === "NEEDS_REVIEW" ? support.reason : null)
       || (incomplete ? "Verified source quotes are missing or could not be matched. Inspect the source." : null)
-      || support?.reason || pendingCheck || "Claim support check incomplete. Inspect the available receipts.";
+      || support?.reason || pendingCheck || "Claim support check incomplete. Inspect the available evidence.";
   const urls = [...(existence?.receipt_urls ?? []), ...(retraction?.notice_urls ?? []), source?.url, source?.source_url, support?.source_url].filter((url): url is string => typeof url === "string");
   const doi = report.paper?.references?.find(r => r.id === citation.reference_id)?.doi;
   if (doi) urls.unshift(`https://doi.org/${doi}`);
@@ -36,11 +36,15 @@ export function evidenceDetails(report: Report, citation: Citation) {
     try {
       const url = new URL(href);
       if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return [];
-      const label = /^(dx\.)?doi\.org$/.test(url.hostname) ? "DOI" : /^(api\.)?openalex\.org$/.test(url.hostname) ? "OpenAlex" : retraction?.notice_urls?.includes(href) ? "Retraction notice" : "Open-access copy / receipt";
+      const label = /^(dx\.)?doi\.org$/.test(url.hostname) ? "DOI" : /^(api\.)?openalex\.org$/.test(url.hostname) ? "OpenAlex" : retraction?.notice_urls?.includes(href) ? "Retraction notice" : "Open-access copy / evidence";
       return [{ href, label }];
     } catch { return []; }
   });
   const agreement = support?.adjudicated === true && ["NOT_SUPPORTED", "CONTRADICTED"].includes(verdict) ? "2 of 2 models agree"
     : verdict === "NEEDS_REVIEW" && /models disagree/i.test(`${support?.needs_review_reason} ${support?.reason}`) ? "Models disagree" : null;
-  return { verdict, quotes, source, support, reason, needsReview, links, agreement, mismatches: [...(support?.mismatch_types ?? []), ...(existence?.discrepancies ?? [])] };
+  // One line per distinct reason: drop repeats and anything the needs-review notice already says.
+  const said = (text?: string | null) => (text ?? "").trim().toLowerCase().replace(/[.\s]+$/, "");
+  const reasons = [verdict === "NOT_FOUND" ? "Not found in Crossref, OpenAlex or arXiv." : reason || "Claim support check incomplete. Needs review.", existence?.reason]
+    .filter((text, i, all): text is string => !!text?.trim() && said(text) !== said(needsReview) && all.findIndex(other => said(other) === said(text)) === i);
+  return { verdict, quotes, source, support, reason, reasons, needsReview, links, agreement, mismatches: [...(support?.mismatch_types ?? []), ...(existence?.discrepancies ?? [])] };
 }

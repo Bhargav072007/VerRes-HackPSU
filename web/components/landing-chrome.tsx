@@ -1,8 +1,10 @@
 "use client";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion, useScroll } from "motion/react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Menu } from "lucide-react";
-
+import { Brand } from "./brand";
+import { LogoMarkButton } from "./footer-mark";
+import { ThemeToggle } from "./theme-toggle";
 const motionSnapshot = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.a11yMotion === "reduce";
 const motionServerSnapshot = () => true;
 function subscribeMotion(update: () => void) {
@@ -15,41 +17,44 @@ function subscribeMotion(update: () => void) {
 export function usePolishMotion() {
   return useSyncExternalStore(subscribeMotion, motionSnapshot, motionServerSnapshot);
 }
-
-export function LandingChrome({ live = false, report = false }: { live?: boolean; report?: boolean }) {
-  const progress = useRef<HTMLSpanElement>(null);
-  const [section, setSection] = useState(report ? "03 · REPORT" : live ? "02 · THE REVIEW" : "Overview");
-  useEffect(() => {
-    let frame = 0;
-    const update = () => {
-      frame = 0;
-      const total = document.documentElement.scrollHeight - innerHeight;
-      progress.current?.style.setProperty("transform", `scaleX(${total > 0 ? scrollY / total : 0})`);
-      if (!live && !report) {
-        const sections = [...document.querySelectorAll<HTMLElement>("[data-section]")];
-        setSection(sections.reverse().find(node => node.getBoundingClientRect().top < innerHeight * .4)?.dataset.section || "Overview");
-      }
-    };
-    const scroll = () => { if (!frame) frame = requestAnimationFrame(update); };
-    const observer = new IntersectionObserver(entries => entries.forEach(entry => {
-      if (entry.isIntersecting) { entry.target.setAttribute("data-visible", "true"); observer.unobserve(entry.target); }
-    }), { threshold: .12 });
-    document.querySelectorAll("[data-enter]").forEach(node => observer.observe(node));
-    addEventListener("scroll", scroll, { passive: true });
-    addEventListener("resize", scroll);
-    update();
-    document.dispatchEvent(new Event("verres:route-ready"));
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); removeEventListener("scroll", scroll); removeEventListener("resize", scroll); };
-  }, [live, report]);
-  return <header className="polish-nav"><Link className="polish-brand" href="/" aria-label="VerRes home"><BookOpen size={23} strokeWidth={1.5} /><strong>VerRes</strong><span className="beta-tag">BETA</span></Link><span className="nav-section">{section}</span><nav aria-label="Main navigation"><Link href="/#submit" aria-current={!report && section.startsWith("01") ? "location" : undefined}>Upload</Link><Link href="/#how-it-works" aria-current={!report && section.startsWith("02") ? "location" : undefined}>The checks</Link><Link href="/#honesty" aria-current={!report && section.startsWith("03") ? "location" : undefined}>Our principle</Link></nav><details className="polish-menu"><summary aria-label="Navigation menu"><Menu size={15} /> Menu</summary><nav aria-label="Mobile navigation" onClick={event => { if ((event.target as HTMLElement).closest("a")) event.currentTarget.closest("details")?.removeAttribute("open"); }}><Link href="/#submit">Upload a paper</Link><Link href="/#how-it-works">The checks</Link><Link href="/#honesty">Our principle</Link></nav></details><Link className="pill-button" href="/#submit">Start a review <ArrowRight size={13} /></Link><span ref={progress} className="nav-progress" /></header>;
+// Scroll scenes render their start state on the server; CSS shows the final state to reduced-motion readers before hydration.
+export function useSceneReducedMotion() {
+  return useSyncExternalStore(subscribeMotion, motionSnapshot, () => false);
+}
+export function useMediaQuery(query: string) {
+  return useSyncExternalStore(update => { const media = matchMedia(query); media.addEventListener("change", update); return () => media.removeEventListener("change", update); }, () => matchMedia(query).matches, () => false);
 }
 
-export function receiptNavigate(push: (href: string) => void, href: string) {
-  if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.a11yMotion === "reduce") { push(href); return; }
-  document.startViewTransition(() => new Promise<void>(resolve => {
-    const finish = () => { clearTimeout(timer); document.removeEventListener("verres:route-ready", finish); resolve(); };
-    const timer = setTimeout(finish, 360);
-    document.addEventListener("verres:route-ready", finish, { once: true });
-    push(href);
-  }));
+export function LandingChrome({ live = false, report = false }: { live?: boolean; report?: boolean }) {
+  return <header className="polish-nav" data-context={report ? "report" : live ? "live" : "landing"}><Link href="/" aria-label="VerRes home"><Brand /></Link><nav aria-label="Main navigation"><Link href="/#how-it-works">Method</Link><Link href="/#results">Results</Link><Link href="/#honesty">Limitations</Link></nav><details className="polish-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation" onClick={e => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}><Link href="/#how-it-works">Method</Link><Link href="/#results">Results</Link><Link href="/#honesty">Limitations</Link></nav></details><ThemeToggle /><Link className="pill-button" href="/#submit">Review a paper</Link></header>;
+}
+export function receiptNavigate(push: (href: string) => void, href: string) { push(href); }
+
+// Landing only: a white bar that slides in after the hero, with the current section and page progress.
+const sections = [["overview", "01 · Overview"], ["how-it-works", "02 · How it works"], ["results", "03 · Results"], ["anywhere", "04 · Anywhere"], ["honesty", "05 · Limitations"], ["submit", "06 · Review a paper"]] as const;
+const links = [["how-it-works", "Method"], ["results", "Results"], ["honesty", "Limitations"]] as const;
+export function StickyNav() {
+  const reduced = usePolishMotion(), { scrollYProgress } = useScroll();
+  const [shown, setShown] = useState(false), [markShown, setMarkShown] = useState(false), [active, setActive] = useState<string>("overview");
+  useEffect(() => {
+    const hero = document.getElementById("overview");
+    const heroObserver = new IntersectionObserver(([entry]) => setShown(!entry.isIntersecting && entry.boundingClientRect.top < 0));
+    const sectionObserver = new IntersectionObserver(entries => { for (const entry of entries) if (entry.isIntersecting) setActive(entry.target.id); }, { rootMargin: "-49% 0px -50% 0px" });
+    // The mark stays in view from the moment the page header scrolls away, including through the pinned hero.
+    const header = document.querySelector(".polish-nav"), headerObserver = new IntersectionObserver(([entry]) => setMarkShown(!entry.isIntersecting && entry.boundingClientRect.top < 0));
+    if (header) headerObserver.observe(header);
+    if (hero) heroObserver.observe(hero);
+    for (const [id] of sections) { const node = document.getElementById(id); if (node) sectionObserver.observe(node); }
+    return () => { heroObserver.disconnect(); sectionObserver.disconnect(); headerObserver.disconnect(); };
+  }, []);
+  const label = sections.find(([id]) => id === active)?.[1] ?? sections[0][1];
+  return <><motion.div className="sticky-mark-wrap" initial={false} animate={{ opacity: markShown ? 1 : 0 }} transition={{ duration: reduced ? 0 : .2 }}><LogoMarkButton className="sticky-mark" sheenKey={active} hidden={!markShown} /></motion.div><motion.div className="sticky-nav" data-shown={shown} inert={!shown} initial={false} animate={shown ? { y: 0, opacity: 1 } : { y: "-100%", opacity: 0 }} transition={{ duration: reduced ? 0 : .22, ease: [.2, 0, 0, 1] }}>
+    <div className="sticky-nav-inner">
+      <span className="sticky-nav-label" aria-live="polite"><AnimatePresence mode="popLayout" initial={false}><motion.span key={label} initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: -6 }} transition={{ duration: .2, ease: [.2, .7, .2, 1] }}>{label}</motion.span></AnimatePresence></span>
+      <nav aria-label="Section navigation">{links.map(([id, text]) => <Link key={id} href={`/#${id}`} aria-current={active === id ? "location" : undefined}>{text}</Link>)}</nav>
+      <ThemeToggle />
+      <Link className="pill-button" href="/#submit">Review a paper</Link>
+    </div>
+    <motion.span aria-hidden className="sticky-nav-progress" style={{ scaleX: scrollYProgress }} />
+  </motion.div></>;
 }

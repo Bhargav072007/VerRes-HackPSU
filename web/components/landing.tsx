@@ -1,57 +1,27 @@
 "use client";
-
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import {
-  ArrowRight,
-  FileText,
-  Upload,
-  LockKeyhole,
-  ScanText,
-  Quote,
-  Network,
-  CircleAlert,
-  LoaderCircle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  createJob,
-  parseIdentifier,
-  validatePdf,
-  type ApiError,
-} from "@/lib/api";
-import { motionTokens } from "@/lib/motion";
-import { LandingChrome, receiptNavigate, usePolishMotion } from "./landing-chrome";
-import { LandingScene, DemoStats } from "./landing-scene";
-
+import { CircleAlert, LoaderCircle } from "lucide-react";
+import { Button } from "./ui/button";
+import { createJob, parseIdentifier, validatePdf, type ApiError } from "@/lib/api";
+import { LandingChrome, StickyNav, receiptNavigate } from "./landing-chrome";
+import { LandingScene } from "./landing-scene";
+import { LandingResults } from "./landing-results";
+import { LandingStepper } from "./landing-stepper";
+import { LandingPhone } from "./landing-phone";
+import { BlurHeading, CountOnce, Reveal } from "./editorial-motion";
+import { Brand } from "./brand";
+import { DotMatrix } from "./dot-matrix";
+import { FooterMark } from "./footer-mark";
+import { recordedStats, productChecks, scholarlySources } from "@/lib/landing-data";
 const samples = [
   ["Attention Is All You Need", "paper1_attention.pdf"],
   ["Cites a retracted paper", "paper2_retracted_reference.pdf"],
   ["Planted problems", "paper3_planted_problems.pdf"],
 ] as const;
 
-const features = [
-  {
-    icon: ScanText,
-    title: "Check the references.",
-    text: "Trace citations to real sources and check for retractions.",
-  },
-  {
-    icon: Quote,
-    title: "Follow the evidence.",
-    text: "Test claims against sources, with verbatim quotes you can inspect.",
-  },
-  {
-    icon: Network,
-    title: "See the whole paper.",
-    text: "Map the claims, hear a review panel, and flag hidden prompts.",
-  },
-];
-
 export function Landing() {
   const router = useRouter();
-  const reduced = usePolishMotion();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [identifier, setIdentifier] = useState("");
@@ -110,36 +80,24 @@ export function Landing() {
     }
   }
 
-  return (
-    <main
-      id="main"
-      className="landing polished-page"
-    >
-      <LandingChrome />
-      <LandingScene />
-      <div className="section-container"><DemoStats /></div>
-      <section id="submit" data-section="01 · UPLOAD" className="section-container numbered-section" aria-labelledby="upload-heading">
-        <span className="section-number" aria-hidden="true">01</span>
-        <div className="section-heading" data-enter><div><p className="section-pill">● 01 · Upload</p><h2 id="upload-heading">Your paper.<br />A second look.</h2></div><p>Bring the work you care about.<br />We’ll follow the references, inspect the claims, and <strong>leave a trail you can check.</strong></p></div>
-        <div className="upload-grid"><aside className="upload-aside" data-enter><p className="eyebrow">BEFORE THE NEXT SUBMISSION</p><h3>Careful work deserves<br />a careful review.</h3><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p><ol><li><span>01</span>Upload a PDF or paste an identifier.</li><li><span>02</span>Follow each check as it happens.</li><li><span>03</span>Open the findings. Inspect the receipts.</li></ol><p className="privacy-note"><LockKeyhole size={13} /> Private. Deleted after 7 days.</p></aside>
-      <form
+return <main id="main" className="landing polished-page"><LandingChrome /><StickyNav /><LandingScene />
+<section className="trust-band section-container" aria-label="Product facts">{["tl", "tr", "bl", "br"].map(corner => <span key={corner} aria-hidden className="crosshair" data-corner={corner} />)}<div className="trust-columns"><div><span className="large-numeral"><CountOnce value={productChecks.length} /></span><p>checks per citation</p><div className="tiny-dots" aria-hidden>{productChecks.map(check => <span key={check} />)}</div></div><div><span className="large-numeral"><CountOnce value={scholarlySources.length} /></span><p>scholarly sources</p><div className="tiny-dots" aria-hidden>{scholarlySources.map(source => <span key={source} />)}</div></div>{recordedStats.medianSeconds != null && <div><span className="large-numeral"><CountOnce value={recordedStats.medianSeconds} /><small> s</small></span><p>median review time, recorded runs</p><div className="tiny-bars" aria-hidden><span style={{width:`${Math.min(100,recordedStats.medianSeconds)}%`}} /></div></div>}</div></section>
+<LandingStepper />
+<Reveal><LandingResults /></Reveal>
+<LandingPhone />
+<section id="honesty" className="article-section section-container limitations"><BlurHeading className="editorial-title">What we won’t guess.</BlurHeading><Reveal stagger><p>A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p><ul aria-label="Cases that need review"><li>Source text is unavailable.</li><li>The retrieved abstract does not address the claim.</li><li>The quoted passage cannot be verified.</li><li>The reference identity is ambiguous.</li></ul><p>These findings return <span className="needs-review">Needs review</span>, with the reason available for inspection.</p></Reveal></section>
+<section id="submit" className="upload-band" aria-labelledby="upload-heading"><div className="upload-content section-container"><div className="upload-slip"><div><h2 id="upload-heading">Careful work deserves<br />a careful review.</h2><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p></div>      <form
         onSubmit={submit}
         className="upload-form"
         aria-label="Submit a paper"
         aria-busy={busy}
       >
-        <motion.section
-          layoutId="job"
-          transition={reduced ? { duration: 0 } : motionTokens.layout}
-          className="upload-card crosshair"
+        <section className="upload-card"
         >
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium">
               Give your paper a second look.
             </h2>
-            <span className="text-[9px] tracking-[.14em] text-muted-foreground">
-              01 / SUBMIT
-            </span>
           </div>
           <div
             className="drop-zone"
@@ -162,7 +120,6 @@ export function Landing() {
               chooseFile(event.dataTransfer.files);
             }}
           >
-            <span className="shimmer" aria-hidden="true" />
             <input
               ref={input}
               type="file"
@@ -178,17 +135,11 @@ export function Landing() {
               disabled={busy}
               onClick={() => input.current?.click()}
               aria-describedby="file-hint submission-error"
-              className="flex w-full flex-col items-center rounded-lg px-4 py-7 focus-visible:-outline-offset-4 disabled:cursor-wait"
+              className="flex w-full flex-col items-center rounded-md px-4 py-7 focus-visible:-outline-offset-4 disabled:cursor-wait"
             >
-              <span className="file-type-icon" key={file ? "file" : "upload"}>
-                {file ? (
-                  <FileText size={19} strokeWidth={1.4} />
-                ) : (
-                  <Upload size={19} strokeWidth={1.4} />
-                )}
-              </span>
+              
               <span className="max-w-full truncate text-sm font-medium">
-                {file ? file.name : "Drop your paper here"}
+                {file ? file.name : "Choose PDF"}
               </span>
               <span className="mt-1.5 text-xs text-muted-foreground">
                 {file ? (
@@ -204,17 +155,17 @@ export function Landing() {
               </span>
               <span
                 id="file-hint"
-                className="mt-4 text-[10px] tracking-wide text-muted-foreground"
+                className="mt-4 text-xs tracking-wide text-muted-foreground"
               >
-                PDF only · Up to 25MB
+                PDF · ≤20 pages · Up to 25MB
               </span>
             </button>
           </div>
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[10px] leading-4 text-muted-foreground">
-            <LockKeyhole size={11} className="shrink-0" />
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs leading-4 text-muted-foreground">
+            
             Your paper is private and deleted after 7 days.
           </p>
-          <div className="my-5 flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
             or use an identifier
             <span className="h-px flex-1 bg-border" />
@@ -260,20 +211,17 @@ export function Landing() {
               <>
                 <LoaderCircle
                   size={14}
-                  className="animate-[spin_360ms_linear_infinite]"
+                  className=""
                 />{" "}
                 Starting review…
               </>
             ) : (
               <>
-                Review my paper <ArrowRight size={14} />
+                Review my paper 
               </>
             )}
           </Button>
-          <p className="mt-3 text-center text-[10px] text-muted-foreground">
-            Every finding comes with evidence you can verify.
-          </p>
-        </motion.section>
+        </section>
         <div className="sample-papers">
           <span className="sample-heading eyebrow">
             Try a sample
@@ -290,20 +238,10 @@ export function Landing() {
                 className="sample-card"
                 aria-label={label}
               >
-                <FileText size={17} strokeWidth={1.3} /><span><span className="eyebrow">SAMPLE PAPER</span><strong>{label}</strong></span><ArrowRight className="size-3" />
+                <span><strong>{label}</strong></span>
               </Button>
             ),
           )}
         </div>
-      </form>
-
-      </div></section>
-      <section id="how-it-works" data-section="02 · THE CHECKS" className="white-sheet numbered-section" aria-labelledby="checks-heading">
-        <div className="section-container"><span className="section-number" aria-hidden="true">02</span><div className="section-heading" data-enter><div><p className="section-pill">● 02 · The checks</p><h2 id="checks-heading">Every finding.<br />A paper trail.</h2></div><p>A reference should exist. A source should support the claim. <strong>You should be able to see exactly why.</strong></p></div>
-        <div className="feature-grid">{features.map(({ icon: Icon, title, text }, i) => <article className="feature-card crosshair" key={title} data-enter style={{ transitionDelay: `${i * 80}ms` }}><div><Icon size={22} strokeWidth={1.3} /><span className="eyebrow">0{i + 1}</span></div><h3>{title}</h3><p>{text}</p><span className="feature-receipt">↳ Evidence included</span></article>)}</div></div>
-      </section>
-      <section id="honesty" data-section="03 · OUR PRINCIPLE" className="section-container numbered-section honesty-section" aria-labelledby="honesty-heading"><span className="section-number" aria-hidden="true">03</span><div className="section-heading" data-enter><div><p className="section-pill">● 03 · Our principle</p><h2 id="honesty-heading" className="unblur">What we<br />won’t guess.</h2></div><p>Missing evidence is a reason to pause.<br /><strong>Receipts, not scores.</strong> Every verdict explains what we found — and what we couldn’t verify.</p></div><article className="honesty-card crosshair" data-enter><div><p className="eyebrow">ILLUSTRATIVE FINDING / CLAIM 04</p><h3>Does the source support this claim?</h3><p>We couldn’t retrieve the full source text. The abstract alone isn’t enough to verify this claim.</p></div><div><span className="status-pill blue">? NEEDS_REVIEW</span><p>Next step: inspect the full paper and the cited passage before submission.</p></div></article></section>
-      <footer className="landing-footer"><div className="section-container"><div className="footer-top"><div><p className="section-pill">A LITTLE SCRUTINY GOES A LONG WAY</p><h2>Submit with receipts.</h2></div><a className="pill-button" href="#submit">Review your paper <ArrowRight size={15} /></a></div><div className="footer-meta"><span>VerRes · Research deserves a second look.</span><a href="#honesty">Receipts, not scores.</a></div></div><span className="footer-wordmark" aria-hidden="true">VerRes</span></footer>
-    </main>
-  );
+      </form></div><DotMatrix /></div></section><footer className="site-footer"><div className="journal-colophon section-container"><span className="footer-lockup"><Brand /><FooterMark /></span><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></div><div className="footer-wordmark" aria-hidden /></footer></main>;
 }

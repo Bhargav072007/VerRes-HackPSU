@@ -23,7 +23,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
         loading: (
-          <Loader2Icon className="size-4 animate-[spin_360ms_linear_infinite]" />
+          <Loader2Icon className="size-4 " />
         ),
       }}
       style={

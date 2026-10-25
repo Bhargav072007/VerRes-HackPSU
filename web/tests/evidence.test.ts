@@ -11,7 +11,7 @@ test("evidence receipts preserve verdicts, exact quotes, specific reasons and sa
     const details = evidenceDetails(report, c);
     assert.equal(details.verdict, ["DOI_MISMATCH", "NOT_FOUND"].includes(evidenceStates[i]) ? "NEEDS_REVIEW" : evidenceStates[i]);
     assert.equal(details.quotes[0].quote, report.support[i].evidence[0].quote);
-    assert.deepEqual(details.links.slice(0, 3).map(l => l.label), ["DOI", "OpenAlex", "Open-access copy / receipt"]);
+    assert.deepEqual(details.links.slice(0, 3).map(l => l.label), ["DOI", "OpenAlex", "Open-access copy / evidence"]);
     assert.equal(details.links.some(l => l.href.startsWith("javascript:")), false);
     assert.equal(details.agreement, i === 2 || i === 3 ? "2 of 2 models agree" : null);
   });
@@ -40,4 +40,16 @@ test("newly rendered API fields reject malformed external data", () => {
   }
   const report = evidenceFixture(); Object.assign(report.paper.citations[0], { claim_text: {} });
   assert.equal(decodeReport(report), null);
+});
+
+test("the evidence panel states each reason once", async () => {
+  const { default: paper3 } = await import("./fixtures/prod/paper3-job.json");
+  const report = decodeReport(structuredClone(paper3))!;
+  const unverified = evidenceDetails(report, report.paper!.citations!.find(c => c.id === "c00005")!);
+  assert.equal(unverified.needsReview, "reference identity is not verified");
+  assert.deepEqual(unverified.reasons, ["Not found in queried providers: crossref, openalex."]);
+  const fixture = evidenceFixture(), citation = fixture.paper.citations[0];
+  fixture.support[0].reason = "Quote matches the claim.";
+  fixture.existence.find(e => e.reference_id === citation.reference_id)!.reason = "quote matches the claim";
+  assert.deepEqual(evidenceDetails(fixture, citation).reasons, ["Quote matches the claim."]);
 });

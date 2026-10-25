@@ -9,8 +9,10 @@ export type Row = { reference: Schema["Reference"]; existence?: Schema["Existenc
 export type JobState = {
   seq: number; rows: Record<string, Row>; paper?: Schema["Paper"]; support: Record<string, Schema["SupportResult"]>;
   stages: Record<string, Schema["StagePayload"]["status"]>; errors: Record<string, string>; done: boolean;
+  // Every accepted event in order, stamped when it arrived; the review room reads only this.
+  log: (JobEvent & { receivedAt: number })[];
 };
-export const initialJob: JobState = { seq: 0, rows: {}, support: {}, stages: {}, errors: {}, done: false };
+export const initialJob: JobState = { seq: 0, rows: {}, support: {}, stages: {}, errors: {}, done: false, log: [] };
 type Action = { type: "reset" } | { type: "event"; event: JobEvent } | { type: "snapshot"; events: unknown[] } | { type: "notice"; reason: string };
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const string = (value: unknown): value is string => typeof value === "string";
@@ -43,7 +45,7 @@ export function jobReducer(state: JobState, action: Action): JobState {
   }, state);
   const e = action.event;
   if (e.seq <= state.seq) return state;
-  const next = { ...state, seq: e.seq };
+  const next = { ...state, seq: e.seq, log: [...state.log, { ...e, receivedAt: Date.now() }] };
   if (e.type === "paper") {
     next.paper = e.payload;
     next.stages = { ...state.stages, parse: "COMPLETED", references: "COMPLETED", existence: state.stages.existence ?? "STARTED" };

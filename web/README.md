@@ -5,7 +5,7 @@ Set `NEXT_PUBLIC_API_URL` before building to override `http://localhost:8000`.
 
 `npm run types` generates `lib/api-types.ts` from the checked-in `openapi.json`.
 PDF requests use multipart `file`; identifiers use JSON `arxiv_id` or `doi`.
-The app makes real API requests. Samples are explicitly unavailable placeholders.
+The app makes real API requests. Samples submit the bundled PDFs through the same multipart intake as an upload.
 
 `/check/[id]` restores the snapshot event journal before opening native SSE.
 After an initial disconnect and two failed reconnects it polls every 2 seconds.
@@ -33,3 +33,25 @@ Browser checks use installed Chrome and the production build; port 3000 must be 
 Run `NEXT_PUBLIC_MOCK=1 npm run build` and
 `NEXT_PUBLIC_MOCK=1 npm run test:browser -- live-check.spec.ts` for mock playback.
 Screenshots are written under `playwright-results/` (gitignored).
+
+D14: VerRes — read your paper like Reviewer 2 would.
+Every finding links to its evidence.
+
+The landing manuscript is an explicitly labeled illustrative composite. Its
+retraction example comes from recorded paper2; the Results preview uses a
+subset of fixtures/demo/paper3.jsonl with unchanged quotes and source passages.
+Run `node scripts/brand-assets.mjs` from web/ to regenerate ribbon assets from
+the local design reference (the reference is not committed).
+
+The desktop sequence has 300vh of travel: five 60vh beats, each animating for
+42vh and holding for 18vh. CSS scroll timelines enhance the underline; a
+requestAnimationFrame/IntersectionObserver mapping drives reversible annotations.
+Mobile and reduced motion use static figures. Lenis is mounted only on landing
+and destroyed when reduced motion is enabled or the route unmounts.
+
+Reader settings apply to report and shared report, including portaled panels.
+Size, spacing, theme, width, font, and reduced motion are stored under
+`verres-reader`; blocked or malformed localStorage falls back to defaults.
+
+Validation: `npm run lint`, `npm run typecheck`, `npm test`,
+`npm run build -- --webpack`, `npm run test:browser`, `make lint`, `make test`.
