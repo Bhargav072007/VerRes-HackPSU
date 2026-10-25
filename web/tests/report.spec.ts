@@ -30,10 +30,11 @@ for (const width of [1440, 390]) test(`completed report at ${width}px: filters, 
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator('[data-citation-id="cite-2"]')).toBeFocused();
   await page.keyboard.press("j"); await expect(page.locator('[data-citation-id="cite-3"]')).toBeFocused();
   await page.keyboard.press("k"); await expect(page.locator('[data-citation-id="cite-2"]')).toBeFocused();
   await page.locator('[data-source-id="ref-2"] summary').click();
-  await expect(page.getByRole("blockquote")).toContainText("children were not enrolled.");
+  await expect(page.locator('[data-source-id="ref-2"]').getByRole("blockquote")).toContainText("children were not enrolled.");
   await page.screenshot({ path: info.outputPath(`problems-${width}.png`), fullPage: true });
   await page.getByRole("button", { name: "Needs review", exact: true }).click();
   await expect(page.locator("[data-source-id]")).toHaveCount(1);
@@ -76,5 +77,5 @@ test("paper scrolling synchronizes the source pane and API text is never HTML", 
   await expect(page.locator("main img")).toHaveCount(0);
   await page.locator("aside details").evaluateAll(nodes => nodes.forEach(n => n.setAttribute("open", "")));
   await page.locator('[data-sentence-id="s2"]').evaluate(node => window.scrollTo({ top: window.scrollY + node.getBoundingClientRect().top - 180, behavior: "instant" }));
-  await expect.poll(() => page.locator("aside > div").last().evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => page.locator(".source-list").evaluate(node => node.scrollTop)).toBeGreaterThan(0);
 });

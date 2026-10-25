@@ -15,7 +15,7 @@ export function CountOnce({ value }: { value: number }) {
   const control = animate(0,value,{duration:.6,ease:"easeOut",onUpdate:n => setCount(Math.round(n))});
   return () => control.stop();
  },[visible,reduced,value]);
- return <span ref={ref} className="count-once" style={{minWidth:`${String(value).length}ch`}} aria-label={String(value)}><span aria-hidden>{reduced ? value : visible ? count : 0}</span></span>;
+ return <span ref={ref} className="count-once" role="img" style={{minWidth:`${String(value).length}ch`}} aria-label={String(value)}><span aria-hidden>{reduced ? value : visible ? count : 0}</span></span>;
 }
 export function HeroDetails({ children }: { children: ReactNode }) {
  const reduced = usePolishMotion(), x = useMotionValue(0), y = useMotionValue(0);

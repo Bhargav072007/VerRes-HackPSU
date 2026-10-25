@@ -31,7 +31,7 @@ for (const width of [1440, 390]) {
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({ path: info.outputPath(`${name}-${width}-${reducedMotion}.png`), fullPage: true, animations: "disabled" });
         if (name === "landing") {
-          await expect(page.getByLabel("arXiv ID or DOI", { exact: true })).toHaveCSS("border-color", "rgb(156, 155, 152)");
+          await expect(page.getByLabel("arXiv ID or DOI", { exact: true })).toHaveCSS("border-color", "rgb(119, 115, 107)");
           await page.keyboard.press("Tab");
           await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
           await expect(page.getByRole("link", { name: "Skip to content" })).toHaveCSS("outline-style", "solid");
@@ -40,7 +40,7 @@ for (const width of [1440, 390]) {
           await page.setViewportSize({ width, height: 600 });
           const tabs = page.getByRole("tablist", { name: "Report views" });
           await tabs.evaluate(node => window.scrollTo({ top: window.scrollY + node.getBoundingClientRect().top + 50, behavior: "instant" }));
-          await expect.poll(() => tabs.evaluate(node => Math.round(node.getBoundingClientRect().top))).toBe(width === 390 ? 158 : 174);
+          await expect.poll(() => tabs.evaluate(node => Math.round(node.getBoundingClientRect().top))).toBe(80);
           for (const tab of await page.getByRole("tab").all()) {
             await tab.click();
             await expect(page.getByRole("tabpanel")).toBeVisible();

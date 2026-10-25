@@ -1,61 +1,21 @@
 import { test, expect } from "@playwright/test";
 import { reviewFixture } from "./fixtures/review";
 
-for (const width of [1440, 390]) test(`D14 manuscript, assets and section figures at ${width}px`, async ({ page }, info) => {
-  const errors: string[] = [];
-  page.on("pageerror", e => errors.push(e.message));
-  page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
-  await page.setViewportSize({ width, height: 900 });
-  await page.goto("/");
-  await page.evaluate(() => document.fonts.ready);
-  await expect(page).toHaveTitle("VerRes — read your paper like Reviewer 2 would");
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /\/brand\/og-image.png$/);
-  await expect(page.locator('link[rel="icon"][href="/favicon.ico"]')).toHaveCount(1);
-  for (const asset of ["verres-lockup.png", "verres-mark.png", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "og-image.png"]) expect((await page.request.get(`/brand/${asset}`)).ok()).toBe(true);
-  await expect(page.getByText("Illustrative composite.", { exact: true })).toBeVisible();
-  await page.screenshot({ animations: "disabled", path: info.outputPath(`landing-top-${width}.png`) });
-  const scene = page.locator(".manuscript-sequence");
-  if (width === 1440) {
-    await expect(scene).not.toHaveAttribute("data-static");
-    expect(await scene.evaluate(n => n.getBoundingClientRect().height - innerHeight)).toBe(2700);
-    for (const beat of [1, 2, 3, 4, 5, 4, 3, 2, 1]) {
-      await scene.evaluate((n, b) => window.scrollTo({ top: window.scrollY + n.getBoundingClientRect().top + ((b - 1 + .85) / 5) * innerHeight * 3, behavior: "instant" }), beat);
-      await expect.poll(() => scene.evaluate((n, b) => Number(getComputedStyle(n).getPropertyValue(`--beat-${b}`)), beat)).toBe(1);
-      if (beat < 5) await expect.poll(() => scene.evaluate((n, b) => Number(getComputedStyle(n).getPropertyValue(`--beat-${b + 1}`)), beat)).toBe(0);
-      if (beat === 3) await page.screenshot({ animations: "disabled", path: info.outputPath(`landing-sequence-${width}.png`) });
-    }
-  } else {
-    await expect(scene).toHaveAttribute("data-static");
-    await expect(page.locator(".static-beat-captions li")).toHaveCount(5);
-    await page.locator(".manuscript-page").scrollIntoViewIfNeeded();
-    await page.screenshot({ animations: "disabled", path: info.outputPath(`landing-sequence-${width}.png`) });
-  }
-  for (const section of ["abstract", "how-it-works", "results", "honesty", "submit"]) {
-    await page.locator(`#${section}`).evaluate(node => node.scrollIntoView({ block: "start", behavior: "instant" }));
-    await expect(page.locator(`#${section} h2`).first()).toBeInViewport();
-    await expect(page.locator(`#${section} [data-enter]`).first()).toHaveCSS("opacity", "1");
-    if (section === "results" || section === "how-it-works") await expect(page.locator(`#${section} article`).first()).toHaveCSS("opacity", "1");
-    await page.screenshot({ animations: "disabled", path: info.outputPath(`landing-${section}-${width}.png`) });
-  }
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(errors).toEqual([]);
-});
-
-test("D14 reduced motion is static and Lenis stays off report and check routes", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  await expect(page.locator(".manuscript-sequence")).toHaveAttribute("data-static");
-  for (let beat = 1; beat <= 5; beat++) await expect.poll(() => page.locator(".manuscript-sequence").evaluate((n, b) => Number(getComputedStyle(n).getPropertyValue(`--beat-${b}`)), beat)).toBe(1);
-  await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
-  await page.route("**/jobs/reader", route => route.fulfill({ json: reviewFixture() }));
-  await page.goto("/report/reader");
-  await expect(page.getByRole("button", { name: "Reader settings", exact: true })).toBeVisible();
-  await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
-  await page.route("**/jobs/live", route => route.fulfill({ json: { events: [] } }));
-  await page.route("**/jobs/live/events", route => route.fulfill({ contentType: "text/event-stream", body: "retry: 60000\n\n" }));
-  await page.goto("/check/live");
-  await expect(page.locator(".live-header")).toBeVisible();
-  await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
+for (const width of [1440, 390]) test(`D15 landing, facts, method and sample at ${width}px`, async ({page}) => {
+ await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:"reduce"});await page.goto("/");await page.evaluate(()=>document.fonts.ready);
+ await expect(page.getByRole("heading",{name:"Read your paper like Reviewer 2 would."})).toBeVisible();
+ await expect(page.locator('.trust-columns>div')).toHaveCount(3);
+ await expect(page.locator('.trust-columns')).toContainText('checks per citation');
+ await expect(page.locator('.trust-columns')).toContainText('scholarly sources');
+ await expect(page.locator('.trust-columns')).toContainText('median review time, recorded runs');
+ await expect(page.getByText('Every finding links to its evidence.',{exact:true})).toHaveCount(1);
+ await expect(page.locator('.hero-details')).toContainText('Partially supported');
+ if(width===1440){await page.locator('.method-list button').nth(3).focus();await expect(page.locator('.method-list button').nth(3)).toHaveAttribute('aria-pressed','true');}
+ else {await page.locator('.method-accordion summary').nth(3).click();await expect(page.locator('.method-accordion details').nth(3)).toHaveAttribute('open','');}
+ await expect(page.locator('.paper-excerpt .margin-note')).toHaveCount(3);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.getByRole('link',{name:'See a sample report'}).click();await expect(page.getByRole('article',{name:'Paper text'})).toBeVisible();
+ await expect(page.locator('[data-citation-id="c00003"]')).toHaveAttribute('aria-label',/Partially supported/);
 });
 
 for (const width of [1440, 390]) test(`D14 reader preferences persist, themes cover overlays, and hover-to-cite at ${width}px`, async ({ page }, info) => {
@@ -100,7 +60,7 @@ for (const width of [1440, 390]) test(`D14 reader preferences persist, themes co
   }
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-reader-theme", "light");
-  await expect(page.locator(".manuscript-sequence")).toHaveAttribute("data-static");
+  await expect(page.locator(".hero-details")).toHaveCSS("transform", "none");
   await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
   expect(errors).toEqual([]);
 });

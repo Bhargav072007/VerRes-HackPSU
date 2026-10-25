@@ -3,7 +3,7 @@ import { Inter_Tight, Newsreader, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
+const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400"], preload: false, variable: "--font-plex-mono" });
 const inter = Inter_Tight({ subsets: ["latin"], variable: "--font-inter" });
 const serif = Newsreader({
   subsets: ["latin"],

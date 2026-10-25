@@ -29,7 +29,7 @@ for (const width of [1440, 390]) test(`evidence receipts at ${width}px: verdicts
     await expect(dialog).toHaveCSS("transform", "none");
     await expect(dialog.getByText(["Supported", "Partially supported", "Not supported", "Contradicted", "Needs review", "DOI mismatch", "Retracted", "Not found"][i], { exact: true }).first()).toBeVisible();
     await page.screenshot({ path: info.outputPath(`${state}-${width}.png`) });
-    expect(await dialog.evaluate(n => n.getBoundingClientRect().width)).toBeCloseTo(width === 390 ? 390 : 820, 1);
+    expect(await dialog.evaluate(n => n.getBoundingClientRect().width)).toBeCloseTo(width === 390 ? 390 : 1024, 1);
     await page.keyboard.press("Tab");
     expect(await dialog.evaluate(n => n.contains(document.activeElement))).toBe(true);
     await page.keyboard.press("Escape");

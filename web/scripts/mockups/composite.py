@@ -105,7 +105,7 @@ def export(image, name):
     for factor, width in [(1, 768), (2, 1536)]:
         size = (width, round(image.height * width / image.width))
         resized = image.resize(size, Image.Resampling.LANCZOS)
-        resized.save(PUBLIC / f"{name}@{factor}x.avif", quality=65)
+        resized.save(PUBLIC / f"{name}@{factor}x.avif", quality=50 if factor == 1 else 65)
         resized.save(PUBLIC / f"{name}@{factor}x.webp", quality=86)
     image.save(PUBLIC / f"{name}.webp", quality=86)
     buffer = io.BytesIO()

@@ -57,3 +57,10 @@ python3 scripts/mockups/composite.py           # uses work/ scenes; no generatio
 - Reused s1-1 / s2-2 / s3-2 / s4-2 / s5-3. Final AVIF/WebP, blur manifest, method crops, OG image and contact sheet refreshed.
 - Generations this continuation: 0. Prior total: 11 built-in tool generations; $0 Images API spend (built-in cost not separately reported).
 - Next: §7 full tests, new snapshots, Lighthouse and final page screenshots; then PR ready + evidence comment.
+
+## Final §7 checkpoint
+- Runtime ban-list and secret-name checks clean; lint, typecheck, 30 unit tests, webpack build, 697 backend tests and four offline compositor tests passed.
+- Mobile Lighthouse after offline responsive AVIF delivery: 91 performance / 100 accessibility / CLS 0.
+- Six page captures, final contact sheet and Lighthouse JSON saved in docs/d15; README contains review decisions, command details and spend.
+- Full browser suite refreshed for D15; two original environment opt-ins remain explicitly documented.
+- No further generations. Finish with push, current D15 PR description/evidence comment, then mark #45 ready.
