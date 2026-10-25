@@ -70,7 +70,9 @@ async def test_abstention_is_not_reported_as_a_fabricated_quote(claim, source):
         "mismatch_types": [],
     }
     models = [FixtureModel({"judge": response}, model_id=name) for name in ("m1", "m2")]
-    report = await run_bakeoff([pair], models, dataset_version="synthetic-test-only")
+    report = await run_bakeoff(
+        [pair], models, dataset_version="synthetic-test-only", rehearsal=True
+    )
     assert report["prompt_version"] == "v2"
     for model in report["models"].values():
         assert model["metrics"]["invalid_json_rate"] == 0

@@ -136,7 +136,7 @@ def read_jsonl(path: Path, model: type[Record]) -> list:
 def validate_candidates(
     candidates: list[Candidate],
     sources: list[EvidenceSource],
-    proposals: list[Proposal],
+    proposals: list[Proposal] | None = None,
     *,
     root: Path = ROOT,
     check_evidence: bool = True,
@@ -224,9 +224,10 @@ def validate_candidates(
             for text in texts
         ):
             errors.append(f"missing or inexact source quote: {c.id}")
-    proposal_ids = [p.candidate_id for p in proposals]
-    if set(proposal_ids) != ids or len(proposal_ids) != len(ids):
-        errors.append("proposals must cover each candidate exactly once")
+    if proposals is not None:
+        proposal_ids = [p.candidate_id for p in proposals]
+        if set(proposal_ids) != ids or len(proposal_ids) != len(ids):
+            errors.append("proposals must cover each candidate exactly once")
     return errors
 
 

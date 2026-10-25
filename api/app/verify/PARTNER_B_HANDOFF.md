@@ -1,5 +1,24 @@
 # Partner B correctness handoff
 
+## Current integration update
+
+Main `21ecc9c` includes the B/C fixes and 40-candidate preparation, model wiring,
+report/evidence/graph/review UI, sharing and deployment support. The historical
+A3 wiring limitation below is resolved: `build_services` now injects the primary
+model into verification and graph services, and an optional adjudicator into
+verification. Missing configuration still produces explicit uncertainty.
+
+The current A11b policy permits distinct same-vendor model IDs by default through
+`ADJUDICATOR_ALLOW_SAME_VENDOR`. Same-vendor checks are labeled as such; they do
+not meet the original cross-vendor independence requirement. Setting that policy
+false preserves abstention until an eligible different-vendor adapter is supplied.
+
+The offline follow-up in `api/app/eval/BAKEOFF.md` prepares blind human review,
+artifact-bound export and a fixture-only rehearsal. Human labels and measured
+scientific accuracy remain unavailable. Model wiring and a successful live job
+do not replace that measurement. The rest of this document records the original
+correctness candidate and its historical validation results.
+
 Base: `origin/main` at `03cbc3d` (A1/A2/A3, D1/D2 and three demo papers).
 Fix branch: `codex/partner-b-correctness`. Shared contracts, job/orchestrator code,
 migrations, infrastructure and frontend source remain unchanged.
