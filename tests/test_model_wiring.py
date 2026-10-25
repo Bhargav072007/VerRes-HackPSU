@@ -279,7 +279,7 @@ async def test_openai_adjudication_and_honest_provenance(wired_app, disputed_cas
         [] if outcome == "supported" else ["adjudicate"]
     )
     assert all(call["model"] == "fixture-primary" for call in calls[:3])
-    assert result.prompt_version == "v2" and "untrusted-model-id" not in result.model_dump_json()
+    assert result.prompt_version == "v3" and "untrusted-model-id" not in result.model_dump_json()
     assert "fixture-primary (vendor=openai, family=openai)" in result.reason
     if outcome == "supported":
         assert result.label == "SUPPORTED" and not result.adjudicated
