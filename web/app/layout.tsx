@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter_Tight, Newsreader, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { themeScript } from "@/lib/theme";
 import "./globals.css";
 
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400"], preload: false, variable: "--font-plex-mono" });
@@ -29,7 +30,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${serif.variable} ${mono.variable}`}>
+      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body className="flex min-h-dvh flex-col font-sans antialiased">
         <Providers>
           <a

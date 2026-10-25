@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useScroll } from "motion/react";
 import Link from "next/link";
 import { Brand } from "./brand";
 import { LogoMarkButton } from "./footer-mark";
+import { ThemeToggle } from "./theme-toggle";
 const motionSnapshot = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.a11yMotion === "reduce";
 const motionServerSnapshot = () => true;
 function subscribeMotion(update: () => void) {
@@ -25,7 +26,7 @@ export function useMediaQuery(query: string) {
 }
 
 export function LandingChrome({ live = false, report = false }: { live?: boolean; report?: boolean }) {
-  return <header className="polish-nav" data-context={report ? "report" : live ? "live" : "landing"}><Link href="/" aria-label="VerRes home"><Brand /></Link><nav aria-label="Main navigation"><Link href="/#how-it-works">Method</Link><Link href="/#results">Results</Link><Link href="/#honesty">Limitations</Link></nav><details className="polish-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation" onClick={e => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}><Link href="/#how-it-works">Method</Link><Link href="/#results">Results</Link><Link href="/#honesty">Limitations</Link></nav></details><Link className="pill-button" href="/#submit">Review a paper</Link></header>;
+  return <header className="polish-nav" data-context={report ? "report" : live ? "live" : "landing"}><Link href="/" aria-label="VerRes home"><Brand /></Link><nav aria-label="Main navigation"><Link href="/#how-it-works">Method</Link><Link href="/#results">Results</Link><Link href="/#honesty">Limitations</Link></nav><details className="polish-menu"><summary aria-label="Navigation menu">Menu</summary><nav aria-label="Mobile navigation" onClick={e => { if ((e.target as HTMLElement).closest("a")) e.currentTarget.closest("details")?.removeAttribute("open"); }}><Link href="/#how-it-works">Method</Link><Link href="/#results">Results</Link><Link href="/#honesty">Limitations</Link></nav></details><ThemeToggle /><Link className="pill-button" href="/#submit">Review a paper</Link></header>;
 }
 export function receiptNavigate(push: (href: string) => void, href: string) { push(href); }
 
@@ -51,6 +52,7 @@ export function StickyNav() {
     <div className="sticky-nav-inner">
       <span className="sticky-nav-label" aria-live="polite"><AnimatePresence mode="popLayout" initial={false}><motion.span key={label} initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: -6 }} transition={{ duration: .2, ease: [.2, .7, .2, 1] }}>{label}</motion.span></AnimatePresence></span>
       <nav aria-label="Section navigation">{links.map(([id, text]) => <Link key={id} href={`/#${id}`} aria-current={active === id ? "location" : undefined}>{text}</Link>)}</nav>
+      <ThemeToggle />
       <Link className="pill-button" href="/#submit">Review a paper</Link>
     </div>
     <motion.span aria-hidden className="sticky-nav-progress" style={{ scaleX: scrollYProgress }} />

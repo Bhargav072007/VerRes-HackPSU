@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Popover } from "radix-ui";
 import { X } from "lucide-react";
 import { parseReaderSettings, readerDefaults, type ReaderSettings } from "@/lib/reader-settings";
+import { applyTheme, readThemeChoice, resolveTheme, setThemeChoice, systemPrefersDark, THEME_EVENT, type ThemeChoice } from "@/lib/theme";
 const Context = createContext<{ settings: ReaderSettings; update: (value: Partial<ReaderSettings>) => void }>({ settings: readerDefaults, update: () => {} });
 export function ReaderPreferences({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<ReaderSettings>(readerDefaults), [ready, setReady] = useState(false);
@@ -12,14 +13,18 @@ export function ReaderPreferences({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let saved: ReaderSettings = readerDefaults;
     try { saved = parseReaderSettings(JSON.parse(localStorage.getItem("verres-reader") || "null")); } catch { /* Storage is optional. */ }
+    // The theme has one source of truth, shared with the nav toggle.
+    saved = { ...saved, theme: readThemeChoice() ?? resolveTheme(null, systemPrefersDark()) };
     const frame = requestAnimationFrame(() => { setSettings(saved); setReady(true); });
-    return () => cancelAnimationFrame(frame);
+    const sync = (event: Event) => { const theme = (event as CustomEvent<ThemeChoice>).detail; if (theme) setSettings(current => ({ ...current, theme })); };
+    const media = matchMedia("(prefers-color-scheme: dark)"), follow = () => { if (!readThemeChoice()) setSettings(current => ({ ...current, theme: resolveTheme(null, media.matches) })); };
+    addEventListener(THEME_EVENT, sync); media.addEventListener("change", follow);
+    return () => { cancelAnimationFrame(frame); removeEventListener(THEME_EVENT, sync); media.removeEventListener("change", follow); };
   }, []);
   useEffect(() => {
     if (!ready) return;
     const root = document.documentElement;
-    const reading = pathname.startsWith("/report/") || pathname.startsWith("/shares/");
-    root.dataset.readerTheme = reading ? settings.theme : "light";
+    applyTheme(settings.theme);
     root.dataset.readerWidth = settings.width;
     root.style.setProperty("--reader-size", `${settings.size}px`);
     root.style.setProperty("--reader-leading", String({ compact: 1.5, comfortable: 1.75, open: 2 }[settings.spacing]));
@@ -28,7 +33,7 @@ export function ReaderPreferences({ children }: { children: React.ReactNode }) {
     applied.current = true;
     try { localStorage.setItem("verres-reader", JSON.stringify(settings)); } catch { /* Private browsing can disable storage. */ }
   }, [settings, ready, pathname]);
-  return <Context.Provider value={{ settings, update: value => setSettings(current => ({ ...current, ...value })) }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ settings, update: value => { if (value.theme) setThemeChoice(value.theme); setSettings(current => ({ ...current, ...value })); } }}>{children}</Context.Provider>;
 }
 export function ReaderSettingsButton() {
   const { settings, update } = useContext(Context);

@@ -68,7 +68,7 @@ export function ReviewRoom({ id, log, autoNavigate = true }: { id: string; log: 
           {agent.model && <span className="agent-model">{agent.model}</span>}
         </li>;
       })}</ol>
-      <aside className="room-side">
+      <div className="room-side">
         <figure className="room-paper hero-paper" aria-label="References as they resolve">
           <p className="paper-title">{room.title ?? "Untitled manuscript"}</p>
           <p className="paper-references-heading">References</p>
@@ -89,7 +89,7 @@ export function ReviewRoom({ id, log, autoNavigate = true }: { id: string; log: 
             </button>
           </motion.li>)}</ol>
         </section>
-      </aside>
+      </div>
     </div>
   </section>;
 }

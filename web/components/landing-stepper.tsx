@@ -72,13 +72,13 @@ export function LandingStepper() {
   return <section id="how-it-works" className="article-section section-container stepper" aria-labelledby="stepper-title">
     <h2 id="stepper-title" className="editorial-title">Every citation, <strong>checked.</strong></h2>
     <div className="stepper-layout">
-      <aside className="stepper-rail" aria-label="Review stages">
+      <div className="stepper-rail" role="group" aria-label="Review stages">
         <ol>{stages.map(([name, text], i) => <li key={name} aria-current={i === current ? "step" : undefined} data-complete={i < current}>
           <span className="rail-stop">{i < current ? <Check size={14} aria-hidden /> : String(i + 1).padStart(2, "0")}{i === current && !reduced && <motion.span aria-hidden className="rail-pulse" initial={{ scale: 1, opacity: .3 }} animate={{ scale: 2.8, opacity: 0 }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }} />}</span>
           <span><span className="rail-name">{name}{i === current && <span className="current-tag">Current stage</span>}</span><span className="rail-text">{text}</span></span></li>)}</ol>
         <div className="rail-segments" aria-hidden>{stages.map((_, i) => <span key={i}><motion.i initial={false} animate={{ scaleX: i <= current ? 1 : 0 }} transition={{ duration: reduced ? 0 : .22, ease }} /></span>)}</div>
         <p className="rail-progress">Stage {current + 1} of {stages.length}</p>
-      </aside>
+      </div>
       <div className="stepper-cards">{demos.map((Demo, i) => <StageCard key={i} index={i} reduced={reduced} onCentre={setCurrent}>{p => <Demo {...p} />}</StageCard>)}</div>
     </div>
   </section>;

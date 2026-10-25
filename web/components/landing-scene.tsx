@@ -35,7 +35,7 @@ function HeroCard({ index, progress, target, reduced }: { index: number; progres
   const style = findingStyles[card.chip];
   return <li className="hero-card-slot" style={{ [side]: `${inset}%`, top: `${top}%` }}>
     <motion.div className="hero-card-flight" style={{ transform, opacity }}>
-      <motion.article className="hero-card" style={{ borderLeftColor: style.color }} initial={false} animate={reduced ? { y: 0, rotate: 0 } : { y: [0, 6, -6, 0], rotate: [0, .7, -.7, 0] }} transition={reduced ? { duration: 0 } : { duration: 6 + (index % 4), repeat: Infinity, ease: "easeInOut", delay: index * .35 }}>
+      <motion.article className="hero-card" style={{ borderLeftColor: `var(--finding-bar-${card.chip}, ${style.color})` }} initial={false} animate={reduced ? { y: 0, rotate: 0 } : { y: [0, 6, -6, 0], rotate: [0, .7, -.7, 0] }} transition={reduced ? { duration: 0 } : { duration: 6 + (index % 4), repeat: Infinity, ease: "easeInOut", delay: index * .35 }}>
         <Finding chip={card.chip} />
         <p className="hero-card-meta">{card.author} · {card.year ?? "n.d."}</p><p className="hero-card-title">{card.title}</p>
         {card.chip === "RETRACTED" && <span className="hero-card-stamp" aria-hidden>Retracted</span>}
@@ -52,7 +52,7 @@ function PaperSlot({ index, filled, reduced, delay }: { index: number; filled: b
     <span className="paper-slot-body">
       <motion.span aria-hidden className="paper-slot-empty" initial={false} animate={{ opacity: filled ? 0 : 1 }} transition={quick ?? { duration: .12, delay }} />
       <motion.span className="paper-slot-fill" initial={false} animate={filled ? { opacity: 1, y: reduced ? 0 : [0, 3, 0] } : { opacity: 0, y: 0 }} transition={quick ?? { opacity: { duration: .14, delay }, y: { duration: .12, delay, ease: "easeOut" } }}>
-        <motion.span aria-hidden className="paper-slot-bar" style={{ background: style.color }} initial={false} animate={{ scaleY: filled ? 1 : 0 }} transition={quick ?? { duration: .16, delay }} />
+        <motion.span aria-hidden className="paper-slot-bar" style={{ background: `var(--finding-bar-${card.chip}, ${style.color})` }} initial={false} animate={{ scaleY: filled ? 1 : 0 }} transition={quick ?? { duration: .16, delay }} />
         <span className="paper-slot-ref"><strong>{card.author} {card.year ?? "n.d."}.</strong> <em>{card.title}</em></span>
         <motion.span className="paper-slot-verdict" initial={false} animate={{ opacity: filled ? 1 : 0 }} transition={quick ?? { duration: .16, delay: delay + .15 }}><Finding chip={card.chip} /></motion.span>
       </motion.span>
@@ -114,7 +114,7 @@ export function LandingScene() {
           <p className="paper-references-heading">References</p>
           <ol ref={list} className="paper-references" aria-label="References with their findings">{heroCards.map((card, i) => <PaperSlot key={card.id} index={i} filled={isFilled(i)} reduced={reduced} delay={pinned ? 0 : i * .12} />)}</ol>
           <motion.ul className="hero-tally" aria-label="Findings across the eight references" initial={false} animate={{ opacity: tallyShown ? 1 : 0, y: tallyShown || reduced ? 0 : 6 }} transition={{ duration: reduced ? 0 : .24, delay: pinned || reduced ? 0 : heroCards.length * .12 }}>
-        {heroTally.map(({ chip, count }) => <li key={chip} style={{ color: findingStyles[chip].text, borderColor: findingStyles[chip].color }}>{count} {findingStyles[chip].short}</li>)}
+        {heroTally.map(({ chip, count }) => <li key={chip} style={{ color: `var(--finding-${chip}, ${findingStyles[chip].text})`, borderColor: `var(--finding-bar-${chip}, ${findingStyles[chip].color})` }}>{count} {findingStyles[chip].short}</li>)}
       </motion.ul>
         </motion.div>
       </div>
