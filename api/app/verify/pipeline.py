@@ -15,6 +15,7 @@ from api.app.verify.models import (
     Judgment,
     Passage,
 )
+from api.app.verify.outcomes import BACKGROUND_REASON, METHOD_REASON
 from api.app.verify.retrieval import passages, retrieve, retrieve_passages
 
 
@@ -48,24 +49,33 @@ async def classify_citations(citations: list[ParsedCitation], model: Model) -> d
     classifications = {}
     for start in range(0, len(citations), 10):
         batch = citations[start : start + 10]
-        try:
-            result = await call_model(
-                model,
-                "classify",
-                [{**c.model_dump(exclude={"reference_id"}), "citation_id": c.id} for c in batch],
-                Classification,
-            )
-            ids = [item.citation_id for item in result.items]
-            expected = {c.id for c in batch}
-            if len(ids) != len(expected) or set(ids) != expected:
-                logging.getLogger(__name__).warning(
-                    "classify id mismatch: got %s expected %s", ids, sorted(expected)
+        for attempt in range(2):
+            try:
+                result = await call_model(
+                    model,
+                    "classify",
+                    [
+                        {**c.model_dump(exclude={"reference_id"}), "citation_id": c.id}
+                        for c in batch
+                    ],
+                    Classification,
                 )
-                continue
-            classifications.update({i.citation_id: i.function for i in result.items})
-        except (ModelFailure, ValidationError) as error:
-            logging.getLogger(__name__).warning("%s", failure_reason("classify", error))
-            continue
+                ids = [item.citation_id for item in result.items]
+                expected = {c.id for c in batch}
+                if len(ids) != len(expected) or set(ids) != expected:
+                    logging.getLogger(__name__).warning("classify returned invalid citation IDs")
+                    continue
+                classifications.update({i.citation_id: i.function for i in result.items})
+                break
+            except (ModelFailure, ValidationError) as error:
+                logging.getLogger(__name__).warning("%s", failure_reason("classify", error))
+                if isinstance(error, ModelFailure) and error.code not in {
+                    "MODEL_FAILURE",
+                    "INCOMPLETE_OUTPUT",
+                }:
+                    break  # HTTP retries and budget guards belong to the gateway.
+            if not attempt:
+                await asyncio.sleep(0.2)
     return classifications
 
 
@@ -90,10 +100,12 @@ async def verify_citation(
         result.finding = uncertain(source, "citation function classification failed")
         return result
     if result.citation_function in {"BACKGROUND", "METHOD_OR_TOOL"}:
-        result.finding = uncertain(source, "citation does not attribute a specific finding")
+        result.finding = uncertain(
+            source, BACKGROUND_REASON if result.citation_function == "BACKGROUND" else METHOD_REASON
+        )
         return result
     if source.evidence_level == "NONE":
-        result.finding = uncertain(source, "source evidence is unavailable")
+        result.finding = uncertain(source, "Source unavailable: " + source.reason)
         return result
     try:
         split = await call_model(primary, "split", citation.model_dump(), ClaimSplit)
@@ -117,7 +129,9 @@ async def verify_citation(
         if source_passages is None:
             selected = await asyncio.to_thread(retrieve, claim.text, source.text, source.abstract)
         else:
-            selected = await asyncio.to_thread(retrieve_passages, claim.text, source_passages)
+            selected = await asyncio.to_thread(
+                retrieve_passages, claim.text, source_passages, source.abstract
+            )
         try:
             judgment = await call_model(
                 primary,
@@ -125,6 +139,7 @@ async def verify_citation(
                 {
                     "claim": claim.model_dump(),
                     "evidence_level": source.evidence_level,
+                    "whole_source_coverage": source.whole_source,
                     "passages": [p.model_dump() for p in selected],
                 },
                 Judgment,
@@ -156,6 +171,7 @@ async def verify_citation(
                             {
                                 "claim": claim.model_dump(),
                                 "evidence_level": source.evidence_level,
+                                "whole_source_coverage": source.whole_source,
                                 "passages": [p.model_dump() for p in whole_source],
                             },
                             Judgment,

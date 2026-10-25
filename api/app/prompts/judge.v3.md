@@ -14,3 +14,8 @@ states the opposite direction or finding of the claim. Use DIRECT strength and o
 DIRECTION in mismatch_types. Scope, magnitude, missing details, or silence do not
 qualify. NOT_SUPPORTED is never permitted on abstracts: return NEEDS_REVIEW with
 reason "abstract does not address this claim; full text unavailable" instead.
+
+If whole_source_coverage is false, the passages are extracted text only: graphics,
+images or tables were not interpreted. Verified passages can establish support or
+an explicit contradiction, but cannot establish absence. Never return NOT_SUPPORTED
+from partial coverage; use NEEDS_REVIEW when the supplied text cannot resolve the claim.

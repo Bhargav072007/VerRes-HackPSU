@@ -238,4 +238,4 @@ async def test_cache_excludes_model_unavailability_in_any_event(runner, event_ty
 
 
 def test_pipeline_version_invalidates_previous_results():
-    assert version.PIPELINE_VERSION == "0.2.1"
+    assert tuple(map(int, version.PIPELINE_VERSION.split("."))) > (0, 2, 1)

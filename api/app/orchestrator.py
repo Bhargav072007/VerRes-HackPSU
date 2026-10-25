@@ -17,6 +17,7 @@ from api.app.providers.services import build_backend
 from api.app.review import ReviewPanel, ReviewStub
 from api.app.review.runtime import ResilientGateway, job_context, provider_issues, stage_context
 from api.app.verify.model import JSONGatewayModel, Model
+from api.app.verify.outcomes import informational_citation
 from contracts.interfaces import Review, Verify
 from contracts.schema import (
     Citation,
@@ -84,10 +85,12 @@ def build_services(settings, pool=None, *, model: Model | None = None):
         from api.app.providers.cache import PostgresCache
         from api.app.providers.http import Policy, load_policies
 
-        model_name = (os.getenv("MODEL_PRIMARY") or "").strip() or (
-            os.getenv("REVIEW_MODEL") or ""
+        model_name = (os.getenv("MODEL_PRIMARY") or settings.model_primary or "").strip() or (
+            os.getenv("REVIEW_MODEL") or settings.review_model or ""
         ).strip()
-        adjudicator_name = (os.getenv("MODEL_ADJUDICATOR") or "").strip()
+        adjudicator_name = (
+            os.getenv("MODEL_ADJUDICATOR") or settings.model_adjudicator or ""
+        ).strip()
         if model is None and settings.openai_api_key and model_name:
             model_gateway = ResilientGateway(
                 {"review": Policy("https://api.openai.com", 4, 1, 3)},
@@ -480,7 +483,10 @@ class Pipeline:
             )
             or any(r.status != "NONE" for r in self.report.retractions)
             or any(r.status == "CHECK_INCOMPLETE" for r in self.report.sources)
-            or any(r.label != "SUPPORTED" for r in self.report.support)
+            or any(
+                r.label != "SUPPORTED" and not informational_citation(r)
+                for r in self.report.support
+            )
             or self.report.hidden_text
             or self.report.claim_map.status == "NEEDS_REVIEW"
             or self.report.review.warning

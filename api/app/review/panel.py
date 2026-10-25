@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import Field, ValidationError
 
 from api.app.verify.model import Model, ModelFailure, failure_reason, untrusted
+from api.app.verify.outcomes import informational_citation
 from contracts.schema import Contract, Paper, ReviewComment, ReviewSummary, SupportResult
 
 logger = logging.getLogger(__name__)
@@ -119,7 +120,13 @@ class ReviewPanel:
                 "sentence_ids": c.sentence_ids,
                 "existence_status": existence.get(c.reference_id, "CHECK_INCOMPLETE"),
                 "retraction_status": retractions.get(c.reference_id, "UNKNOWN"),
-                "support_label": results[c.id].label if c.id in results else "NEEDS_REVIEW",
+                "support_label": (
+                    "NOT_APPLICABLE"
+                    if informational_citation(results[c.id])
+                    else results[c.id].label
+                )
+                if c.id in results
+                else "NEEDS_REVIEW",
                 "mismatch_types": results[c.id].mismatch_types if c.id in results else [],
             }
             for c in paper.citations
@@ -141,8 +148,9 @@ class ReviewPanel:
             flagged = {
                 r["citation_id"]
                 for r in table
-                if (r["support_label"], r["existence_status"], r["retraction_status"])
-                != ("SUPPORTED", "VERIFIED", "NONE")
+                if r["support_label"] not in {"SUPPORTED", "NOT_APPLICABLE"}
+                or r["existence_status"] not in {"VERIFIED", "VERIFIED_WITH_DISCREPANCIES"}
+                or r["retraction_status"] != "NONE"
             }
             if comment.linked_citation_ids:
                 if any(

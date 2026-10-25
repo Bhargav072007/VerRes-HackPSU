@@ -1,7 +1,7 @@
 """Implement contracts.interfaces.Verify with public, receipt-bearing SupportResult."""
 
 from api.app.ingest.models import ParsedCitation
-from api.app.sources.acquire import Source
+from api.app.sources.acquire import PARTIAL_PDF_PREFIX, PARTIAL_PDF_SECTION, Source
 from api.app.verify.model import Model
 from api.app.verify.models import Passage
 from api.app.verify.pipeline import verify_citation
@@ -35,19 +35,27 @@ class VerifyService(Verify):
             return needs_review(citation.id, "citation has no source sentence IDs")
         if citation.reference_id != source.reference_id:
             return needs_review(citation.id, "source belongs to a different reference")
-        if source.status != "AVAILABLE" or source.evidence_level == EvidenceLevel.METADATA_ONLY:
-            return needs_review(citation.id, source.reason)
         if self.primary is None:
             return needs_review(citation.id, "verification model is not configured")
         ids = [p.passage_id for p in source.passages]
-        if not ids or len(set(ids)) != len(ids) or any(not p.text.strip() for p in source.passages):
+        available = (
+            source.status == "AVAILABLE" and source.evidence_level != EvidenceLevel.METADATA_ONLY
+        )
+        if available and (
+            not ids or len(set(ids)) != len(ids) or any(not p.text.strip() for p in source.passages)
+        ):
             return needs_review(citation.id, "source passages are missing, empty or duplicated")
         parts = [Passage(id=p.passage_id, text=p.text) for p in source.passages]
         internal = Source(
             work_id=source.reference_id,
-            evidence_level="FULL_TEXT"
+            evidence_level="NONE"
+            if not available
+            else "FULL_TEXT"
             if source.evidence_level == EvidenceLevel.FULL_TEXT
             else "ABSTRACT",
+            whole_source=not source.reason.startswith(PARTIAL_PDF_PREFIX)
+            and not any(p.section == PARTIAL_PDF_SECTION for p in source.passages),
+            abstract=next((p.text for p in source.passages if p.passage_id == "abstract"), None),
             text="\n\n".join(p.text for p in source.passages),
             origin=source.url,
             reason=source.reason,
