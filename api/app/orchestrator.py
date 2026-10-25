@@ -1,16 +1,21 @@
 """Contract-only job runner; provider failures become reviewable receipts."""
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from time import monotonic
 
 from pydantic import TypeAdapter
 
-from api.app.db import JobFailure
+from api.app import version
+from api.app.db import JobFailure, Jobs
 from api.app.providers.services import build_backend
 from api.app.review import ReviewPanel, ReviewStub
+from api.app.review.runtime import ResilientGateway, job_context, provider_issues, stage_context
 from api.app.verify.model import JSONGatewayModel, Model
 from contracts.interfaces import Review
 from contracts.schema import (
@@ -38,6 +43,7 @@ class Services:
     backend: object
     review: Review
     model_gateway: object = None
+    backend_gateway: object = None
 
     async def aclose(self):
         try:
@@ -45,20 +51,31 @@ class Services:
         finally:
             if self.model_gateway:
                 await self.model_gateway.aclose()
+            if (
+                self.backend_gateway
+                and getattr(self.backend, "gateway", None) is not self.backend_gateway
+            ):
+                await self.backend_gateway.aclose()
 
 
 def build_services(settings, pool=None, *, model: Model | None = None):
     model_gateway = None
+    gateway = None
     if os.getenv("STUBS") == "1":
         from api.app.stubs import FixtureServices
 
         backend = FixtureServices()
         review = ReviewStub()
     else:
-        if model is None and settings.openai_api_key and os.getenv("REVIEW_MODEL"):
-            from api.app.providers.http import Gateway, Policy
+        from api.app.providers.cache import PostgresCache
+        from api.app.providers.http import Policy, load_policies
 
-            model_gateway = Gateway({"review": Policy("https://api.openai.com", 4, 1, 3)})
+        if model is None and settings.openai_api_key and os.getenv("REVIEW_MODEL"):
+            model_gateway = ResilientGateway(
+                {"review": Policy("https://api.openai.com", 4, 1, 3)},
+                jobs=Jobs(pool) if pool else None,
+                daily_budget_usd=settings.llm_daily_budget,
+            )
             model = JSONGatewayModel(
                 model_gateway,
                 provider="review",
@@ -67,9 +84,13 @@ def build_services(settings, pool=None, *, model: Model | None = None):
                 api_key=settings.openai_api_key.get_secret_value(),
                 max_input_chars=100_000,
             )
-        backend = build_backend(settings, pool=pool)
+        policies = load_policies()
+        policies["grobid"] = Policy(settings.grobid_url, 1, 1, 1)
+        policies["arxiv-intake"] = Policy("https://arxiv.org", 1, 3, 1)
+        gateway = ResilientGateway(policies, cache=PostgresCache(pool) if pool else None)
+        backend = build_backend(settings, pool=pool, gateway=gateway)
         review = ReviewPanel(model)
-    return Services(backend, review, model_gateway)
+    return Services(backend, review, model_gateway, gateway)
 
 
 def fallback(kind, row_id, reason):
@@ -105,6 +126,8 @@ class Pipeline:
         self.bus, self.services, self.settings = bus, services, settings
         self.deadline = deadline
         self.pending = set()
+        self.stage_started = {}
+        self.stage_durations = {}
 
     async def emit(self, kind, payload):
         result = await self.bus.emit(self.job_id, kind, payload.model_dump(mode="json"))
@@ -119,14 +142,31 @@ class Pipeline:
         await self.emit("stage", StagePayload(stage=name, status=status, reason=reason))
         if status == "STARTED":
             self.pending.add(name)
+            self.stage_started[name] = monotonic()
         else:
             self.pending.discard(name)
+            duration = monotonic() - self.stage_started.pop(name, monotonic())
+            self.stage_durations[name] = self.stage_durations.get(name, 0) + duration
+            logger.info(
+                "stage finished",
+                extra={
+                    "job_id": str(self.job_id),
+                    "stage": name,
+                    "duration_seconds": round(duration, 6),
+                },
+            )
 
     async def call(self, name, kind, row_id, operation, result_type):
         await self.stage(name, "STARTED")
         reason = None
+        issues = []
+        issue_token = provider_issues.set(issues)
+        stage_token = stage_context.set(name)
         try:
             result = await operation()
+            if issues:
+                reason = "; ".join(dict.fromkeys(issues))
+                result = fallback(kind, row_id, reason)
             items = result if isinstance(result, list) else [result]
             expected = HiddenTextFinding if kind == "hidden_text" else result_type
             if not all(isinstance(item, expected) for item in items):
@@ -154,6 +194,9 @@ class Pipeline:
                 type(error).__name__,
             )
             result = fallback(kind, row_id, reason)
+        finally:
+            provider_issues.reset(issue_token)
+            stage_context.reset(stage_token)
         await self.stage(name, "CHECK_INCOMPLETE" if reason else "COMPLETED", reason)
         return result
 
@@ -288,10 +331,23 @@ class Pipeline:
                     getattr(self.report, field).append(result)
 
     async def run_job(self, job_id):
+        token = job_context.set(str(job_id))
+        try:
+            await self._run_job(job_id)
+        finally:
+            job_context.reset(token)
+
+    async def _run_job(self, job_id):
         from api.app.routes.jobs import load_pdf
 
         self.job_id = job_id
-        self.report = Report(job_id=job_id, status="COMPLETE")
+        self.report = Report(
+            job_id=job_id,
+            status="COMPLETE",
+            pipeline_version=version.PIPELINE_VERSION,
+            git_sha=version.GIT_SHA,
+            started_at=datetime.now(UTC),
+        )
         self.scanned = False
         reason = None
         try:
@@ -299,12 +355,23 @@ class Pipeline:
                 row = await self.bus.jobs.get(job_id)
                 if row is None or row["status"] not in ("QUEUED", "RUNNING"):
                     return
+                if row.get("demo_fixture"):
+                    from api.app.routes.demo import replay_recording
+
+                    await replay_recording(self.bus, job_id, row["input"])
+                    return
                 await self.stage("intake", "STARTED")
                 job_input = row["input"]
                 if isinstance(job_input, str):
                     job_input = json.loads(job_input)
-                data = await load_pdf(job_input, self.settings)
+                data = await load_pdf(
+                    job_input,
+                    self.settings,
+                    gateway=getattr(self.services.backend, "gateway", None),
+                )
                 reason = data.message if isinstance(data, JobFailure) else None
+                if not reason:
+                    self.report.pdf_sha256 = hashlib.sha256(data).hexdigest()
                 await self.stage("intake", "CHECK_INCOMPLETE" if reason else "COMPLETED", reason)
                 if not reason:
                     reason = await self.flow(data)
@@ -345,6 +412,8 @@ class Pipeline:
         ):
             self.report.status = "NEEDS_REVIEW"
         await self.stage("summary", "COMPLETED")
+        self.report.finished_at = datetime.now(UTC)
+        self.report.stage_durations = self.stage_durations
         await self.emit("done", self.report)
 
 
@@ -378,7 +447,10 @@ class Runner:
         self.tasks.discard(task)
         if not task.cancelled() and task.exception() is not None:
             logger.error(
-                "job interrupted job_id=%s error=%s", job_id, type(task.exception()).__name__
+                "job interrupted job_id=%s error=%s",
+                job_id,
+                type(task.exception()).__name__,
+                extra={"job_id": str(job_id), "stage": "runner"},
             )
 
     async def recover(self):

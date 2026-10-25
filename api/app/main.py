@@ -1,5 +1,7 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
+from time import monotonic
 
 import asyncpg
 from fastapi import FastAPI
@@ -13,11 +15,13 @@ from starlette.exceptions import HTTPException
 from api.app.db import Jobs, create_pool, run_migrations
 from api.app.orchestrator import Runner, build_services
 from api.app.providers.http import get_client
+from api.app.review.runtime import configure_logging
 from api.app.routes.exports import router as exports_router
 from api.app.routes.health import router
 from api.app.routes.jobs import dev_router, error
 from api.app.routes.jobs import router as jobs_router
 from api.app.routes.shares import router as shares_router
+from api.app.routes.status import router as status_router
 from api.app.settings import Settings
 from api.app.sse import EventBus
 from contracts.events import SSEEvent
@@ -26,6 +30,7 @@ from contracts.schema import Judgment, Report
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     app.state.pool = None
     app.state.grobid_client = get_client("grobid")
     try:
@@ -63,6 +68,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.tasks = set()
     app.state.services = None
     app.state.runner = None
+    app.state.started_at = monotonic()
+    app.state.demo_fixture = os.getenv("DEMO_FIXTURE", "0") == "1"
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list({"http://localhost:3000", app.state.settings.frontend_origin}),
@@ -73,6 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(jobs_router)
     app.include_router(shares_router)
     app.include_router(exports_router)
+    app.include_router(status_router)
     if app.state.settings.env == "dev":
         app.include_router(dev_router)
 

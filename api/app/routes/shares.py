@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -93,6 +94,15 @@ async def shared_snapshot(token: str, request: Request):
     if isinstance(result, JobFailure):
         return share_error(result)
     report = await snapshot(result, request)
+    if isinstance(report, JSONResponse) and report.status_code == 200:
+        # Fixture snapshots use transport metadata outside the frozen contracts.
+        # They still must pass through the same public field projection.
+        payload = json.loads(report.body)
+        if payload.pop("demo_fixture", False):
+            for event in payload.get("events", []):
+                event["payload"].pop("demo_fixture", None)
+            public = public_snapshot(JobSnapshot.model_validate(payload))
+            return JSONResponse({**public.model_dump(mode="json"), "demo_fixture": True})
     if isinstance(report, Response):
         return report
     return public_snapshot(report)

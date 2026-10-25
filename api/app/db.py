@@ -1,12 +1,14 @@
 import hashlib
 import json
 from contextlib import asynccontextmanager
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import asyncpg
 from pydantic import TypeAdapter, ValidationError
 
+from api.app import version
 from api.app.settings import Settings
 from contracts.events import SSEEvent
 from contracts.schema import Contract
@@ -59,6 +61,16 @@ class JobFailure(Contract):
 EVENTS = TypeAdapter(SSEEvent)
 
 
+def cache_key(job_input):
+    """The intake route normalizes identifiers before they reach the repository."""
+    if "sha256" in job_input:
+        return job_input["sha256"]
+    for kind in ("arxiv_id", "doi"):
+        if kind in job_input:
+            return hashlib.sha256(f"{kind}:{job_input[kind]}".encode()).hexdigest()
+    return None
+
+
 class Jobs:
     """The event journal is the durable source for A2 snapshots and streams."""
 
@@ -66,18 +78,42 @@ class Jobs:
         self.pool = pool
 
     async def create(
-        self, client_ip: str, job_input: dict, *, running: bool = False, exempt_hourly: bool = False
+        self,
+        client_ip: str,
+        job_input: dict,
+        *,
+        running: bool = False,
+        exempt_hourly: bool = False,
+        fresh: bool = False,
+        demo_fixture: bool = False,
     ):
         async with self.pool.acquire() as connection, connection.transaction():
             # Shared by admission and QUEUED -> RUNNING transitions across workers.
             await connection.execute("SELECT pg_advisory_xact_lock(739122)")
+            key = cache_key(job_input)
+            cached = None
+            if key and not fresh and not demo_fixture:
+                cached = await connection.fetchrow(
+                    "SELECT id, status FROM jobs j WHERE cache_key = $1 AND pipeline_version = $2 "
+                    "AND NOT demo_fixture AND status IN ('COMPLETE', 'NEEDS_REVIEW') "
+                    "AND EXISTS (SELECT 1 FROM job_events e "
+                    "WHERE e.job_id = j.id AND type = 'done') "
+                    "AND NOT EXISTS (SELECT 1 FROM job_events e WHERE e.job_id = j.id "
+                    "AND (payload->>'status' = 'CHECK_INCOMPLETE' "
+                    "OR payload->>'kind' = 'CHECK_INCOMPLETE')) "
+                    "ORDER BY updated_at DESC LIMIT 1",
+                    key,
+                    version.PIPELINE_VERSION,
+                )
             counts = await connection.fetchrow(
-                "SELECT count(*) FILTER (WHERE client_ip = $1 AND "
+                "SELECT count(*) FILTER (WHERE client_ip = $1 AND replay_of IS NULL AND "
                 "created_at > now() - interval '1 hour') AS hourly, "
                 "count(*) FILTER (WHERE status = 'RUNNING') AS running FROM jobs",
                 client_ip,
             )
-            if (not exempt_hourly and counts["hourly"] >= 5) or counts["running"] >= 3:
+            if (not cached and not exempt_hourly and counts["hourly"] >= 5) or (
+                running and counts["running"] >= 3
+            ):
                 return JobFailure(
                     code="rate_limited", message="Job limit reached; try again later."
                 )
@@ -89,7 +125,63 @@ class Jobs:
                 json.dumps(job_input),
                 client_ip,
             )
+            await connection.execute(
+                "UPDATE jobs SET cache_key = $2, pipeline_version = $3, demo_fixture = $4 "
+                "WHERE id = $1",
+                job_id,
+                key,
+                version.PIPELINE_VERSION,
+                demo_fixture,
+            )
+            if cached:
+                await connection.execute(
+                    "INSERT INTO job_events (job_id, seq, type, payload, created_at) "
+                    "SELECT $1, seq, type, CASE WHEN type = 'done' "
+                    "THEN jsonb_set(payload, '{job_id}', to_jsonb($1::uuid::text)) "
+                    "ELSE payload END, created_at FROM job_events WHERE job_id = $2 ORDER BY seq",
+                    job_id,
+                    cached["id"],
+                )
+                await connection.execute(
+                    "INSERT INTO job_results (job_id, type, row_id, payload) "
+                    "SELECT $1, type, row_id, payload FROM job_results WHERE job_id = $2",
+                    job_id,
+                    cached["id"],
+                )
+                await connection.execute(
+                    "UPDATE jobs SET status = $2, replay_of = $3, updated_at = now() WHERE id = $1",
+                    job_id,
+                    cached["status"],
+                    cached["id"],
+                )
             return job_id
+
+    async def metrics(self):
+        return dict(
+            await self.pool.fetchrow(
+                "SELECT count(*) FILTER (WHERE created_at > now() - interval '1 hour') "
+                "AS jobs_last_hour, (avg(extract(epoch FROM (updated_at - created_at))) "
+                "FILTER (WHERE "
+                "created_at > now() - interval '1 hour' AND status NOT IN ('QUEUED', 'RUNNING')) "
+                ")::float8 AS avg_duration_seconds FROM jobs"
+            )
+        )
+
+    async def llm_spend(self):
+        row = await self.pool.fetchrow(
+            "SELECT coalesce(sum(cost_usd), 0)::float8 AS spend_usd, "
+            "count(*) FILTER (WHERE cost_usd IS NULL) AS unknown_calls FROM llm_usage "
+            "WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'"
+        )
+        return dict(row)
+
+    async def record_spend(self, job_id, cost):
+        await self.pool.execute(
+            "INSERT INTO llm_usage (id, job_id, cost_usd) VALUES ($1, $2, $3)",
+            uuid4(),
+            UUID(str(job_id)) if job_id is not None else None,
+            Decimal(str(cost)) if cost is not None else None,
+        )
 
     async def get(self, job_id: UUID):
         return await self.pool.fetchrow("SELECT * FROM jobs WHERE id = $1", job_id)

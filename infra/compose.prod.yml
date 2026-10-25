@@ -11,8 +11,11 @@ services:
       DATABASE_URL: postgresql://verres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/verres
       GROBID_URL: http://grobid:8070
       DATA_DIR: /data
+      GIT_SHA: ${GIT_SHA:-dev}
+      DEMO_FIXTURE: ${DEMO_FIXTURE:-0}
     volumes:
       - api_data:/data
+      - ../fixtures/demo:/app/fixtures/demo:ro
     depends_on:
       db:
         condition: service_healthy
