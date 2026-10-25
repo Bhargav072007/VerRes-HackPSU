@@ -53,10 +53,13 @@ export function DotMatrix() {
       const box = node.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
       width = box.width; height = box.height; node.width = Math.round(width * dpr); node.height = Math.round(height * dpr); context.setTransform(dpr, 0, 0, dpr, 0, 0);
       if (!logo.complete || !logo.naturalWidth) return;
-      const size = Math.min(width, height) * .78, left = (width - size) / 2, top = (height - size) / 2, sample = document.createElement("canvas");
-      sample.width = sample.height = Math.round(size);
+      // The vector mark is rasterised once at 600px wide, then fitted into the canvas for sampling.
+      const raster = document.createElement("canvas"), aspect = logo.naturalHeight / logo.naturalWidth || .55;
+      raster.width = 600; raster.height = Math.round(600 * aspect); raster.getContext("2d")!.drawImage(logo, 0, 0, raster.width, raster.height);
+      const fitW = Math.min(width * .82, height * .82 / aspect), left = (width - fitW) / 2, top = (height - fitW * aspect) / 2, sample = document.createElement("canvas");
+      sample.width = Math.round(fitW); sample.height = Math.round(fitW * aspect);
       const sctx = sample.getContext("2d", { willReadFrequently: true })!;
-      sctx.drawImage(logo, 0, 0, sample.width, sample.height);
+      sctx.drawImage(raster, 0, 0, sample.width, sample.height);
       const pixels = sctx.getImageData(0, 0, sample.width, sample.height).data;
       dots = [];
       for (let y = GAP / 2; y < sample.height; y += GAP) for (let x = GAP / 2; x < sample.width; x += GAP) {
@@ -82,7 +85,7 @@ export function DotMatrix() {
       if (visible) start(); else stop();
     }, { threshold: [0, .4] });
     logo.onload = () => { build(); viewer.observe(node); };
-    logo.src = "/brand/verres-mark.png";
+    logo.src = "/brand/verres-mark.svg";
     resizer.observe(node);
     if (!reduced) { node.addEventListener("click", click); if (fine) { node.addEventListener("pointermove", move); node.addEventListener("pointerleave", leave); } }
     return () => { resizer.disconnect(); viewer.disconnect(); stop(); node.removeEventListener("click", click); node.removeEventListener("pointermove", move); node.removeEventListener("pointerleave", leave); };

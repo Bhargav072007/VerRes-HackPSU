@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [{ url: "/brand/og-image.png", width: 1200, height: 630 }],
   },
-  icons: { icon: [{ url: "/favicon.ico" }, { url: "/brand/icon-192.png", sizes: "192x192" }, { url: "/brand/icon-512.png", sizes: "512x512" }], apple: "/brand/apple-touch-icon.png" },
+  icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/favicon.ico", sizes: "any" }, { url: "/brand/icon-192.png", sizes: "192x192" }, { url: "/brand/icon-512.png", sizes: "512x512" }], apple: "/brand/apple-touch-icon.png" },
   twitter: { card: "summary_large_image", images: ["/brand/og-image.png"], title: "VerRes — read your paper like Reviewer 2 would" },
   description:
     "Every finding links to its evidence.",

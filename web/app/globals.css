@@ -141,7 +141,7 @@ a {
 }
 body{font-size:18px;line-height:1.6}
 .brand{display:inline-flex;align-items:center;gap:10px;font-size:24px;font-weight:600;letter-spacing:-.04em}
-.brand-mark{display:inline-block;width:30px;height:30px;background:url('/brand/verres-mark.png') center/contain no-repeat}
+.brand-mark{display:inline-block;width:34px;height:30px;background:url('/brand/verres-mark.svg') center/contain no-repeat}.brand-wordmark{display:inline-block;width:94px;height:16px;background:currentColor;-webkit-mask:url('/brand/verres-wordmark.svg') center/contain no-repeat;mask:url('/brand/verres-wordmark.svg') center/contain no-repeat}
 .brand-lockup{width:150px;height:auto}
 .section-container{width:calc(100% - 80px);max-width:1200px;margin-inline:auto}
 .polish-nav{position:relative;display:flex;align-items:center;gap:32px;max-width:1280px;margin:auto;padding:24px 40px;border-bottom:1px solid var(--hairline);font-size:14px}
@@ -343,6 +343,8 @@ html[data-reader-theme=dark] .verdict-chip{background:#F3EBDD}html[data-reader-t
 body::after{content:"";position:fixed;inset:0;z-index:100;pointer-events:none;opacity:.035;transform:translateZ(0);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 .hero-stage{isolation:isolate}.hero-stage::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(90deg,transparent 44%,rgb(30 26 22 / 5%) 49.5%,rgb(30 26 22 / 8%) 50%,rgb(30 26 22 / 5%) 50.5%,transparent 56%),repeating-linear-gradient(180deg,transparent 0 31px,rgb(30 26 22 / 2.5%) 31px 32px),radial-gradient(ellipse at 50% 45%,transparent 55%,rgb(120 86 40 / 12%) 100%)}
 @media(max-width:899px){.hero-stage{position:relative}}
-.footer-lockup{display:inline-flex;align-items:center;gap:14px}.footer-mark{position:relative;display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--hairline);border-radius:999px;background:var(--surface);transform-style:preserve-3d;perspective:300px;overflow:hidden}
-.footer-mark-logo,.footer-mark-clip{width:26px;height:26px;grid-area:1/1;-webkit-mask:url('/brand/verres-mark.png') center/contain no-repeat;mask:url('/brand/verres-mark.png') center/contain no-repeat}.footer-mark-logo{background:url('/brand/verres-mark.png') center/contain no-repeat}
-.footer-mark-clip{position:relative;overflow:hidden;pointer-events:none}.footer-mark-sheen{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgb(255 255 255 / 85%) 50%,transparent 70%)}.footer-mark:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
+.footer-lockup{display:inline-flex;align-items:center;gap:14px}.logo-mark{position:relative;display:grid;place-items:center;flex:none;border-radius:999px;transform-style:preserve-3d;perspective:300px;overflow:hidden}.logo-mark:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
+.footer-mark{width:44px;height:44px;border:1px solid var(--hairline);background:var(--surface)}.logo-mark-art,.logo-mark-clip{width:62%;height:62%;grid-area:1/1;-webkit-mask:url('/brand/verres-mark.svg') center/contain no-repeat;mask:url('/brand/verres-mark.svg') center/contain no-repeat}.logo-mark-art{-webkit-mask:none;mask:none;background:url('/brand/verres-mark.svg') center/contain no-repeat}
+.logo-mark-clip{position:relative;overflow:hidden;pointer-events:none}.logo-mark-sheen{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgb(255 255 255 / 85%) 50%,transparent 70%)}
+.sticky-mark{position:fixed;z-index:41;top:10px;left:max(20px,calc((100vw - 1280px) / 2 + 40px));width:40px;height:40px}.sticky-mark .logo-mark-art,.sticky-mark .logo-mark-clip{width:28px;height:28px}
+.sticky-nav-inner{padding-left:max(72px,calc((100vw - 1280px) / 2 + 92px))!important;padding-right:max(20px,calc((100vw - 1280px) / 2 + 40px))!important;max-width:none!important}
