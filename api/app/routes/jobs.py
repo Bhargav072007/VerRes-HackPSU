@@ -20,6 +20,7 @@ from starlette.datastructures import UploadFile
 from api.app.db import JobFailure
 from api.app.providers.http import get_client
 from api.app.routes.demo import run_fake_job
+from api.app.routes.provenance import report_provenance
 from contracts.events import ErrorPayload, SSEEvent, StagePayload
 from contracts.schema import Contract, Report, ReviewComment
 
@@ -245,6 +246,11 @@ async def snapshot(job_id: UUID, request: Request):
             )
         }.values()
     )
+    report_provenance(result, state)
+    result["events"] = [
+        {key: value for key, value in event.items() if key != "created_at"}
+        for event in state["events"]
+    ]
     return JobSnapshot.model_validate(result)
 
 

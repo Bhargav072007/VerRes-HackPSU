@@ -139,7 +139,8 @@ class Jobs:
         # One statement gives a consistent job row + journal, including concurrent emits.
         row = await self.pool.fetchrow(
             "SELECT to_jsonb(jobs) AS job, COALESCE((SELECT jsonb_agg("
-            "jsonb_build_object('job_id', job_id, 'seq', seq, 'type', type, 'payload', payload) "
+            "jsonb_build_object('job_id', job_id, 'seq', seq, 'type', type, 'payload', payload, "
+            "'created_at', created_at) "
             "ORDER BY seq) FROM job_events WHERE job_id = jobs.id), '[]'::jsonb) AS events "
             "FROM jobs WHERE id = $1",
             job_id,

@@ -1,6 +1,6 @@
 """Shared API and LLM schemas. Frozen after A1; changes require a proposal."""
 
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Literal, Self
 from uuid import UUID
@@ -34,6 +34,20 @@ class EvidenceLevel(StrEnum):
     FULL_TEXT = "FULL_TEXT"
     ABSTRACT_ONLY = "ABSTRACT_ONLY"
     METADATA_ONLY = "METADATA_ONLY"
+
+
+class Provenance(Contract):
+    source_url: str | None = None
+    source_type: (
+        Literal["crossref", "openalex", "arxiv", "retraction_watch", "publisher"] | None
+    ) = None
+    retrieved_at: datetime | None = None
+    evidence_level: EvidenceLevel | None = None
+    quote_offsets: list[tuple[int, int]] | None = Field(
+        default=None, description="Producer-supplied half-open character ranges in the source."
+    )
+    model_id: str | None = None
+    prompt_version: str | None = None
 
 
 class SupportLabel(StrEnum):
@@ -95,7 +109,7 @@ class Paper(Contract):
     needs_review_reason: str | None = None
 
 
-class ExistenceResult(Contract):
+class ExistenceResult(Provenance):
     reference_id: str
     status: ExistenceStatus
     matched_reference: Reference | None = None
@@ -106,7 +120,7 @@ class ExistenceResult(Contract):
     reason: str = Field(min_length=1)
 
 
-class RetractionResult(Contract):
+class RetractionResult(Provenance):
     reference_id: str
     status: RetractionStatus
     notice_urls: list[str] = Field(default_factory=list)
@@ -121,7 +135,7 @@ class SourcePassage(Contract):
     page: int | None = Field(default=None, ge=1)
 
 
-class SourceDocument(Contract):
+class SourceDocument(Provenance):
     reference_id: str
     evidence_level: EvidenceLevel
     passages: list[SourcePassage] = Field(default_factory=list)
@@ -131,12 +145,12 @@ class SourceDocument(Contract):
     reason: str = Field(min_length=1)
 
 
-class EvidenceSpan(Contract):
+class EvidenceSpan(Provenance):
     passage_id: str = Field(min_length=1)
     quote: str = Field(min_length=1)
 
 
-class Judgment(Contract):
+class Judgment(Provenance):
     label: SupportLabel
     mismatch_types: list[MismatchType] = Field(default_factory=list)
     evidence: list[EvidenceSpan] = Field(default_factory=list)
@@ -164,7 +178,7 @@ class SupportResult(Judgment):
         return self
 
 
-class ClaimNode(Contract):
+class ClaimNode(Provenance):
     id: str
     text: str
     sentence_ids: list[str]
@@ -172,7 +186,7 @@ class ClaimNode(Contract):
     kind: Literal["CLAIM", "EVIDENCE", "ASSUMPTION"] = "CLAIM"
 
 
-class ClaimEdge(Contract):
+class ClaimEdge(Provenance):
     source_id: str
     target_id: str
     relation: Literal["SUPPORTS", "CONTRADICTS", "DEPENDS_ON"]
@@ -180,7 +194,7 @@ class ClaimEdge(Contract):
     evidence: list[EvidenceSpan] = Field(default_factory=list)
 
 
-class ClaimMap(Contract):
+class ClaimMap(Provenance):
     paper_id: str
     nodes: list[ClaimNode] = Field(default_factory=list)
     edges: list[ClaimEdge] = Field(default_factory=list)
@@ -188,7 +202,7 @@ class ClaimMap(Contract):
     needs_review_reason: str | None = None
 
 
-class HiddenTextFinding(Contract):
+class HiddenTextFinding(Provenance):
     id: str
     kind: Literal["HIDDEN_TEXT", "PROMPT_INJECTION", "SUSPICIOUS_TEXT", "CHECK_INCOMPLETE"]
     page: int | None = Field(default=None, ge=1)
@@ -196,7 +210,7 @@ class HiddenTextFinding(Contract):
     reason: str = Field(min_length=1)
 
 
-class ReviewComment(Contract):
+class ReviewComment(Provenance):
     reviewer: Literal["METHODS", "EVIDENCE", "CLAIMS"]
     severity: Literal["MAJOR", "MINOR"]
     sentence_ids: list[str] = Field(min_length=1)
@@ -206,7 +220,7 @@ class ReviewComment(Contract):
     linked_citation_ids: list[str] = Field(default_factory=list)
 
 
-class ReviewSummary(Contract):
+class ReviewSummary(Provenance):
     top_fixes: list[str] = Field(default_factory=list)
     comments: list[ReviewComment] = Field(default_factory=list)
     warning: str | None = None
@@ -214,6 +228,14 @@ class ReviewSummary(Contract):
 
 class Report(Contract):
     job_id: UUID
+    pipeline_version: str | None = None
+    git_sha: str | None = None
+    pdf_sha256: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    stage_durations: dict[str, float] | None = Field(
+        default=None, description="Elapsed seconds per stage, summed over completed attempts."
+    )
     paper: Paper | None = None
     existence: list[ExistenceResult] = Field(default_factory=list)
     retractions: list[RetractionResult] = Field(default_factory=list)

@@ -13,9 +13,11 @@ from starlette.exceptions import HTTPException
 from api.app.db import Jobs, create_pool, run_migrations
 from api.app.orchestrator import Runner, build_services
 from api.app.providers.http import get_client
+from api.app.routes.exports import router as exports_router
 from api.app.routes.health import router
 from api.app.routes.jobs import dev_router, error
 from api.app.routes.jobs import router as jobs_router
+from api.app.routes.shares import router as shares_router
 from api.app.settings import Settings
 from api.app.sse import EventBus
 from contracts.events import SSEEvent
@@ -64,11 +66,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list({"http://localhost:3000", app.state.settings.frontend_origin}),
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["Content-Type", "Last-Event-ID"],
     )
     app.include_router(router)
     app.include_router(jobs_router)
+    app.include_router(shares_router)
+    app.include_router(exports_router)
     if app.state.settings.env == "dev":
         app.include_router(dev_router)
 
