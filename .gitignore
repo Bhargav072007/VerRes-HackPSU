@@ -13,3 +13,4 @@ data/
 web/node_modules/
 web/.next/
 api/app/eval/runs/
+web/tests/fixtures/d9/
