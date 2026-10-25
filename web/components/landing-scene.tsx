@@ -68,7 +68,7 @@ export function LandingScene() {
     return () => observer.disconnect();
   }, [progress]);
   const isLanded = (index: number) => pinned ? order.indexOf(index) < landed : reduced || chipsSeen;
-  return <section ref={scene} className="hero-scene" aria-labelledby="headline">
+  return <section ref={scene} id="overview" className="hero-scene" aria-labelledby="headline">
     <div ref={stage} className="hero-stage">
       <div className="hero-copy">
         <h1 id="headline" data-reveal>Read your paper like<br className="desktop-break" /> Reviewer 2 would.</h1>

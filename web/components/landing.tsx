@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { createJob, parseIdentifier, validatePdf, type ApiError } from "@/lib/api";
-import { LandingChrome, receiptNavigate } from "./landing-chrome";
+import { LandingChrome, StickyNav, receiptNavigate } from "./landing-chrome";
 import { LandingScene } from "./landing-scene";
 import { LandingResults } from "./landing-results";
 import { LandingMethod } from "./landing-method";
@@ -78,7 +78,7 @@ export function Landing() {
     }
   }
 
-return <main id="main" className="landing polished-page"><LandingChrome /><LandingScene />
+return <main id="main" className="landing polished-page"><LandingChrome /><StickyNav /><LandingScene />
 <section className="trust-band section-container" aria-label="Product facts"><div className="trust-columns"><div><span className="large-numeral"><CountOnce value={productChecks.length} /></span><p>checks per citation</p><div className="tiny-dots" aria-hidden>{productChecks.map(check => <span key={check} />)}</div></div><div><span className="large-numeral"><CountOnce value={scholarlySources.length} /></span><p>scholarly sources</p><div className="tiny-dots" aria-hidden>{scholarlySources.map(source => <span key={source} />)}</div></div>{recordedStats.medianSeconds != null && <div><span className="large-numeral"><CountOnce value={recordedStats.medianSeconds} /><small> s</small></span><p>median review time, recorded runs</p><div className="tiny-bars" aria-hidden><span style={{width:`${Math.min(100,recordedStats.medianSeconds)}%`}} /></div></div>}</div></section>
 <Reveal><LandingMethod /></Reveal>
 <Reveal><LandingResults /></Reveal>
