@@ -77,3 +77,18 @@ def test_schema_diagnostics_do_not_include_raw_model_output():
         reason = failure_reason("judge", error)
     assert "schema validation" in reason and "enum" in reason
     assert "private paper content" not in reason
+
+
+def test_provider_schema_keeps_optional_provenance_application_owned():
+    from api.app.verify.model import strict_schema
+    from contracts.schema import ReviewComment, SourceDocument
+
+    schema = strict_schema(ReviewComment.model_json_schema())
+    for name in ["retrieved_at", "source_url", "evidence_level", "model_id", "quote_offsets"]:
+        assert schema["properties"][name] == {"type": "null"}
+    assert schema["properties"]["quote"]["type"] == "string"
+    assert schema["properties"]["sentence_ids"]["type"] == "array"
+    # A required core evidence level is not nullable provenance and must survive.
+    assert strict_schema(SourceDocument.model_json_schema())["properties"]["evidence_level"] != {
+        "type": "null"
+    }
