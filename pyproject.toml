@@ -38,7 +38,7 @@ build-backend = "setuptools.build_meta"
 include = ["api*", "contracts*"]
 
 [tool.setuptools.package-data]
-"api.app" = ["providers/*.yaml", "prompts/*.md", "eval/*.jsonl", "verify/*.md"]
+"api.app" = ["providers/*.yaml", "prompts/*.md", "review/prompts/*.md", "eval/*.jsonl", "verify/*.md"]
 
 [tool.ruff]
 target-version = "py312"

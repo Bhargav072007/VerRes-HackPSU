@@ -1,4 +1,57 @@
-# Reserved for production deployment in a later PR.
-# Do not deploy compose.yml's development trust authentication to production.
-# Production requires an API image, database credentials, and Caddy TLS configuration.
-services: {}
+name: verres-prod
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql://verres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/verres
+      GROBID_URL: http://grobid:8070
+      DATA_DIR: /data
+    volumes:
+      - api_data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+      grobid:
+        condition: service_started
+  grobid:
+    image: grobid/grobid:0.9.1-crf
+    restart: unless-stopped
+    mem_limit: 4g
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: verres
+      POSTGRES_DB: verres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verres -d verres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Set API_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+volumes:
+  api_data:
+  postgres_data:
+  caddy_data:
+  caddy_config:
