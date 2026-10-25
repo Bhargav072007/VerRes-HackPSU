@@ -181,9 +181,8 @@ def check_retraction(
     doi = normalize_doi(work.doi)
     matched = [r for r in records or [] if doi and normalize_doi(r.doi) == doi]
     if not citing_date:
-        return RetractionResult(
-            status="CHECK_INCOMPLETE", reason="citing paper date is unavailable", records=matched
-        )
+        # Pre-submission review: the citing manuscript is being written now.
+        citing_date = date.today()
     retractions = [r for r in matched if r.notice_type == "RETRACTION"]
     prior_retractions = [r for r in retractions if r.retracted and r.retracted < citing_date]
     if prior_retractions:
