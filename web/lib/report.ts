@@ -81,6 +81,6 @@ export function reportCounts(report: Report) {
   return [refs.length, report.existence?.filter(e => e.status === "NOT_FOUND").length ?? 0,
     report.existence?.filter(e => e.status === "DOI_MISMATCH").length ?? 0,
     report.retractions?.filter(r => r.status === "RETRACTED").length ?? 0,
-    citations.filter(c => citationVerdict(report, c) === "PARTIALLY_SUPPORTED").length,
+    citations.filter(c => ["PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED"].includes(citationSupportVerdict(report, c))).length,
     refs.filter(r => referenceVerdict(report, r.id) === "NEEDS_REVIEW" || citations.some(c => c.reference_id === r.id && citationVerdict(report, c) === "NEEDS_REVIEW")).length];
 }

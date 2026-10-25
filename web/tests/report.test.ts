@@ -7,7 +7,7 @@ const fixture = () => structuredClone(replayReport(events)!);
 
 test("canonical completed replay has verified quotes, repeated citations and honest counts", () => {
   const report = fixture(), citations = report.paper!.citations!;
-  assert.deepEqual(reportCounts(report), [3, 0, 0, 0, 0, 1]);
+  assert.deepEqual(reportCounts(report), [3, 0, 0, 0, 1, 1]);
   assert.deepEqual(citations.map(c => citationVerdict(report, c)), ["SUPPORTED", "NOT_SUPPORTED", "NEEDS_REVIEW", "SUPPORTED"]);
   assert.equal(verifiedEvidence(report, citations[1])[0].quote, "children were not enrolled.");
   assert.equal(matchesFilter(["SUPPORTED"], "Problems only"), false);
@@ -35,7 +35,7 @@ test("unverifiable quotes, incomplete sources, missing checks and future labels 
   assert.deepEqual(reportCounts(report).slice(0, 4), [3, 1, 1, 1]);
   assert.equal(citationVerdict(report, report.paper!.citations![2]), "RETRACTED");
   const partial = fixture(); partial.support![0].label = "PARTIALLY_SUPPORTED";
-  assert.equal(reportCounts(partial)[4], 1);
+  assert.equal(reportCounts(partial)[4], 2);
   const future = decodeReport({ ...fixture(), support: [{ ...fixture().support![1], label: "FUTURE" }] })!;
   assert.equal(citationVerdict(future, future.paper!.citations![0]), "NEEDS_REVIEW");
 });
@@ -65,4 +65,13 @@ test("mock loading replays the canonical completion and handles corrupt fixture 
   assert.deepEqual(await loadReport("mock", new AbortController().signal), fixture());
   t.mock.method(globalThis, "fetch", async () => new Response("bad json"));
   assert.equal(await loadReport("mock", new AbortController().signal), null);
+});
+
+test("Claims flagged counts a verified CONTRADICTED citation once", () => {
+ const report = fixture();
+ const finding = report.support!.find(s => s.label === "NOT_SUPPORTED")!;
+ finding.label = "CONTRADICTED";
+ assert.equal(reportCounts(report)[4], 1);
+ finding.evidence = [];
+ assert.equal(reportCounts(report)[4], 0);
 });

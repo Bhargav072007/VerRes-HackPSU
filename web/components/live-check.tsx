@@ -3,14 +3,13 @@ import { memo, useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import NumberFlow from "@number-flow/react";
 import { ArrowLeft, ArrowRight, Check, Minus } from "lucide-react";
 import { useJobStream } from "@/hooks/useJobStream";
 import { jobCounts, stageStatus, type Row } from "@/lib/job-stream";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { VerdictBadge } from "@/components/verdict-badge";
-import { counterTiming, motionTokens } from "@/lib/motion";
+import { motionTokens } from "@/lib/motion";
 import { LandingChrome, receiptNavigate, usePolishMotion } from "./landing-chrome";
 import { toast } from "sonner";
 
@@ -28,9 +27,9 @@ const ReferenceRow = memo(function ReferenceRow({ row, index }: { row: Row; inde
   const label = r?.status === "RETRACTED" ? "Retracted" : r && r.status !== "NONE" ? "Needs review" : e?.status === "NOT_FOUND" ? "Not found" : verified ? "Verified" : e ? "Needs review" : "Pending";
   return <li data-reference-id={row.reference.id} className="reference-row" style={{ "--i": Math.min(index, 3) } as CSSProperties}>
     <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
-      <span className="mt-1 text-[10px] text-muted-foreground tabular-nums">{String(index + 1).padStart(2, "0")}</span>
+      <span className="mt-1 text-xs text-muted-foreground tabular-nums">{String(index + 1).padStart(2, "0")}</span>
       <div className="min-w-0 flex-1 basis-48 sm:basis-auto"><p className="text-sm leading-6">{row.reference.title || row.reference.raw_text}</p>
-        <span className="mt-1 inline-block rounded-full border px-2 py-0.5 text-[9px] text-muted-foreground">{row.cachedAt ? `from cache ${new Date(row.cachedAt).toLocaleTimeString()}` : "live"}</span>
+        <span className="mt-1 inline-block rounded-md border px-2 py-0.5 text-xs text-muted-foreground">{row.cachedAt ? `from cache ${new Date(row.cachedAt).toLocaleTimeString()}` : "live"}</span>
       </div>
       <span data-chip={label} className="ml-7 inline-flex min-w-24 items-center sm:mt-1 sm:ml-0">
         <span key={label} className="verdict-flip">
@@ -71,17 +70,14 @@ export function LiveCheck({ id, report = false }: { id: string; report?: boolean
     <LandingChrome live />
     <div className="section-container live-content">
       <Link href="/" className="live-back"><ArrowLeft size={14} /> Back to VerRes</Link>
-      <motion.header layoutId="job" transition={reduced ? { duration: 0 } : motionTokens.layout} className="live-header" aria-label="Paper under review"><div><p className="eyebrow">THE REVIEW</p><h1>{state.done ? "Your review is ready." : "Following the evidence."}</h1><p>{state.paper?.title || "Reading your paper and gathering its references."}</p></div>{state.done && !report && <Button asChild><Link href={href}>View report <ArrowRight size={14} /></Link></Button>}</motion.header>
-      <div aria-label="Review counters" className="live-counters">
-        <span role="status" aria-label={`${counts.checked} / ${counts.total} citations checked`}><strong><NumberFlow aria-hidden value={counts.checked} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /><span className="counter-slash"> / </span><NumberFlow aria-hidden value={counts.total} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /></strong><span>citations checked</span></span>
-        {([[counts.missing, "not found", "NOT_FOUND"], [counts.retracted, "retracted", "RETRACTED"], [counts.partiallySupported, "Partially supported", "PARTIALLY_SUPPORTED"], [counts.needsReview, "need review", "NEEDS_REVIEW"]] as const).map(([value, label, verdict]) => <span key={label} aria-label={`${value} ${label}`}><strong><NumberFlow aria-hidden value={value} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /></strong><VerdictBadge status={verdict} /></span>)}
-      </div>
+      <motion.header layoutId="job" transition={reduced ? { duration: 0 } : motionTokens.layout} className="live-header" aria-label="Paper under review"><div><p className="eyebrow">The review</p><h1>{state.done ? "Your review is ready." : "Following the evidence."}</h1><p>{state.paper?.title || "Reading your paper and gathering its references."}</p></div>{state.done && !report && <Button asChild><Link href={href}>View report <ArrowRight size={14} /></Link></Button>}</motion.header>
+      <table aria-label="Review counters" className="summary-table live-counters"><thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Count</th></tr></thead><tbody><tr><th scope="row">Citations checked</th><td>{state.done ? "Complete" : "In progress"}</td><td role="status" aria-label={`${counts.checked} / ${counts.total} citations checked`}>{counts.checked} / {counts.total}</td></tr>{([[counts.missing, "not found", "NOT_FOUND"], [counts.retracted, "retracted", "RETRACTED"], [counts.partiallySupported, "Partially supported", "PARTIALLY_SUPPORTED"], [counts.needsReview, "need review", "NEEDS_REVIEW"]] as const).map(([value,label,verdict]) => <tr key={label}><th scope="row">{label}</th><td><VerdictBadge status={verdict} /></td><td aria-label={`${value} ${label}`}>{value}</td></tr>)}</tbody></table>
       <div className="live-grid"><nav className="stage-rail" aria-label="Review stages"><ol>{phases.map(({ key, label, description }, i) => {
         const status = statuses[i], done = status === "COMPLETED", current = !state.done && i === activeIndex;
         return <li key={key} data-complete={done} aria-current={current ? "step" : undefined}><span className="stage-stop">{done ? <Check size={12} /> : i + 1}</span><div><span className="stage-name">{label}</span>{current && <span className="current-stage">CURRENT STAGE</span>}{current && <p>{description}</p>}{status === "CHECK_INCOMPLETE" && <span className="stage-incomplete">? Needs review</span>}</div></li>;
       })}</ol><div className="stage-segments" aria-hidden="true">{statuses.map((status, i) => <span key={i} data-complete={status === "COMPLETED"} />)}</div><div className="stage-progress"><span>Stage {state.done ? 6 : activeIndex + 1} of 6</span><span>Paper to evidence</span></div><p className="stage-parallel">Some checks run in parallel.<br />Each stage keeps its own record.</p></nav>
       <div className="live-panels"><p aria-live="polite" className="happening"><span>{state.done ? "Ready" : "Happening now"}</span>{happening}</p>
-        <section className="stage-panel crosshair" aria-label="Current stage checks"><p className="eyebrow">{String((state.done ? 5 : activeIndex) + 1).padStart(2, "0")} / {active.label.toUpperCase()}</p><h2>{state.done ? "Checks recorded. Evidence ready." : active.description}</h2><ol>{(active.key === "parse" ? [{ id: "paper", title: state.paper?.title || "Reading paper text and references", status: statuses[0] }]
+        <section className="stage-panel" aria-label="Current stage checks"><p className="eyebrow">{String((state.done ? 5 : activeIndex) + 1).padStart(2, "0")} / {active.label}</p><h2>{state.done ? "Checks recorded. Evidence ready." : active.description}</h2><ol>{(active.key === "parse" ? [{ id: "paper", title: state.paper?.title || "Reading paper text and references", status: statuses[0] }]
           : active.key === "review" ? [{ id: "review", title: "Three reviewers and the area chair summary", status: statuses[5] }]
           : active.key === "support" ? (state.paper?.citations || []).map(citation => ({ id: citation.id, title: citation.claim_text, status: state.stages[`support:${citation.id}`] }))
           : rows.map(row => ({ id: row.reference.id, title: row.reference.title || row.reference.raw_text, status: state.stages[`${active.key}:${row.reference.id}`] || (active.key === "existence" && row.existence ? "COMPLETED" : active.key === "retraction" && row.retraction ? "COMPLETED" : undefined) }))).map((task, i) => {

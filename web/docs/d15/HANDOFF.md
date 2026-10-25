@@ -38,3 +38,9 @@ python3 scripts/mockups/composite.py           # uses work/ scenes; no generatio
 - BERT fixture has arXiv:1810.04805, no DOI; show its recorded identifier without inventing one.
 - Selected scenes confirmed: s1-1, s2-2, s3-2, s4-2, s5-3. No new generations.
 - Typecheck, lint, webpack production build pass. Method crops and device composites await final capture after §5–§6.
+
+## Continuation checkpoint: §5 complete
+- Report and live counters are ruled Check / Result / Count tables; Claims flagged includes verified partial, unsupported and contradicted findings.
+- Shared MarginNote component is rendered beside paper lines and inline on mobile. Reader settings remain complete with theme tints; report/evidence tokens are flat and semantic.
+- Old manuscript sequence and beat mapping removed. Functional report reading header remains flat, with its obsolete progress strip removed.
+- Typecheck, lint, all 30 unit tests, and webpack build pass. Browser snapshots are regenerated at §7 after final capture.

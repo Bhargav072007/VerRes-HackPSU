@@ -132,7 +132,7 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Landi
               disabled={busy}
               onClick={() => input.current?.click()}
               aria-describedby="file-hint submission-error"
-              className="flex w-full flex-col items-center rounded-lg px-4 py-7 focus-visible:-outline-offset-4 disabled:cursor-wait"
+              className="flex w-full flex-col items-center rounded-md px-4 py-7 focus-visible:-outline-offset-4 disabled:cursor-wait"
             >
               
               <span className="max-w-full truncate text-sm font-medium">
@@ -152,17 +152,17 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Landi
               </span>
               <span
                 id="file-hint"
-                className="mt-4 text-[10px] tracking-wide text-muted-foreground"
+                className="mt-4 text-xs tracking-wide text-muted-foreground"
               >
                 PDF · ≤20 pages · Up to 25MB
               </span>
             </button>
           </div>
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[10px] leading-4 text-muted-foreground">
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs leading-4 text-muted-foreground">
             
             Your paper is private and deleted after 7 days.
           </p>
-          <div className="my-5 flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
             or use an identifier
             <span className="h-px flex-1 bg-border" />
