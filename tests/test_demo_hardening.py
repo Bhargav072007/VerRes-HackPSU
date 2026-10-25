@@ -213,10 +213,13 @@ async def test_status_shape_and_accounting(job_client, job_app, job_pool):
     assert "database_url" not in response.text and "api_key" not in response.text
     await job_app.state.event_bus.jobs.record_spend(None, None)
     response = await job_client.get("/status")
-    assert response.status_code == 503 and response.json()["llm"]["spend_usd"] is None
+    assert response.status_code == 200 and response.json()["llm"]["spend_usd"] == 0.15
+    assert response.json()["llm"]["accounting"] == "estimated"
+    assert response.json()["llm"]["unknown_calls"] == 1
     assert response.json()["llm"]["known_spend_usd"] == 0.15
     job_app.state.event_bus = None
-    assert (await job_client.get("/status")).json()["status"] == "CHECK_INCOMPLETE"
+    response = await job_client.get("/status")
+    assert response.status_code == 503 and response.json()["status"] == "CHECK_INCOMPLETE"
 
 
 def test_breaker_three_failures_half_open_and_reset():
@@ -303,17 +306,17 @@ def test_log_formatter_contains_context_and_valid_json():
 @pytest.mark.parametrize(
     "payload", [{}, {"usage": {}}, {"usage": {"prompt_tokens": True, "completion_tokens": 1}}]
 )
-def test_cost_unknown_is_not_zero(monkeypatch, payload):
-    monkeypatch.setenv("LLM_INPUT_USD_PER_MILLION", "1")
-    monkeypatch.setenv("LLM_OUTPUT_USD_PER_MILLION", "2")
-    assert model_cost(payload) is None
+def test_cost_unknown_is_not_zero(payload):
+    assert model_cost(payload) == (None, True)
 
 
 async def test_model_cost_persisted_and_budget_guard(job_pool, respx_mock, monkeypatch):
-    monkeypatch.setenv("LLM_INPUT_USD_PER_MILLION", "1")
-    monkeypatch.setenv("LLM_OUTPUT_USD_PER_MILLION", "2")
-    payload = {"usage": {"prompt_tokens": 1000, "completion_tokens": 2000}}
-    assert model_cost(payload) == 0.005
+    monkeypatch.setenv("MODEL_PRICES", '{"fixture-model": [1, 2]}')
+    payload = {
+        "model": "fixture-model",
+        "usage": {"prompt_tokens": 1000, "completion_tokens": 2000},
+    }
+    assert model_cost(payload) == (0.005, False)
     route = respx_mock.post("https://model.example/complete").respond(200, json=payload)
     gateway = ResilientGateway(
         {"review": Policy("https://model.example", 100, 1, 1)},
@@ -330,19 +333,17 @@ async def test_model_cost_persisted_and_budget_guard(job_pool, respx_mock, monke
         await gateway.aclose()
 
 
-async def test_unknown_model_prices_preserve_normal_requests(job_pool, respx_mock, monkeypatch):
-    monkeypatch.delenv("LLM_INPUT_USD_PER_MILLION", raising=False)
-    monkeypatch.delenv("LLM_OUTPUT_USD_PER_MILLION", raising=False)
+async def test_missing_usage_blocks_further_model_spend(job_pool, respx_mock):
     route = respx_mock.post("https://model.example/complete").respond(200, json={"choices": []})
     gateway = ResilientGateway(
         {"review": Policy("https://model.example", 100, 1, 3)}, jobs=Jobs(job_pool)
     )
     try:
-        results = await asyncio.gather(
-            *(gateway.request("review", "/complete", method="POST") for _ in range(3))
-        )
-        assert route.call_count == 3 and all(result.status == 200 for result in results)
-        assert (await Jobs(job_pool).llm_spend())["unknown_calls"] == 3
+        result = await gateway.request("review", "/complete", method="POST")
+        blocked = await gateway.request("review", "/complete", method="POST")
+        assert result.status == 200 and "usage unavailable" in blocked.error
+        assert route.call_count == 1
+        assert (await Jobs(job_pool).llm_spend())["unknown_calls"] == 1
     finally:
         await gateway.aclose()
 

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from time import monotonic
@@ -42,6 +43,10 @@ async def lifespan(app: FastAPI):
             pass
         if app.state.pool is not None:
             await run_migrations(app.state.pool)
+            logging.getLogger(__name__).info(
+                "Historical unknown-cost LLM rows remain flagged and are excluded "
+                "from daily budget totals."
+            )
             app.state.event_bus = EventBus(Jobs(app.state.pool, app.state.settings))
             app.state.services = build_services(app.state.settings, app.state.pool)
             app.state.runner = Runner(

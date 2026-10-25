@@ -73,8 +73,12 @@ async def wired_app(monkeypatch, job_pool, request, tmp_path):
     monkeypatch.setenv("REVIEW_MODEL", config.get("legacy", "fixture-legacy"))
     monkeypatch.setenv("MODEL_ADJUDICATOR", config.get("adjudicator", ""))
     monkeypatch.delenv("ADJUDICATOR_ALLOW_SAME_VENDOR", raising=False)
-    monkeypatch.setenv("LLM_INPUT_USD_PER_MILLION", "1")
-    monkeypatch.setenv("LLM_OUTPUT_USD_PER_MILLION", "2")
+    monkeypatch.setenv(
+        "MODEL_PRICES",
+        json.dumps(
+            {name: [1, 2] for name in ("fixture-primary", "fixture-legacy", "fixture-adjudicator")}
+        ),
+    )
     monkeypatch.setattr(main, "create_pool", AsyncMock(return_value=job_pool))
     monkeypatch.setattr(main, "run_migrations", AsyncMock())
     app = main.create_app(
@@ -122,6 +126,7 @@ async def test_startup_wires_support_graph_panel_and_accounting(
     assert (
         startup.count(f"model configured: openai/{model.model_id}, adjudicator: openai/none") == 1
     )
+    assert startup.count("Historical unknown-cost LLM rows remain flagged") == 1
     status = (await client.get("/status")).json()
     assert status["providers"]["model"]["state"] == "CLOSED"
     job_id = await Jobs(app.state.pool).create("model-test", {"sha256": "a" * 64})
@@ -204,6 +209,28 @@ async def test_wired_model_budget_exhaustion_returns_needs_review(wired_app, mod
     assert issues == ["model: daily budget exhausted"]
     assert not route.called and len(app.state.pool.usage) == 1
     assert (await client.get("/status")).json()["llm"]["spend_usd"] == 0.05
+
+
+@pytest.mark.parametrize("wired_app", [{"primary": "unlisted-model"}], indirect=True)
+async def test_estimated_spend_enforces_budget_with_legacy_unknowns(wired_app, model_case):
+    app, client = wired_app
+    report, route, _ = model_case
+    jobs = Jobs(app.state.pool)
+    await jobs.record_spend(None, None)
+    app.state.pool.legacy_unknown.add(app.state.pool.usage[-1][0])
+    await jobs.record_spend(None, 0.032)
+    result = await app.state.services.backend.verify.verify_citation(
+        report.paper.citations[0], report.sources[0]
+    )
+    assert result.label == "NEEDS_REVIEW" and result.needs_review_reason
+    assert route.call_count == 1  # 0.032 known + 0.018 estimated reaches the budget.
+    response = await client.get("/status")
+    assert response.status_code == 200
+    llm = response.json()["llm"]
+    assert llm["accounting"] == "estimated" and llm["estimated_calls"] == 1
+    assert llm["known_spend_usd"] == 0.032 and llm["estimated_spend_usd"] == 0.018
+    assert llm["spend_usd"] == 0.05 and llm["legacy_unknown_calls"] == llm["unknown_calls"] == 1
+    assert not llm["accounting_incomplete"]
 
 
 async def test_wired_model_failures_open_status_breaker(wired_app, model_case):
