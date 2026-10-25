@@ -12,6 +12,7 @@ import { LandingPhone } from "./landing-phone";
 import { BlurHeading, CountOnce, Reveal } from "./editorial-motion";
 import { Brand } from "./brand";
 import { DotMatrix } from "./dot-matrix";
+import { FooterMark } from "./footer-mark";
 import { recordedStats, productChecks, scholarlySources } from "@/lib/landing-data";
 const samples = [
   ["Attention Is All You Need", "paper1_attention.pdf"],
@@ -242,5 +243,5 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Stick
             ),
           )}
         </div>
-      </form></div><DotMatrix /></div></section><footer className="site-footer"><div className="journal-colophon section-container"><Brand /><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></div><div className="footer-wordmark" aria-hidden data-wordmark="VerRes" /></footer></main>;
+      </form></div><DotMatrix /></div></section><footer className="site-footer"><div className="journal-colophon section-container"><span className="footer-lockup"><Brand /><FooterMark /></span><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></div><div className="footer-wordmark" aria-hidden data-wordmark="VerRes" /></footer></main>;
 }
