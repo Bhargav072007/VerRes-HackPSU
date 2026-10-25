@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import {
   ArrowRight,
   FileText,
@@ -22,6 +22,8 @@ import {
   type ApiError,
 } from "@/lib/api";
 import { motionTokens } from "@/lib/motion";
+import { LandingChrome, receiptNavigate, usePolishMotion } from "./landing-chrome";
+import { LandingScene, DemoStats } from "./landing-scene";
 
 const samples = [
   ["Attention Is All You Need", "paper1_attention.pdf"],
@@ -49,7 +51,7 @@ const features = [
 
 export function Landing() {
   const router = useRouter();
-  const reduced = useReducedMotion();
+  const reduced = usePolishMotion();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [identifier, setIdentifier] = useState("");
@@ -84,7 +86,7 @@ export function Landing() {
     setError(null);
     setBusy(true);
     const result = await createJob(file ? { file } : { identifier });
-    if (result.ok) router.push(`/check/${encodeURIComponent(result.job_id)}`);
+    if (result.ok) receiptNavigate(router.push, `/check/${encodeURIComponent(result.job_id)}`);
     else {
       setError(result.error);
       setBusy(false);
@@ -100,7 +102,7 @@ export function Landing() {
       if (!response.ok) throw new Error("Sample unavailable");
       const file = new File([await response.blob()], filename, { type: "application/pdf" });
       const result = await createJob({ file });
-      if (result.ok) router.push(`/check/${encodeURIComponent(result.job_id)}`);
+      if (result.ok) receiptNavigate(router.push, `/check/${encodeURIComponent(result.job_id)}`);
       else { setError(result.error); setBusy(false); }
     } catch {
       setError({ code: "CHECK_INCOMPLETE", message: "This sample could not be loaded. Try again or upload your own PDF." });
@@ -111,54 +113,25 @@ export function Landing() {
   return (
     <main
       id="main"
-      className="mx-auto max-w-6xl px-5 pt-12 pb-12 md:px-10 md:pt-20"
+      className="landing polished-page"
     >
-      <section aria-labelledby="headline" className="text-center">
-        <p className="mb-5 text-[10px] font-medium tracking-[.2em] text-muted-foreground uppercase">
-          A little scrutiny. A stronger paper.
-        </p>
-        <h1
-          id="headline"
-          className="font-serif text-[clamp(2.75rem,7vw,5.5rem)] leading-[1.08] tracking-[-.045em]"
-          aria-label="Proof, not vibes."
-        >
-          {"Proof, not vibes.".split(" ").map((word, i) => (
-            <motion.span
-              key={word}
-              aria-hidden="true"
-              data-reveal
-              className="inline-block"
-              initial={reduced ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={
-                reduced
-                  ? { duration: 0 }
-                  : {
-                      ...motionTokens.fade,
-                      delay: i * motionTokens.stagger,
-                    }
-              }
-            >
-              {i > 0 ? "\u00a0" : ""}
-              {word}
-            </motion.span>
-          ))}
-        </h1>
-        <p className="mx-auto mt-5 max-w-md text-sm leading-6 text-muted-foreground md:max-w-none md:text-base">
-          A pre-submission integrity review for research papers.
-        </p>
-      </section>
-
+      <LandingChrome />
+      <LandingScene />
+      <div className="section-container"><DemoStats /></div>
+      <section id="submit" data-section="01 · UPLOAD" className="section-container numbered-section" aria-labelledby="upload-heading">
+        <span className="section-number" aria-hidden="true">01</span>
+        <div className="section-heading" data-enter><div><p className="section-pill">● 01 · Upload</p><h2 id="upload-heading">Your paper.<br />A second look.</h2></div><p>Bring the work you care about.<br />We’ll follow the references, inspect the claims, and <strong>leave a trail you can check.</strong></p></div>
+        <div className="upload-grid"><aside className="upload-aside" data-enter><p className="eyebrow">BEFORE THE NEXT SUBMISSION</p><h3>Careful work deserves<br />a careful review.</h3><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p><ol><li><span>01</span>Upload a PDF or paste an identifier.</li><li><span>02</span>Follow each check as it happens.</li><li><span>03</span>Open the findings. Inspect the receipts.</li></ol><p className="privacy-note"><LockKeyhole size={13} /> Private. Deleted after 7 days.</p></aside>
       <form
         onSubmit={submit}
-        className="mx-auto mt-10 max-w-[650px]"
+        className="upload-form"
         aria-label="Submit a paper"
         aria-busy={busy}
       >
         <motion.section
           layoutId="job"
           transition={reduced ? { duration: 0 } : motionTokens.layout}
-          className="rounded-xl border bg-white p-5 md:p-6"
+          className="upload-card crosshair"
         >
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium">
@@ -169,7 +142,7 @@ export function Landing() {
             </span>
           </div>
           <div
-            className="drop-zone relative overflow-hidden rounded-lg border border-dashed border-[#85877e]"
+            className="drop-zone"
             data-dragging={dragging}
             onDragOver={(event) => {
               event.preventDefault();
@@ -207,7 +180,7 @@ export function Landing() {
               aria-describedby="file-hint submission-error"
               className="flex w-full flex-col items-center rounded-lg px-4 py-7 focus-visible:-outline-offset-4 disabled:cursor-wait"
             >
-              <span className="mb-4 flex size-10 items-center justify-center rounded-lg border bg-background">
+              <span className="file-type-icon" key={file ? "file" : "upload"}>
                 {file ? (
                   <FileText size={19} strokeWidth={1.4} />
                 ) : (
@@ -265,7 +238,8 @@ export function Landing() {
               setError(null);
             }}
             placeholder="2401.12345 or 10.1000/xyz"
-            className="h-11 w-full rounded-md border border-[#85877e] bg-white px-3 text-sm placeholder:text-muted-foreground disabled:opacity-60"
+            className="identifier-input"
+            onBlur={() => { if (identifier.trim() && !parseIdentifier(identifier)) setError({ code: "identifier_invalid", message: "Enter an arXiv ID or DOI" }); }}
           />
           {error && (
             <p
@@ -280,7 +254,7 @@ export function Landing() {
           <Button
             type="submit"
             disabled={busy}
-            className="mt-4 h-11 w-full gap-2 rounded-md text-xs"
+            className="submit-button"
           >
             {busy ? (
               <>
@@ -300,8 +274,8 @@ export function Landing() {
             Every finding comes with evidence you can verify.
           </p>
         </motion.section>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <span className="w-full text-center text-xs text-muted-foreground">
+        <div className="sample-papers">
+          <span className="sample-heading eyebrow">
             Try a sample
           </span>
           {samples.map(
@@ -313,34 +287,23 @@ export function Landing() {
                 size="sm"
                 disabled={busy}
                 onClick={() => void trySample(filename)}
-                className="min-h-10 rounded-full bg-transparent px-3 text-[11px] font-normal shadow-none"
+                className="sample-card"
+                aria-label={label}
               >
-                {label}
-                <ArrowRight className="size-3" />
+                <FileText size={17} strokeWidth={1.3} /><span><span className="eyebrow">SAMPLE PAPER</span><strong>{label}</strong></span><ArrowRight className="size-3" />
               </Button>
             ),
           )}
         </div>
       </form>
 
-      <section
-        id="how-it-works"
-        aria-label="How it works"
-        className="mt-14 grid gap-6 border-t pt-7 md:grid-cols-3 md:gap-10"
-      >
-        {features.map(({ icon: Icon, title, text }, i) => (
-          <article key={title}>
-            <div className="mb-3 flex items-center gap-2 text-muted-foreground">
-              <Icon size={16} strokeWidth={1.5} />
-              <span className="text-[9px] tracking-widest">0{i + 1}</span>
-            </div>
-            <h2 className="font-serif text-lg">{title}</h2>
-            <p className="mt-2 max-w-xs text-xs leading-5 text-muted-foreground">
-              {text}
-            </p>
-          </article>
-        ))}
+      </div></section>
+      <section id="how-it-works" data-section="02 · THE CHECKS" className="white-sheet numbered-section" aria-labelledby="checks-heading">
+        <div className="section-container"><span className="section-number" aria-hidden="true">02</span><div className="section-heading" data-enter><div><p className="section-pill">● 02 · The checks</p><h2 id="checks-heading">Every finding.<br />A paper trail.</h2></div><p>A reference should exist. A source should support the claim. <strong>You should be able to see exactly why.</strong></p></div>
+        <div className="feature-grid">{features.map(({ icon: Icon, title, text }, i) => <article className="feature-card crosshair" key={title} data-enter style={{ transitionDelay: `${i * 80}ms` }}><div><Icon size={22} strokeWidth={1.3} /><span className="eyebrow">0{i + 1}</span></div><h3>{title}</h3><p>{text}</p><span className="feature-receipt">↳ Evidence included</span></article>)}</div></div>
       </section>
+      <section id="honesty" data-section="03 · OUR PRINCIPLE" className="section-container numbered-section honesty-section" aria-labelledby="honesty-heading"><span className="section-number" aria-hidden="true">03</span><div className="section-heading" data-enter><div><p className="section-pill">● 03 · Our principle</p><h2 id="honesty-heading" className="unblur">What we<br />won’t guess.</h2></div><p>Missing evidence is a reason to pause.<br /><strong>Receipts, not scores.</strong> Every verdict explains what we found — and what we couldn’t verify.</p></div><article className="honesty-card crosshair" data-enter><div><p className="eyebrow">ILLUSTRATIVE FINDING / CLAIM 04</p><h3>Does the source support this claim?</h3><p>We couldn’t retrieve the full source text. The abstract alone isn’t enough to verify this claim.</p></div><div><span className="status-pill blue">? NEEDS_REVIEW</span><p>Next step: inspect the full paper and the cited passage before submission.</p></div></article></section>
+      <footer className="landing-footer"><div className="section-container"><div className="footer-top"><div><p className="section-pill">A LITTLE SCRUTINY GOES A LONG WAY</p><h2>Submit with receipts.</h2></div><a className="pill-button" href="#submit">Review your paper <ArrowRight size={15} /></a></div><div className="footer-meta"><span>VerRes · Research deserves a second look.</span><a href="#honesty">Receipts, not scores.</a></div></div><span className="footer-wordmark" aria-hidden="true">VerRes</span></footer>
     </main>
   );
 }

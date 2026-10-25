@@ -31,7 +31,7 @@ for (const width of [1440, 390]) {
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.screenshot({ path: info.outputPath(`${name}-${width}-${reducedMotion}.png`), fullPage: true, animations: "disabled" });
         if (name === "landing") {
-          await expect(page.getByLabel("arXiv ID or DOI", { exact: true })).toHaveCSS("border-color", "rgb(133, 135, 126)");
+          await expect(page.getByLabel("arXiv ID or DOI", { exact: true })).toHaveCSS("border-color", "rgb(156, 155, 152)");
           await page.keyboard.press("Tab");
           await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
           await expect(page.getByRole("link", { name: "Skip to content" })).toHaveCSS("outline-style", "solid");
