@@ -72,7 +72,8 @@ async def create_share(job_id: UUID, request: Request, days: int = Query(default
     if isinstance(result, JobFailure):
         return share_error(result)
     return ShareCreated(
-        **dict(result), url=str(request.url_for("shared_snapshot", token=result["token"]))
+        **dict(result),
+        url=f"{request.app.state.frontend_origins[0]}/shares/{result['token']}",
     )
 
 

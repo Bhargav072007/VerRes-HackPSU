@@ -17,8 +17,9 @@ from api.app.providers.services import build_backend
 from api.app.review import ReviewPanel, ReviewStub
 from api.app.review.runtime import ResilientGateway, job_context, provider_issues, stage_context
 from api.app.verify.model import JSONGatewayModel, Model
-from contracts.interfaces import Review
+from contracts.interfaces import Review, Verify
 from contracts.schema import (
+    Citation,
     ClaimMap,
     ExistenceResult,
     HiddenTextFinding,
@@ -44,6 +45,7 @@ class Services:
     review: Review
     model_gateway: object = None
     backend_gateway: object = None
+    model_unconfigured_reason: str | None = "model not configured"
 
     async def aclose(self):
         try:
@@ -58,9 +60,18 @@ class Services:
                 await self.backend_gateway.aclose()
 
 
+class UnconfiguredVerify(Verify):
+    def __init__(self, reason: str):
+        self.reason = reason
+
+    async def verify_citation(self, citation: Citation, source: SourceDocument) -> SupportResult:
+        return fallback("support", citation.id, self.reason)
+
+
 def build_services(settings, pool=None, *, model: Model | None = None):
     model_gateway = None
     gateway = None
+    model_reason = "model not configured"
     if os.getenv("STUBS") == "1":
         from api.app.stubs import FixtureServices
 
@@ -70,7 +81,10 @@ def build_services(settings, pool=None, *, model: Model | None = None):
         from api.app.providers.cache import PostgresCache
         from api.app.providers.http import Policy, load_policies
 
-        if model is None and settings.openai_api_key and os.getenv("REVIEW_MODEL"):
+        model_name = (os.getenv("MODEL_PRIMARY") or "").strip() or (
+            os.getenv("REVIEW_MODEL") or ""
+        ).strip()
+        if model is None and settings.openai_api_key and model_name:
             model_gateway = ResilientGateway(
                 {"review": Policy("https://api.openai.com", 4, 1, 3)},
                 jobs=Jobs(pool) if pool else None,
@@ -79,18 +93,36 @@ def build_services(settings, pool=None, *, model: Model | None = None):
             model = JSONGatewayModel(
                 model_gateway,
                 provider="review",
-                model_id=os.environ["REVIEW_MODEL"],
+                model_id=model_name,
                 family="openai",
+                vendor="openai",
                 api_key=settings.openai_api_key.get_secret_value(),
                 max_input_chars=100_000,
             )
+        if model is not None:
+            model_reason = None
+            logger.info(
+                "model configured: %s/%s, adjudicator: none",
+                model.vendor or model.family,
+                model.model_id,
+            )
+        elif settings.openai_api_key:
+            model_reason = "set MODEL_PRIMARY"
+            logger.warning("model not configured: set MODEL_PRIMARY (or legacy REVIEW_MODEL)")
+        else:
+            logger.warning("model not configured: OPENAI_API_KEY is not set")
         policies = load_policies()
         policies["grobid"] = Policy(settings.grobid_url, 1, 1, 1)
         policies["arxiv-intake"] = Policy("https://arxiv.org", 1, 3, 1)
         gateway = ResilientGateway(policies, cache=PostgresCache(pool) if pool else None)
-        backend = build_backend(settings, pool=pool, gateway=gateway)
+        # TODO: Wire adjudication when verify/ provides an Anthropic-compatible Model adapter.
+        backend = build_backend(
+            settings, pool=pool, gateway=gateway, primary=model, adjudicator=None
+        )
+        if model is None:
+            backend.verify = UnconfiguredVerify(model_reason)
         review = ReviewPanel(model)
-    return Services(backend, review, model_gateway, gateway)
+    return Services(backend, review, model_gateway, gateway, model_reason)
 
 
 def fallback(kind, row_id, reason):

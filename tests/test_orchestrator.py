@@ -11,7 +11,7 @@ from api.app import main
 from api.app.db import JobFailure, Jobs
 from api.app.graph.service import GraphService
 from api.app.ingest.service import IngestService
-from api.app.orchestrator import Pipeline, Runner, build_services
+from api.app.orchestrator import Pipeline, Runner, UnconfiguredVerify, build_services
 from api.app.resolve.service import ResolveService
 from api.app.review import ReviewPanel
 from api.app.routes.jobs import PDF_LIMIT, load_pdf, save_pdf
@@ -19,7 +19,6 @@ from api.app.settings import Settings
 from api.app.sources.service import SourceService
 from api.app.sse import EventBus
 from api.app.stubs import FixtureServices
-from api.app.verify.service import VerifyService
 from tests.conftest import FIXTURES
 from tests.test_jobs import frames
 
@@ -44,7 +43,7 @@ async def test_factory_real_services_when_flag_unset(monkeypatch):
             ("ingest", IngestService),
             ("resolve", ResolveService),
             ("sources", SourceService),
-            ("verify", VerifyService),
+            ("verify", UnconfiguredVerify),
             ("graph", GraphService),
         ):
             assert isinstance(getattr(backend, field), expected)
