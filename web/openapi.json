@@ -27,73 +27,18 @@
       "post": {
         "summary": "Create Job",
         "operationId": "create_job_jobs_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "arxiv_id"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "doi"
-                    ]
-                  }
-                ],
-                "properties": {
-                  "arxiv_id": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "maxLength": 256,
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ],
-                    "title": "Arxiv Id"
-                  },
-                  "doi": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "maxLength": 256,
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ],
-                    "title": "Doi"
-                  }
-                },
-                "additionalProperties": false,
-                "type": "object",
-                "title": "Identifier"
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                },
-                "additionalProperties": false,
-                "type": "object",
-                "required": [
-                  "file"
-                ]
-              }
+        "parameters": [
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Fresh"
             }
-          },
-          "required": true
-        },
+          }
+        ],
         "responses": {
           "202": {
             "description": "Successful Response",
@@ -106,51 +51,128 @@
             }
           },
           "400": {
-            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobFailure"
                 }
               }
-            }
+            },
+            "description": "Bad Request"
           },
           "404": {
-            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobFailure"
                 }
               }
-            }
+            },
+            "description": "Not Found"
           },
           "413": {
-            "description": "Request Entity Too Large",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobFailure"
                 }
               }
-            }
+            },
+            "description": "Request Entity Too Large"
           },
           "429": {
-            "description": "Too Many Requests",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobFailure"
                 }
               }
-            }
+            },
+            "description": "Too Many Requests"
           },
           "503": {
-            "description": "Service Unavailable",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobFailure"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "arxiv_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Arxiv Id"
+                  },
+                  "doi": {
+                    "anyOf": [
+                      {
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Doi"
+                  }
+                },
+                "title": "Identifier",
+                "type": "object",
+                "oneOf": [
+                  {
+                    "required": [
+                      "arxiv_id"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "doi"
+                    ]
+                  }
+                ]
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
                 }
               }
             }
@@ -860,6 +882,22 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "status_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -2136,6 +2174,45 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "cache_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Key"
+          },
+          "pipeline_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline Version"
+          },
+          "demo_fixture": {
+            "type": "boolean",
+            "title": "Demo Fixture",
+            "default": false
+          },
+          "replay_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replay Of"
           }
         },
         "additionalProperties": false,

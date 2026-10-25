@@ -72,6 +72,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/jobs/{job_id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Share */
+        post: operations["create_share_jobs__job_id__share_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shares/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shared Snapshot */
+        get: operations["shared_snapshot_shares__token__get"];
+        put?: never;
+        post?: never;
+        /** Revoke Share */
+        delete: operations["revoke_share_shares__token__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/{job_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Job */
+        get: operations["export_job_jobs__job_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/shares/{token}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Share */
+        get: operations["export_share_shares__token__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["status_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -102,6 +188,42 @@ export interface components {
         };
         /** ClaimEdge */
         ClaimEdge: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Source Id */
             source_id: string;
             /** Target Id */
@@ -118,6 +240,42 @@ export interface components {
         };
         /** ClaimMap */
         ClaimMap: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Paper Id */
             paper_id: string;
             /** Nodes */
@@ -154,6 +312,42 @@ export interface components {
         };
         /** ClaimNode */
         ClaimNode: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Id */
             id: string;
             /** Text */
@@ -220,6 +414,42 @@ export interface components {
         EvidenceLevel: "FULL_TEXT" | "ABSTRACT_ONLY" | "METADATA_ONLY";
         /** EvidenceSpan */
         EvidenceSpan: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Passage Id */
             passage_id: string;
             /** Quote */
@@ -243,6 +473,42 @@ export interface components {
         };
         /** ExistenceResult */
         ExistenceResult: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Reference Id */
             reference_id: string;
             status: components["schemas"]["ExistenceStatus"];
@@ -309,6 +575,42 @@ export interface components {
         };
         /** HiddenTextFinding */
         HiddenTextFinding: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Id */
             id: string;
             /**
@@ -361,6 +663,17 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Cache Key */
+            cache_key?: string | null;
+            /** Pipeline Version */
+            pipeline_version?: string | null;
+            /**
+             * Demo Fixture
+             * @default false
+             */
+            demo_fixture: boolean;
+            /** Replay Of */
+            replay_of?: string | null;
         };
         /** JobSnapshot */
         JobSnapshot: {
@@ -369,6 +682,23 @@ export interface components {
              * Format: uuid
              */
             job_id: string;
+            /** Pipeline Version */
+            pipeline_version?: string | null;
+            /** Git Sha */
+            git_sha?: string | null;
+            /** Pdf Sha256 */
+            pdf_sha256?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Stage Durations
+             * @description Elapsed seconds per stage, summed over completed attempts.
+             */
+            stage_durations?: {
+                [key: string]: number;
+            } | null;
             paper?: components["schemas"]["Paper"] | null;
             /** Existence */
             existence?: components["schemas"]["ExistenceResult"][];
@@ -495,6 +825,39 @@ export interface components {
              * Format: uuid
              */
             job_id: string;
+            /**
+             * Pipeline Version
+             * @default null
+             */
+            pipeline_version: string | null;
+            /**
+             * Git Sha
+             * @default null
+             */
+            git_sha: string | null;
+            /**
+             * Pdf Sha256
+             * @default null
+             */
+            pdf_sha256: string | null;
+            /**
+             * Started At
+             * @default null
+             */
+            started_at: string | null;
+            /**
+             * Finished At
+             * @default null
+             */
+            finished_at: string | null;
+            /**
+             * Stage Durations
+             * @description Elapsed seconds per stage, summed over completed attempts.
+             * @default null
+             */
+            stage_durations: {
+                [key: string]: number;
+            } | null;
             /** @default null */
             paper: components["schemas"]["Paper"] | null;
             /** Existence */
@@ -540,6 +903,42 @@ export interface components {
         };
         /** RetractionResult */
         RetractionResult: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Reference Id */
             reference_id: string;
             status: components["schemas"]["RetractionStatus"];
@@ -560,6 +959,42 @@ export interface components {
         RetractionStatus: "RETRACTED" | "EXPRESSION_OF_CONCERN" | "CORRECTED" | "NONE" | "UNKNOWN";
         /** ReviewComment */
         ReviewComment: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /**
              * Reviewer
              * @enum {string}
@@ -599,6 +1034,42 @@ export interface components {
         };
         /** ReviewSummary */
         ReviewSummary: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             /** Top Fixes */
             top_fixes?: string[];
             /** Comments */
@@ -642,11 +1113,169 @@ export interface components {
              */
             page: number | null;
         };
-        /** SourceDocument */
-        SourceDocument: {
+        /** ShareCreated */
+        ShareCreated: {
+            /** Token */
+            token: string;
+            /** Url */
+            url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** SharedPaper */
+        SharedPaper: {
+            /** Id */
+            id: string;
+            /** Title */
+            title?: string | null;
+            /** Authors */
+            authors?: string[];
+            /** Paper Date */
+            paper_date?: string | null;
+            /** References */
+            references?: components["schemas"]["Reference"][];
+            /** Citations */
+            citations?: components["schemas"]["Citation"][];
+            /**
+             * Status
+             * @default PARSED
+             * @enum {string}
+             */
+            status: "PARSED" | "NEEDS_REVIEW";
+            /** Needs Review Reason */
+            needs_review_reason?: string | null;
+        };
+        /** SharedSnapshot */
+        SharedSnapshot: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Pipeline Version */
+            pipeline_version?: string | null;
+            /** Git Sha */
+            git_sha?: string | null;
+            /** Pdf Sha256 */
+            pdf_sha256?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Stage Durations
+             * @description Elapsed seconds per stage, summed over completed attempts.
+             */
+            stage_durations?: {
+                [key: string]: number;
+            } | null;
+            paper?: components["schemas"]["SharedPaper"] | null;
+            /** Existence */
+            existence?: components["schemas"]["ExistenceResult"][];
+            /** Retractions */
+            retractions?: components["schemas"]["RetractionResult"][];
+            /** Sources */
+            sources?: components["schemas"]["SharedSource"][];
+            /** Support */
+            support?: components["schemas"]["SupportResult"][];
+            claim_map?: components["schemas"]["ClaimMap"] | null;
+            /** Hidden Text */
+            hidden_text?: components["schemas"]["HiddenTextFinding"][];
+            review?: components["schemas"]["ReviewSummary"] | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "QUEUED" | "RUNNING" | "COMPLETE" | "NEEDS_REVIEW" | "CHECK_INCOMPLETE";
+            /** Reason */
+            reason?: string | null;
+            /** Review Comments */
+            review_comments?: components["schemas"]["ReviewComment"][];
+            /**
+             * Shared
+             * @default true
+             * @constant
+             */
+            shared: true;
+        };
+        /** SharedSource */
+        SharedSource: {
+            /** Source Url */
+            source_url?: string | null;
+            /** Source Type */
+            source_type?: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /** Retrieved At */
+            retrieved_at?: string | null;
+            evidence_level: components["schemas"]["EvidenceLevel"];
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             */
+            quote_offsets?: [
+                number,
+                number
+            ][] | null;
+            /** Model Id */
+            model_id?: string | null;
+            /** Prompt Version */
+            prompt_version?: string | null;
             /** Reference Id */
             reference_id: string;
+            /** Url */
+            url?: string | null;
+            /** Content Sha256 */
+            content_sha256?: string | null;
+            /**
+             * Status
+             * @default AVAILABLE
+             * @enum {string}
+             */
+            status: "AVAILABLE" | "CHECK_INCOMPLETE";
+            /** Reason */
+            reason: string;
+        };
+        /** SourceDocument */
+        SourceDocument: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
             evidence_level: components["schemas"]["EvidenceLevel"];
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
+            /** Reference Id */
+            reference_id: string;
             /** Passages */
             passages?: components["schemas"]["SourcePassage"][];
             /**
@@ -755,6 +1384,42 @@ export interface components {
         SupportLabel: "SUPPORTED" | "PARTIALLY_SUPPORTED" | "NOT_SUPPORTED" | "CONTRADICTED" | "NEEDS_REVIEW";
         /** SupportResult */
         SupportResult: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             label: components["schemas"]["SupportLabel"];
             /** Mismatch Types */
             mismatch_types?: components["schemas"]["MismatchType"][];
@@ -795,6 +1460,42 @@ export interface components {
         };
         /** Judgment */
         Judgment: {
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+            /**
+             * Source Type
+             * @default null
+             */
+            source_type: ("crossref" | "openalex" | "arxiv" | "retraction_watch" | "publisher") | null;
+            /**
+             * Retrieved At
+             * @default null
+             */
+            retrieved_at: string | null;
+            /** @default null */
+            evidence_level: components["schemas"]["EvidenceLevel"] | null;
+            /**
+             * Quote Offsets
+             * @description Producer-supplied half-open character ranges in the source.
+             * @default null
+             */
+            quote_offsets: [
+                number,
+                number
+            ][] | null;
+            /**
+             * Model Id
+             * @default null
+             */
+            model_id: string | null;
+            /**
+             * Prompt Version
+             * @default null
+             */
+            prompt_version: string | null;
             label: components["schemas"]["SupportLabel"];
             /** Mismatch Types */
             mismatch_types?: components["schemas"]["MismatchType"][];
@@ -841,7 +1542,9 @@ export interface operations {
     };
     create_job_jobs_post: {
         parameters: {
-            query?: never;
+            query?: {
+                fresh?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -895,6 +1598,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Too Many Requests */
@@ -1065,6 +1777,448 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    create_share_jobs__job_id__share_post: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareCreated"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    shared_snapshot_shares__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedSnapshot"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    revoke_share_shares__token__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    export_job_jobs__job_id__export_get: {
+        parameters: {
+            query?: {
+                format?: "json" | "md";
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSnapshot"];
+                    "text/markdown": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    export_share_shares__token__export_get: {
+        parameters: {
+            query?: {
+                format?: "json" | "md";
+            };
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedSnapshot"];
+                    "text/markdown": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFailure"];
+                };
+            };
+        };
+    };
+    status_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
