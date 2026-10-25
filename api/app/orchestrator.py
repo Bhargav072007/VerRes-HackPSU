@@ -6,7 +6,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from time import monotonic
 
 from pydantic import TypeAdapter
@@ -274,7 +274,7 @@ class Pipeline:
         await self.row(
             "retraction",
             reference.id,
-            lambda: backend.resolve.check_retraction(existence, paper.paper_date),
+            lambda: backend.resolve.check_retraction(existence, (paper.paper_date) or date.today()),
             RetractionResult,
         )
         source = await self.row(

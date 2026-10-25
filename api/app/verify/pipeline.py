@@ -50,7 +50,10 @@ async def classify_citations(citations: list[ParsedCitation], model: Model) -> d
         batch = citations[start : start + 10]
         try:
             result = await call_model(
-                model, "classify", [c.model_dump() for c in batch], Classification
+                model,
+                "classify",
+                [{**c.model_dump(exclude={"reference_id"}), "citation_id": c.id} for c in batch],
+                Classification,
             )
             ids = [item.citation_id for item in result.items]
             expected = {c.id for c in batch}
