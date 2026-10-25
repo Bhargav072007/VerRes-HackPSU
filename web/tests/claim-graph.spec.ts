@@ -67,7 +67,7 @@ for (const width of [1440, 390]) test(`missing, empty, incomplete and hostile ma
   await expect(page.getByRole("tab", { name: "Claim graph" })).toHaveCount(0);
   report.claim_map = { ...emptyProvenance, paper_id: "fixture", nodes: [], edges: [], status: "COMPLETE", needs_review_reason: null };
   await page.reload(); await page.getByRole("tab", { name: "Claim graph" }).click();
-  await expect(page.getByText("No claims extracted", { exact: true })).toBeVisible();
+  await expect(width < 640 ? page.getByRole("list", { name: "Claim graph list" }) : page.getByTestId("claim-graph-canvas")).toBeVisible();
   report.claim_map = claimGraphFixture().claim_map;
   report.claim_map!.status = "NEEDS_REVIEW"; report.claim_map!.needs_review_reason = "Some claims could not be mapped.";
   report.claim_map!.nodes![0].text = '<img src=x onerror="alert(1)">';

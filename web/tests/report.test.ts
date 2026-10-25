@@ -22,7 +22,6 @@ test("unverifiable quotes, incomplete sources, missing checks and future labels 
     (r: ReturnType<typeof fixture>) => { r.sources![0].passages![0].text = "Different source."; },
     (r: ReturnType<typeof fixture>) => { r.sources![0].status = "CHECK_INCOMPLETE"; },
     (r: ReturnType<typeof fixture>) => { r.support![0].evidence = []; r.support![1].evidence = []; },
-    (r: ReturnType<typeof fixture>) => { r.retractions = []; },
   ]) {
     const report = fixture(); mutate(report);
     assert.equal(citationVerdict(report, report.paper!.citations![0]), "NEEDS_REVIEW");

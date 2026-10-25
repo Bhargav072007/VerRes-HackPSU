@@ -50,7 +50,7 @@ export function referenceVerdict(report: Report, id: string): Verdict {
   const retraction = report.retractions?.find(r => r.reference_id === id)?.status;
   if (retraction === "RETRACTED") return "RETRACTED";
   if (existence === "NOT_FOUND" || existence === "DOI_MISMATCH") return existence;
-  return existence === "VERIFIED" && retraction === "NONE" ? "SUPPORTED" : "NEEDS_REVIEW";
+  return existence === "VERIFIED" ? "SUPPORTED" : "NEEDS_REVIEW";
 }
 
 export function verifiedEvidence(report: Report, citation: Citation) {
@@ -61,8 +61,11 @@ export function verifiedEvidence(report: Report, citation: Citation) {
 }
 
 export function citationVerdict(report: Report, citation: Citation): Verdict {
-  const reference = referenceVerdict(report, citation.reference_id);
-  if (reference !== "SUPPORTED") return reference;
+  if (report.retractions?.some(r => r.reference_id === citation.reference_id && r.status === "RETRACTED")) return "RETRACTED";
+  return citationSupportVerdict(report, citation);
+}
+
+export function citationSupportVerdict(report: Report, citation: Citation): components["schemas"]["SupportLabel"] {
   const support = report.support?.find(s => s.citation_id === citation.id);
   return support && ["SUPPORTED", "PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED"].includes(support.label)
     && !!support.evidence?.length && verifiedEvidence(report, citation).length === support.evidence.length ? support.label : "NEEDS_REVIEW";

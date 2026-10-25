@@ -14,7 +14,7 @@ Set `NEXT_PUBLIC_MOCK=1` **before building** to replay
 Reload resumes the mock clock saved per review ID in session storage; a new ID
 starts a fresh run. Mock references and findings are explicitly synthetic.
 Counters count checked citation occurrences, not-found/retracted references,
-partially-supported claims (overstated), and distinct references needing review.
+partially supported claims, and distinct references needing review.
 Optional result `provenance.cached_at` renders a cache timestamp; absent metadata
 renders `live`. This extension still needs a backend contract change.
 `/report/[id]` reads the typed GET snapshot and polls while queued/running.

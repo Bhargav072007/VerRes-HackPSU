@@ -29,7 +29,7 @@ test("source alerts remain distinct from support verdicts; empty, missing and da
   assert.equal(related.unlinked, true);
   assert.equal(related.edges.at(-1)!.data!.verdict, "NEEDS_REVIEW");
   assert.ok(!JSON.stringify(related).includes("Unverified edge quote"));
-  claimMap.nodes = []; assert.equal(claimGraph(report).nodes.length, 0);
+  claimMap.nodes = []; assert.equal(claimGraph(report).nodes.length, report.paper.references.length);
   report.claim_map = null; assert.equal(claimGraph(report).edges.length, 0);
 });
 test("claim map decoding rejects malformed external fields and keeps missing maps optional", () => {

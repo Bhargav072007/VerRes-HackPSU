@@ -76,7 +76,7 @@ export function jobCounts(state: JobState) {
   const refs = Object.values(state.rows), support = Object.values(state.support);
   const uncertain = new Set(refs.filter(r => r.existence && !["VERIFIED", "NOT_FOUND"].includes(r.existence.status) || r.retraction && !["NONE", "RETRACTED"].includes(r.retraction.status)).map(r => r.reference?.id));
   for (const s of support.filter(s => s.label === "NEEDS_REVIEW")) uncertain.add(state.paper?.citations?.find(c => c.id === s.citation_id)?.reference_id ?? s.citation_id);
-  return { checked: (state.paper?.citations ?? []).filter(c => state.rows[c.reference_id]?.existence).length, total: state.paper?.citations?.length ?? 0, missing: refs.filter(r => r.existence?.status === "NOT_FOUND").length, retracted: refs.filter(r => r.retraction?.status === "RETRACTED").length, overstated: support.filter(s => s.label === "PARTIALLY_SUPPORTED").length, needsReview: uncertain.size };
+  return { checked: (state.paper?.citations ?? []).filter(c => state.rows[c.reference_id]?.existence).length, total: state.paper?.citations?.length ?? 0, missing: refs.filter(r => r.existence?.status === "NOT_FOUND").length, retracted: refs.filter(r => r.retraction?.status === "RETRACTED").length, partiallySupported: support.filter(s => s.label === "PARTIALLY_SUPPORTED").length, needsReview: uncertain.size };
 }
 
 // The journal names individual source checks; present those as readable phases.
