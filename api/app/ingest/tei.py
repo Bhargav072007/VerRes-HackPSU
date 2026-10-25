@@ -53,7 +53,8 @@ def parse_tei(data: bytes) -> ParseResult:
         try:
             paper.published = date.fromisoformat(stamp.get("when", ""))
         except ValueError:
-            reasons.append("paper publication date is missing or incomplete")
+            # Optional metadata: the orchestrator uses today when no full date exists.
+            pass
     seen = set()
     for item in root.findall(f".//{NS}listBibl/{NS}biblStruct"):
         ref_id = item.get(XML_ID)
