@@ -4,6 +4,7 @@ import { claimGraph } from "../lib/claim-graph";
 import { decodeReport } from "../lib/report";
 import { claimGraphFixture } from "./fixtures/claim-graph";
 import { evidenceFixture, evidenceStates } from "./fixtures/evidence";
+import { emptyProvenance } from "./fixtures/provenance";
 
 test("fixture graph lays out claims left of deduplicated sources and preserves citation receipts", () => {
   const report = claimGraphFixture(), graph = claimGraph(report);
@@ -18,16 +19,17 @@ test("fixture graph lays out claims left of deduplicated sources and preserves c
 });
 test("source alerts remain distinct from support verdicts; empty, missing and dangling maps stay safe", () => {
   const report = evidenceFixture();
-  report.claim_map = { paper_id: "fixture", status: "COMPLETE", needs_review_reason: null, nodes: report.paper.citations.map(c => ({ id: c.id, text: c.claim_text, sentence_ids: c.sentence_ids!, citation_ids: [c.id], kind: "CLAIM" })), edges: [] };
+  report.claim_map = { ...emptyProvenance, paper_id: "fixture", status: "COMPLETE", needs_review_reason: null, nodes: report.paper.citations.map(c => ({ ...emptyProvenance, id: c.id, text: c.claim_text, sentence_ids: c.sentence_ids!, citation_ids: [c.id], kind: "CLAIM" as const })), edges: [] };
   const graph = claimGraph(report);
   assert.deepEqual(graph.edges.map(e => e.data!.verdict), evidenceStates.map(s => ["DOI_MISMATCH", "RETRACTED", "NOT_FOUND"].includes(s) ? "NEEDS_REVIEW" : s));
   assert.deepEqual(graph.nodes.filter(n => n.data.flag).map(n => n.data.flag), ["DOI_MISMATCH", "RETRACTED", "NOT_FOUND"]);
-  report.claim_map.edges = [{ source_id: "c-0", target_id: "c-1", relation: "SUPPORTS", reason: "Related", evidence: [{ passage_id: "p1", quote: "Unverified edge quote" }] }, { source_id: "missing", target_id: "c-1", relation: "DEPENDS_ON", reason: "Unavailable" }];
+  const claimMap = report.claim_map!;
+  claimMap.edges = [{ ...emptyProvenance, source_id: "c-0", target_id: "c-1", relation: "SUPPORTS", reason: "Related", evidence: [{ ...emptyProvenance, passage_id: "p1", quote: "Unverified edge quote" }] }, { ...emptyProvenance, source_id: "missing", target_id: "c-1", relation: "DEPENDS_ON", reason: "Unavailable" }];
   const related = claimGraph(report);
   assert.equal(related.unlinked, true);
   assert.equal(related.edges.at(-1)!.data!.verdict, "NEEDS_REVIEW");
   assert.ok(!JSON.stringify(related).includes("Unverified edge quote"));
-  report.claim_map.nodes = []; assert.equal(claimGraph(report).nodes.length, 0);
+  claimMap.nodes = []; assert.equal(claimGraph(report).nodes.length, 0);
   report.claim_map = null; assert.equal(claimGraph(report).edges.length, 0);
 });
 test("claim map decoding rejects malformed external fields and keeps missing maps optional", () => {

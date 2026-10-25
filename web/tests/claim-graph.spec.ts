@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { claimGraphFixture } from "./fixtures/claim-graph";
 import { reviewFixture } from "./fixtures/review";
+import { emptyProvenance } from "./fixtures/provenance";
 
 for (const width of [1440, 390]) test(`claim graph at ${width}px: receipts, legend, evidence navigation and fallback`, async ({ page }, info) => {
   const errors: string[] = [], report = claimGraphFixture();
@@ -64,7 +65,7 @@ for (const width of [1440, 390]) test(`missing, empty, incomplete and hostile ma
   await page.goto("/report/states");
   await expect(page.getByRole("heading", { name: report.paper!.title! })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Claim graph" })).toHaveCount(0);
-  report.claim_map = { paper_id: "fixture", nodes: [], edges: [], status: "COMPLETE", needs_review_reason: null };
+  report.claim_map = { ...emptyProvenance, paper_id: "fixture", nodes: [], edges: [], status: "COMPLETE", needs_review_reason: null };
   await page.reload(); await page.getByRole("tab", { name: "Claim graph" }).click();
   await expect(page.getByText("No claims extracted", { exact: true })).toBeVisible();
   report.claim_map = claimGraphFixture().claim_map;
