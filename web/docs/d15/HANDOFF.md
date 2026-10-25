@@ -50,3 +50,10 @@ python3 scripts/mockups/composite.py           # uses work/ scenes; no generatio
 - Added requested 600ms first-view numeral count, desktop fine-pointer hero parallax (clamped ±6px, lerped), and shared line/note tint overlays (160ms opacity).
 - OS and reader reduced-motion preferences show final states. Typecheck, lint, webpack build pass.
 - Next: final capture/composite/contact sheet, then browser assertions/snapshots and §7 gates.
+
+## Final mockups captured and composited
+- Captured @2x at 1280×800 laptop, 393×852 phone, 1024×768 tablet. BERT partial-support note is visible; tablet uses the verified evidence panel, not the graph.
+- Fixed compact-header background coverage found during visual inspection. Expanded short quote excerpts to preserve the substantive source finding.
+- Reused s1-1 / s2-2 / s3-2 / s4-2 / s5-3. Final AVIF/WebP, blur manifest, method crops, OG image and contact sheet refreshed.
+- Generations this continuation: 0. Prior total: 11 built-in tool generations; $0 Images API spend (built-in cost not separately reported).
+- Next: §7 full tests, new snapshots, Lighthouse and final page screenshots; then PR ready + evidence comment.

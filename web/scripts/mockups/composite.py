@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 WORK = Path(__file__).parent / "work"
 PUBLIC = Path(__file__).resolve().parents[2] / "public/mockups"
-CAPTURES = {"s1": "report-desktop", "s2": "report-mobile", "s3": "claim-graph", "s4": "live-check"}
+CAPTURES = {"s1": "report-desktop", "s2": "report-mobile", "s3": "evidence", "s4": "live-check"}
 
 
 def green_quad(rgb):
@@ -127,12 +127,17 @@ def og_image(hero, font_path, destination):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sheet", action="store_true")
-    parser.add_argument("--select", nargs="+")
+    parser.add_argument("--select", nargs="+", default=["s1-1", "s2-2", "s3-2", "s4-2", "s5-3"])
     parser.add_argument("--og-font", type=Path)
     args = parser.parse_args()
     if args.sheet:
         sheet(sorted(WORK.glob("s?-?.png")), WORK / "scene-contact-sheet.webp")
     if args.select:
+        for capture in (WORK / "captures").glob("method-*.png"):
+            im = ImageOps.contain(Image.open(capture).convert("RGB"), (1200, 900))
+            canvas = Image.new("RGB", (1200, 900), "#FAF9F6")
+            canvas.paste(im, ((1200-im.width)//2, (900-im.height)//2))
+            canvas.save(PUBLIC / f"{capture.stem}.webp", quality=90)
         manifest = {}
         for name in args.select:
             scene = name.split("-")[0]
