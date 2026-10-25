@@ -37,6 +37,14 @@ def compare_author(ref: ParsedReference, work: Work) -> bool | None:
         return None
     if expected == actual:
         return True
+    if (
+        not work.author_names_are_full
+        and len(expected.split()) >= 3
+        and any(len(token) == 1 for token in expected.split()[:-1])
+        and expected.endswith(" " + actual)
+    ):
+        # Some GROBID surname fields contain the full name, including a middle initial.
+        return True
     if work.author_names_are_full:
         # A display name does not identify family-name boundaries. Preserve compound
         # names; incompatible display text is uncertainty, not a DOI discrepancy.
@@ -67,13 +75,31 @@ def metadata_mismatch(ref: ParsedReference, work: Work) -> bool:
 
 
 def score(ref: ParsedReference, work: Work) -> float:
-    year = ref.year is not None and work.year is not None and abs(ref.year - work.year) <= 1
+    year = ref.year is not None and ref.year == work.year
     return (
         0.6 * title_similarity(ref.title, work.title)
         + 0.2 * author_agrees(ref, work)
         + 0.1 * year
-        + 0.1 * title_similarity(ref.venue, work.venue)
+        + 0.1 * (title_similarity(ref.venue, work.venue) >= 0.75)
     )
+
+
+def same_candidate(left: Work, right: Work) -> bool:
+    """Deduplicate one DOI across family-name and full-display-name provider copies."""
+    if not left.doi or left.doi != right.doi or normalize(left.title) != normalize(right.title):
+        return False
+    if left.year is not None and right.year is not None and abs(left.year - right.year) > 1:
+        return False
+    for a, b in zip(left.authors, right.authors, strict=False):
+        if normalize(a) == normalize(b):
+            continue
+        if left.author_names_are_full == right.author_names_are_full:
+            return False
+        family, display = (b, a) if left.author_names_are_full else (a, b)
+        display = re.sub(r"\s\w$", "", normalize(display))
+        if not display.endswith(" " + normalize(family)):
+            return False
+    return True
 
 
 def combine_works(works: list[Work]) -> Work:
@@ -157,24 +183,16 @@ async def resolve_reference(
     for result in results:
         for work in result.works:
             duplicate = next(
-                (
-                    other
-                    for other in candidates
-                    if (
-                        work.doi
-                        and work.doi == other.doi
-                        and normalize(work.title) == normalize(other.title)
-                        and work.year == other.year
-                        and [normalize(a) for a in work.authors]
-                        == [normalize(a) for a in other.authors]
-                    )
-                ),
+                (other for other in candidates if same_candidate(work, other)),
                 None,
             )
             if duplicate is None:
                 candidates.append(work)
             else:
-                candidates[candidates.index(duplicate)] = combine_works([duplicate, work])
+                merged = combine_works([duplicate, work])
+                if ref.year in {duplicate.year, work.year}:
+                    merged.year = ref.year
+                candidates[candidates.index(duplicate)] = merged
     ranked = sorted(candidates, key=lambda w: score(ref, w), reverse=True)
     checked = list(dict.fromkeys(r.provider for r in direct + results))
     if ranked:

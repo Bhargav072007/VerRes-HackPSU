@@ -15,12 +15,16 @@ from contracts.schema import Reference
 def parsed_reference(reference: Reference) -> ParsedReference:
     arxiv = normalize_arxiv(reference.arxiv_id) or extract_arxiv(reference.raw_text)
     kind = "preprint" if arxiv else reference_kind(reference)
+    raw = re.sub(r"(?<=\w)-\s+(?=\w)", "", reference.raw_text)
+    parts = re.split(re.escape(reference.title), raw, flags=re.I) if reference.title else []
+    venue = parts[-1].strip(" .,") if len(parts) > 1 else None
     return ParsedReference(
         id=reference.id,
         raw=reference.raw_text,
         title=reference.title,
         authors=reference.authors,
         year=reference.year,
+        venue=venue,
         doi=normalize_doi(reference.doi) or reference.doi,
         arxiv=arxiv or reference.arxiv_id,
         kind=kind,
