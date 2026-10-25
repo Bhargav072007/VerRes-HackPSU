@@ -1,6 +1,5 @@
 import asyncio
 import io
-import re
 
 import pdfplumber
 from pdfminer.converter import PDFPageAggregator
@@ -13,17 +12,11 @@ from pdfminer.psparser import PSEOF
 from pdfplumber.utils.exceptions import PdfminerException
 
 from api.app.ingest.basic import PAGE_LIMIT, PDF_LIMIT, fallback_pdf
-from api.app.ingest.models import HiddenScan, HiddenSpan, ParseResult
+from api.app.ingest.hidden import page_hidden_spans
+from api.app.ingest.models import HiddenScan, ParseResult
 from api.app.ingest.tei import parse_tei
 from api.app.providers.http import Gateway
 
-INSTRUCTIONS = re.compile(
-    r"ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|"
-    r"system\s+prompt|you\s+are\s+(?:chatgpt|an?\s+assistant)|"
-    r"(?:return|output|mark)\s+(?:only\s+)?(?:supported|approved|positive)|"
-    r"do\s+not\s+(?:verify|check|report)",
-    re.I,
-)
 PDF_ERRORS = (
     PdfminerException,
     PDFException,
@@ -68,7 +61,7 @@ class _InvisibleText(PDFPageAggregator):
 
     def render_char(self, *args, **kwargs):
         advance = super().render_char(*args, **kwargs)
-        if getattr(self, "mode", 0) == 3 and self.cur_item._objs:
+        if getattr(self, "mode", 0) in (3, 7) and self.cur_item._objs:
             self.invisible.append(self.cur_item._objs[-1])
         return advance
 
@@ -93,62 +86,7 @@ def scan_hidden_text(data: bytes) -> HiddenScan:
             device.close()
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             for page_no, page in enumerate(pdf.pages, 1):
-                for char in page.chars:
-                    categories = []
-                    fill = char.get("non_stroking_color")
-                    channels = fill if isinstance(fill, list | tuple) else [fill]
-                    white = (
-                        len(channels) in (1, 3)
-                        and all(isinstance(c, int | float) and c >= 0.98 for c in channels)
-                    ) or (len(channels) == 4 and all(c <= 0.02 for c in channels))
-                    if white:
-                        categories.append("WHITE_FILL")
-                    if char.get("size", 10) < 2:
-                        categories.append("TINY_FONT")
-                    if (
-                        char["x0"] < 0
-                        or char["x1"] > page.width
-                        or char["top"] < 0
-                        or char["bottom"] > page.height
-                    ):
-                        categories.append("OFF_PAGE")
-                    if categories and char["text"].strip():
-                        spans.append(
-                            HiddenSpan(
-                                page=page_no,
-                                text=char["text"],
-                                categories=categories,
-                                bbox=tuple(float(char[k]) for k in ("x0", "top", "x1", "bottom")),
-                                reason="unusual PDF styling; intent requires review",
-                            )
-                        )
-                for char in invisible_pages[page_no - 1]:
-                    if char.get_text().strip():
-                        spans.append(
-                            HiddenSpan(
-                                page=page_no,
-                                text=char.get_text(),
-                                categories=["INVISIBLE_RENDER_MODE"],
-                                bbox=(
-                                    float(char.x0),
-                                    float(page.height - char.y1),
-                                    float(char.x1),
-                                    float(page.height - char.y0),
-                                ),
-                                reason="text rendering mode 3; intent requires review",
-                            )
-                        )
-                value = page.extract_text() or ""
-                for match in INSTRUCTIONS.finditer(value):
-                    spans.append(
-                        HiddenSpan(
-                            page=page_no,
-                            text=match.group(),
-                            categories=["INSTRUCTION_PATTERN"],
-                            bbox=(0.0, 0.0, float(page.width), float(page.height)),
-                            reason="instruction-like text; treated only as document data",
-                        )
-                    )
+                spans.extend(page_hidden_spans(page, page_no, invisible_pages[page_no - 1]))
         return HiddenScan(status="COMPLETE", spans=spans)
     except PDF_ERRORS:
         return HiddenScan(status="CHECK_INCOMPLETE", reason="hidden-text inspection failed")

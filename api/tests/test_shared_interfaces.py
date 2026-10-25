@@ -117,7 +117,8 @@ async def test_ingest_returns_shared_paper_and_hidden_findings(tei, pdf_bytes):
         assert paper.references[0].raw_text and paper.references[0].arxiv_id
         assert (await service.parse_pdf(data)).id == paper.id
         findings = await service.scan_hidden_text(pdf_bytes(hidden=True))
-        assert {finding.kind for finding in findings} == {"HIDDEN_TEXT", "SUSPICIOUS_TEXT"}
+        assert {finding.kind for finding in findings} == {"HIDDEN_TEXT"}
+        assert any("INSTRUCTION_PATTERN" in finding.reason for finding in findings)
         assert (await service.parse_pdf(b"broken")).status == "NEEDS_REVIEW"
         assert (await service.scan_hidden_text(b"broken"))[0].kind == "CHECK_INCOMPLETE"
 
