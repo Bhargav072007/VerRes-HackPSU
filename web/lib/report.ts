@@ -16,12 +16,12 @@ export function decodeReport(value: unknown): Report | null {
   const p = value.paper;
   if (p != null && (!object(p) || !text(p.title) || !text(p.needs_review_reason) || !strings(p.authors)
     || !list(p.sentences, s => typeof s.id === "string" && typeof s.text === "string" && text(s.section))
-    || !list(p.references, r => typeof r.id === "string" && typeof r.raw_text === "string" && text(r.title) && (r.year == null || Number.isInteger(r.year)))
-    || !list(p.citations, c => typeof c.id === "string" && typeof c.reference_id === "string" && strings(c.sentence_ids)))) return null;
-  if (!list(value.existence, e => typeof e.reference_id === "string" && typeof e.status === "string" && text(e.reason) && strings(e.receipt_urls))
+    || !list(p.references, r => typeof r.id === "string" && typeof r.raw_text === "string" && text(r.title) && text(r.doi) && (r.year == null || Number.isInteger(r.year)))
+    || !list(p.citations, c => typeof c.id === "string" && typeof c.reference_id === "string" && strings(c.sentence_ids) && text(c.claim_text)))) return null;
+  if (!list(value.existence, e => typeof e.reference_id === "string" && typeof e.status === "string" && text(e.reason) && strings(e.receipt_urls) && strings(e.discrepancies))
     || !list(value.retractions, r => typeof r.reference_id === "string" && typeof r.status === "string" && text(r.reason) && strings(r.notice_urls))
     || !list(value.sources, s => typeof s.reference_id === "string" && ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"].includes(String(s.evidence_level)) && text(s.reason) && list(s.passages, p => typeof p.passage_id === "string" && typeof p.text === "string"))
-    || !list(value.support, s => typeof s.citation_id === "string" && typeof s.label === "string" && text(s.reason) && list(s.evidence, e => typeof e.passage_id === "string" && typeof e.quote === "string"))) return null;
+    || !list(value.support, s => typeof s.citation_id === "string" && typeof s.label === "string" && text(s.reason) && text(s.needs_review_reason) && strings(s.mismatch_types) && (s.adjudicated === undefined || typeof s.adjudicated === "boolean") && list(s.evidence, e => typeof e.passage_id === "string" && typeof e.quote === "string"))) return null;
   return value as Report;
 }
 

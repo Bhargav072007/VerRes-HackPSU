@@ -1,0 +1,74 @@
+import { test, expect } from "@playwright/test";
+import { evidenceFixture, evidenceStates } from "./fixtures/evidence";
+
+for (const width of [1440, 390]) test(`evidence receipts at ${width}px: verdicts, focus, links and navigation`, async ({ page }, info) => {
+  const errors: string[] = [], report = evidenceFixture();
+  page.on("pageerror", e => errors.push(e.message));
+  page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
+  await page.setViewportSize({ width, height: 1000 });
+  await page.route("**/jobs/evidence", route => route.fulfill({ json: report }));
+  await page.goto("/report/evidence?keep=1");
+  const dialog = page.getByRole("dialog");
+  for (const [i, state] of evidenceStates.entries()) {
+    const trigger = page.locator(`[data-citation-id="c-${i}"]`);
+    await trigger.click();
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`keep=1&flag=c-${i}$`));
+    await expect(dialog.getByRole("heading", { name: "Your paper says" })).toBeVisible();
+    await expect(dialog.locator("mark")).toHaveText(report.paper.citations[i].claim_text);
+    await expect(dialog.getByRole("blockquote")).toHaveText(`“${report.support[i].evidence[0].quote}”`);
+    await expect(dialog.getByRole("link", { name: /^DOI/ })).toHaveAttribute("href", "https://doi.org/10.1234/fixture");
+    await expect(dialog.getByRole("link", { name: /^OpenAlex/ })).toBeVisible();
+    await expect(dialog.getByText("2 of 2 models agree")).toHaveCount(i === 2 || i === 3 ? 1 : 0);
+    if (i === 4) await expect(dialog.getByRole("status")).toHaveText("Abstract only: full text needed");
+    if (i === 5) await expect(dialog.getByText("The DOI resolves to a different study.")).toBeVisible();
+    if (i === 6) await expect(dialog.getByRole("link", { name: /^Retraction notice/ })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await expect(dialog.locator("[data-quote-sweep]")).toHaveCSS("transform", "none");
+    await expect(dialog).toHaveCSS("opacity", "1");
+    await expect(dialog).toHaveCSS("transform", "none");
+    await expect(dialog.getByText(["Supported", "Partially supported", "Not supported", "Contradicted", "Needs review", "DOI mismatch", "Retracted", "Not found"][i], { exact: true })).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`${state}-${width}.png`) });
+    expect(await dialog.evaluate(n => n.getBoundingClientRect().width)).toBeCloseTo(width === 390 ? 390 : 620, 1);
+    await page.keyboard.press("Tab");
+    expect(await dialog.evaluate(n => n.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(page).toHaveURL(/\?keep=1$/);
+  }
+  await page.goto("/report/evidence?keep=1&flag=c-3");
+  await expect(dialog).toContainText("Contradicted");
+  await page.reload(); await expect(dialog).toContainText("Contradicted");
+  await dialog.getByRole("button", { name: "Close evidence" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('[data-citation-id="c-3"]')).toBeFocused();
+  await page.goBack(); await expect(dialog).toContainText("Contradicted");
+  await page.goForward(); await expect(dialog).toHaveCount(0);
+  await page.goto("/report/evidence?flag=missing");
+  await expect(page.getByRole("heading", { name: report.paper.title! })).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("disagreements, unadjudicated findings, reduced motion and hostile quotes", async ({ page }) => {
+  const report = evidenceFixture();
+  report.support[2].adjudicated = false;
+  report.support[4].needs_review_reason = "models disagree or adjudicator evidence failed";
+  report.support[0].evidence[0].quote = '<img src=x onerror="alert(1)">';
+  report.sources[0].passages = [{ passage_id: "p1", text: report.support[0].evidence[0].quote, section: null, page: 1 }];
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/jobs/edge", route => route.fulfill({ json: report }));
+  const dialog = page.getByRole("dialog");
+  await page.goto("/report/edge?flag=c-0");
+  await expect(dialog.getByRole("blockquote")).toContainText('<img src=x onerror="alert(1)">');
+  await expect(dialog.locator("img")).toHaveCount(0);
+  await expect(dialog.locator("[data-quote-sweep]")).toHaveCSS("transform", "none");
+  await page.goto("/report/edge?flag=c-2"); await expect(dialog).toContainText("Not supported");
+  await expect(dialog.getByText("2 of 2 models agree")).toHaveCount(0);
+  await page.goto("/report/edge?flag=c-4"); await expect(dialog).toContainText("Models disagree");
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("link").last()).toBeFocused();
+  await page.keyboard.press("Tab"); await expect(dialog.getByRole("button", { name: "Close evidence" })).toBeFocused();
+});
