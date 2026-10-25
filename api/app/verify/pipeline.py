@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 
 from pydantic import ValidationError
@@ -54,9 +55,15 @@ async def classify_citations(citations: list[ParsedCitation], model: Model) -> d
             ids = [item.citation_id for item in result.items]
             expected = {c.id for c in batch}
             if len(ids) != len(expected) or set(ids) != expected:
+                logging.getLogger(__name__).warning(
+                    "classify id mismatch: got %s expected %s", ids, sorted(expected)
+                )
                 continue
             classifications.update({i.citation_id: i.function for i in result.items})
-        except (ModelFailure, ValidationError):
+        except (ModelFailure, ValidationError) as error:
+            logging.getLogger(__name__).warning(
+                "classify failed: %s: %s", type(error).__name__, str(error)[:300]
+            )
             continue
     return classifications
 

@@ -1,7 +1,10 @@
 import asyncio
+import html
 import io
+import json
 import re
 from typing import Literal
+from urllib.parse import quote
 from xml.etree.ElementTree import ParseError
 
 import pdfplumber
@@ -81,6 +84,29 @@ def extract_full_pdf(data: bytes, work: Work) -> str | None:
         return None
 
 
+async def pubmed_abstract(doi: str, gateway: Gateway) -> str | None:
+    """Abstract from PubMed by DOI; publishers like Elsevier withhold abstracts elsewhere."""
+    base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
+    found = await gateway.safe_fetch(
+        f"{base}esearch.fcgi?db=pubmed&retmode=json&term={quote(doi, safe='')}%5Bdoi%5D"
+    )
+    if found.error or found.status != 200:
+        return None
+    try:
+        ids = json.loads(found.content)["esearchresult"]["idlist"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    if len(ids) != 1:
+        return None
+    record = await gateway.safe_fetch(f"{base}efetch.fcgi?db=pubmed&retmode=xml&id={ids[0]}")
+    if record.error or record.status != 200:
+        return None
+    xml = record.content.decode("utf-8", "replace")
+    parts = re.findall(r"<AbstractText[^>]*>(.*?)</AbstractText>", xml, re.S)
+    text = " ".join(re.sub(r"<[^>]+>", "", part).strip() for part in parts).strip()
+    return html.unescape(text) or None
+
+
 async def acquire_source(
     work: Work, gateway: Gateway, *, crossref_work: Work | None = None
 ) -> Source:
@@ -119,6 +145,10 @@ async def acquire_source(
             reasons.append("PDF text coverage or identity could not be verified")
         else:
             reasons.append(response.error or f"HTTP {response.status}")
+    if not abstract and work.doi:
+        abstract = await pubmed_abstract(work.doi, gateway)
+        if abstract:
+            abstract_origin = "pubmed"
     if abstract:
         return Source(
             work_id=work.id,
