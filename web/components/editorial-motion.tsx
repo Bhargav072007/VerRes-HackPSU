@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { animate, motion, useAnimationFrame, useInView, useMotionValue } from "motion/react";
+import { animate, motion, useInView } from "motion/react";
 import { usePolishMotion } from "./landing-chrome";
 const ease = [.2,.7,.2,1] as const;
 export function Reveal({ children, className = "", image = false, delay = 0 }: { children: ReactNode; className?: string; image?: boolean; delay?: number }) {
@@ -16,12 +16,6 @@ export function CountOnce({ value }: { value: number }) {
   return () => control.stop();
  },[visible,reduced,value]);
  return <span ref={ref} className="count-once" role="img" style={{minWidth:`${String(value).length}ch`}} aria-label={String(value)}><span aria-hidden>{reduced ? value : visible ? count : 0}</span></span>;
-}
-export function HeroDetails({ children }: { children: ReactNode }) {
- const reduced = usePolishMotion(), x = useMotionValue(0), y = useMotionValue(0);
- const target = useRef({x:0,y:0});
- useAnimationFrame(() => { const enabled = !reduced && matchMedia("(min-width:1000px) and (hover:hover) and (pointer:fine)").matches; const tx=enabled ? target.current.x : 0, ty=enabled ? target.current.y : 0; x.set(Math.abs(tx-x.get()) < .01 ? tx : x.get()+(tx-x.get())*.12);y.set(Math.abs(ty-y.get()) < .01 ? ty : y.get()+(ty-y.get())*.12); });
- return <motion.div className="hero-details" style={{x:reduced?0:x,y:reduced?0:y}} onPointerMove={e => { if (e.pointerType !== "mouse" || reduced) return;const box=e.currentTarget.getBoundingClientRect();target.current={x:Math.max(-6,Math.min(6,((e.clientX-box.left)/box.width-.5)*12)),y:Math.max(-6,Math.min(6,((e.clientY-box.top)/box.height-.5)*12))}; }} onPointerLeave={() => {target.current={x:0,y:0};}}>{children}</motion.div>;
 }
 const LinkContext=createContext(false);
 export function LinkedNote({ children, className }: { children: ReactNode; className: string }) {
