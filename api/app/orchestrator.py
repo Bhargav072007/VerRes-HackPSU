@@ -219,12 +219,11 @@ class Pipeline:
         stage_token = stage_context.set(name)
         try:
             result = await operation()
-            if issues:
-                reason = "; ".join(dict.fromkeys(issues))
-                result = fallback(kind, row_id, reason)
             items = result if isinstance(result, list) else [result]
             expected = HiddenTextFinding if kind == "hidden_text" else result_type
-            if not all(isinstance(item, expected) for item in items):
+            if (kind != "hidden_text" and isinstance(result, list)) or not all(
+                isinstance(item, expected) for item in items
+            ):
                 raise TypeError("Expected contract result")
             adapter = TypeAdapter(result_type)
             result = adapter.validate_python(adapter.dump_python(result, mode="json"))
@@ -234,6 +233,18 @@ class Pipeline:
                     raise ValueError("Result belongs to another row")
             if kind == "claim_map" and result.paper_id != row_id:
                 raise ValueError("Map belongs to another paper")
+            if kind == "paper" and not any(s.text.strip() for s in result.sentences):
+                raise ValueError("Paper has no extracted text")
+            if (
+                kind == "source"
+                and result.status == "AVAILABLE"
+                and result.evidence_level != "METADATA_ONLY"
+                and not any(p.text.strip() for p in result.passages)
+            ):
+                raise ValueError("Source has no evidence text")
+            # An empty clean scan is valid; an interrupted one needs a receipt.
+            if kind == "hidden_text" and not result and issues:
+                raise ValueError("Hidden-text scan returned no result after provider issues")
         except Exception as error:
             reason = f"{name.split(':')[0]} failed ({type(error).__name__}); needs review"
             logger.warning(
@@ -252,6 +263,15 @@ class Pipeline:
         finally:
             provider_issues.reset(issue_token)
             stage_context.reset(stage_token)
+        if issues:
+            reason = "; ".join(dict.fromkeys(issues))
+            logger.warning(
+                "stage provider issues job_id=%s row_id=%s stage=%s: %s",
+                self.job_id,
+                row_id,
+                name,
+                reason,
+            )
         await self.stage(name, "CHECK_INCOMPLETE" if reason else "COMPLETED", reason)
         return result
 

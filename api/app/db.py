@@ -60,6 +60,12 @@ class JobFailure(Contract):
 
 
 EVENTS = TypeAdapter(SSEEvent)
+# Stay within one JSON string: provenance keys such as model_id must not join
+# unrelated "full text unavailable" reasons into a model outage.
+MODEL_UNAVAILABLE_PATTERN = (
+    r'"[^"\n]*(model[^"\n]*(unavailable|unconfigured|not configured)'
+    r'|no model configured|review panel unavailable)[^"\n]*"'
+)
 
 
 def cache_key(job_input):
@@ -102,10 +108,12 @@ class Jobs:
                     "WHERE e.job_id = j.id AND type = 'done') "
                     "AND NOT EXISTS (SELECT 1 FROM job_events e WHERE e.job_id = j.id "
                     "AND (payload->>'status' = 'CHECK_INCOMPLETE' "
-                    "OR payload->>'kind' = 'CHECK_INCOMPLETE')) "
+                    "OR payload->>'kind' = 'CHECK_INCOMPLETE' "
+                    "OR payload::text ~* $3)) "
                     "ORDER BY updated_at DESC LIMIT 1",
                     key,
                     version.PIPELINE_VERSION,
+                    MODEL_UNAVAILABLE_PATTERN,
                 )
             counts = await connection.fetchrow(
                 "SELECT count(*) FILTER (WHERE client_ip = $1 AND replay_of IS NULL AND "
