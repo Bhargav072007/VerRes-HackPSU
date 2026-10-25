@@ -12,11 +12,12 @@ from time import monotonic
 from pydantic import TypeAdapter
 
 from api.app import version
-from api.app.db import JobFailure, Jobs
+from api.app.db import JobFailure
 from api.app.providers.services import build_backend
 from api.app.review import ReviewPanel, ReviewStub
+from api.app.review.models import build_models
 from api.app.review.runtime import ResilientGateway, job_context, provider_issues, stage_context
-from api.app.verify.model import JSONGatewayModel, Model
+from api.app.verify.model import Model
 from api.app.verify.outcomes import informational_citation
 from contracts.interfaces import Review, Verify
 from contracts.schema import (
@@ -49,6 +50,7 @@ class Services:
     model_unconfigured_reason: str | None = "model not configured"
     primary_model: Model | None = None
     adjudicator_model: Model | None = None
+    adjudicator_unconfigured_reason: str | None = None
 
     async def aclose(self):
         try:
@@ -76,6 +78,7 @@ def build_services(settings, pool=None, *, model: Model | None = None):
     adjudicator = None
     gateway = None
     model_reason = "model not configured"
+    adjudicator_reason = None
     if os.getenv("STUBS") == "1":
         from api.app.stubs import FixtureServices
 
@@ -85,55 +88,25 @@ def build_services(settings, pool=None, *, model: Model | None = None):
         from api.app.providers.cache import PostgresCache
         from api.app.providers.http import Policy, load_policies
 
-        model_name = (os.getenv("MODEL_PRIMARY") or settings.model_primary or "").strip() or (
-            os.getenv("REVIEW_MODEL") or settings.review_model or ""
-        ).strip()
-        adjudicator_name = (
-            os.getenv("MODEL_ADJUDICATOR") or settings.model_adjudicator or ""
-        ).strip()
-        if model is None and settings.openai_api_key and model_name:
-            model_gateway = ResilientGateway(
-                {"review": Policy("https://api.openai.com", 4, 1, 3)},
-                jobs=Jobs(pool) if pool else None,
-                daily_budget_usd=settings.llm_daily_budget,
-            )
-            model = JSONGatewayModel(
-                model_gateway,
-                provider="review",
-                model_id=model_name,
-                family="openai",
-                vendor="openai",
-                api_key=settings.openai_api_key.get_secret_value(),
-                max_input_chars=100_000,
-            )
-            if adjudicator_name:
-                adjudicator = JSONGatewayModel(
-                    model_gateway,
-                    provider="review",
-                    model_id=adjudicator_name,
-                    family="openai",
-                    vendor="openai",
-                    api_key=settings.openai_api_key.get_secret_value(),
-                    max_input_chars=100_000,
-                )
+        model_gateway, model, adjudicator, model_reason, adjudicator_reason = build_models(
+            settings, pool, primary=model
+        )
         if model is not None:
-            model_reason = None
             logger.info(
-                "model configured: %s/%s, adjudicator: openai/%s",
+                "model configured: %s/%s, adjudicator: %s/%s",
                 model.vendor or model.family,
                 model.model_id,
+                (adjudicator.vendor or adjudicator.family) if adjudicator else "openai",
                 adjudicator.model_id if adjudicator else "none",
             )
-        elif settings.openai_api_key:
-            model_reason = "set MODEL_PRIMARY"
-            logger.warning("model not configured: set MODEL_PRIMARY (or legacy REVIEW_MODEL)")
         else:
-            logger.warning("model not configured: OPENAI_API_KEY is not set")
+            logger.warning("model not configured: %s", model_reason)
+        if adjudicator_reason and settings.model_adjudicator:
+            logger.warning("adjudicator not configured: %s", adjudicator_reason)
         policies = load_policies()
         policies["grobid"] = Policy(settings.grobid_url, 1, 1, 1)
         policies["arxiv-intake"] = Policy("https://arxiv.org", 1, 3, 1)
         gateway = ResilientGateway(policies, cache=PostgresCache(pool) if pool else None)
-        # TODO: Prefer cross-vendor adjudication when verify/ provides an Anthropic Model adapter.
         backend = build_backend(
             settings, pool=pool, gateway=gateway, primary=model, adjudicator=adjudicator
         )
@@ -148,6 +121,7 @@ def build_services(settings, pool=None, *, model: Model | None = None):
         model_reason,
         primary_model=model if model_reason is None else None,
         adjudicator_model=adjudicator,
+        adjudicator_unconfigured_reason=adjudicator_reason,
     )
 
 
