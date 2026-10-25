@@ -1,0 +1,15 @@
+# Allow only the runtime source tree into the build context.
+**
+!pyproject.toml
+!api/
+!api/**
+!contracts/
+!contracts/**
+!fixtures/
+!fixtures/**
+!infra/
+!infra/migrations/
+!infra/migrations/**
+**/.env*
+**/__pycache__/
+**/*.py[cod]
