@@ -242,5 +242,5 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Stick
             ),
           )}
         </div>
-      </form></div><DotMatrix /></div></section><footer className="journal-colophon section-container"><Brand /><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></footer></main>;
+      </form></div><DotMatrix /></div></section><footer className="site-footer"><div className="journal-colophon section-container"><Brand /><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></div><p className="footer-wordmark" aria-hidden>VerRes</p></footer></main>;
 }
