@@ -1,5 +1,6 @@
 import type { components } from "./api-types";
 import { isReviewComment, isReviewSummary } from "./review";
+import { decodeReport } from "./report";
 
 type Schema = components["schemas"];
 export type JobEvent = Schema["SSEEvent"] & { payload: { provenance?: { cached_at: string } } };
@@ -9,8 +10,10 @@ export type Row = { reference: Schema["Reference"]; existence?: Schema["Existenc
 export type JobState = {
   seq: number; rows: Record<string, Row>; paper?: Schema["Paper"]; support: Record<string, Schema["SupportResult"]>;
   stages: Record<string, Schema["StagePayload"]["status"]>; errors: Record<string, string>; done: boolean;
+  sources: Record<string, Schema["SourceDocument"]>; hidden: Record<string, Schema["HiddenTextFinding"]>;
+  claimMap?: Schema["ClaimMap"]; received: Record<string, number>;
 };
-export const initialJob: JobState = { seq: 0, rows: {}, support: {}, stages: {}, errors: {}, done: false };
+export const initialJob: JobState = { seq: 0, rows: {}, support: {}, stages: {}, errors: {}, done: false, sources: {}, hidden: {}, received: {} };
 type Action = { type: "reset" } | { type: "event"; event: JobEvent } | { type: "snapshot"; events: unknown[] } | { type: "notice"; reason: string };
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const string = (value: unknown): value is string => typeof value === "string";
@@ -20,8 +23,11 @@ export function decodeEvent(value: unknown): JobEvent | null {
   if (!object(value) || !Number.isSafeInteger(value.seq) || Number(value.seq) < 1 || !string(value.type) || !object(value.payload)) return null;
   const p = value.payload;
   if (["receipt_urls", "notice_urls"].some(key => p[key] != null && (!Array.isArray(p[key]) || !p[key].every(string)))) return null;
-  const paper = (v: unknown) => object(v) && (v.title == null || string(v.title)) && Array.isArray(v.references) && v.references.every(r => object(r) && string(r.id) && string(r.raw_text) && (r.title == null || string(r.title))) && Array.isArray(v.citations) && v.citations.every(c => object(c) && string(c.id) && string(c.reference_id));
+  const paper = (v: unknown) => object(v) && (v.title == null || string(v.title)) && Array.isArray(v.references) && v.references.every(r => object(r) && string(r.id) && string(r.raw_text) && (r.title == null || string(r.title))) && Array.isArray(v.citations) && v.citations.every(c => object(c) && string(c.id) && string(c.reference_id)) && !!decodeReport({ status: "RUNNING", paper: v });
   const valid = value.type === "paper" ? paper(p)
+    : value.type === "source" ? string(p.reference_id) && string(p.evidence_level) && string(p.status) && ["AVAILABLE", "CHECK_INCOMPLETE"].includes(p.status) && !!decodeReport({ status: "RUNNING", sources: [p] })
+    : value.type === "claim_map" ? string(p.status) && !!decodeReport({ status: "RUNNING", claim_map: p })
+    : value.type === "hidden_text" ? string(p.id) && string(p.quote) && string(p.reason) && string(p.kind) && ["HIDDEN_TEXT", "PROMPT_INJECTION", "SUSPICIOUS_TEXT", "CHECK_INCOMPLETE"].includes(String(p.kind)) && (p.page == null || Number.isSafeInteger(p.page) && Number(p.page) > 0)
     : value.type === "stage" ? string(p.stage) && ["STARTED", "COMPLETED", "CHECK_INCOMPLETE"].includes(String(p.status))
     : value.type === "existence" ? string(p.reference_id) && string(p.reason) && ["VERIFIED", "VERIFIED_WITH_DISCREPANCIES", "DOI_MISMATCH", "AMBIGUOUS", "NOT_FOUND", "UNCHECKABLE", "CHECK_INCOMPLETE"].includes(String(p.status))
     : value.type === "retraction" ? string(p.reference_id) && string(p.reason) && ["NONE", "RETRACTED", "EXPRESSION_OF_CONCERN", "CORRECTED", "UNKNOWN"].includes(String(p.status))
@@ -44,6 +50,10 @@ export function jobReducer(state: JobState, action: Action): JobState {
   const e = action.event;
   if (e.seq <= state.seq) return state;
   const next = { ...state, seq: e.seq };
+  if (e.type === "existence" || e.type === "retraction" || e.type === "support" || e.type === "hidden_text") {
+    const key = e.type === "support" ? e.payload.citation_id : e.type === "hidden_text" ? e.payload.id : e.payload.reference_id;
+    next.received = { ...state.received, [`${e.type}:${key}`]: e.seq };
+  }
   if (e.type === "paper") {
     next.paper = e.payload;
     next.stages = { ...state.stages, parse: "COMPLETED", references: "COMPLETED", existence: state.stages.existence ?? "STARTED" };
@@ -57,7 +67,10 @@ export function jobReducer(state: JobState, action: Action): JobState {
   } else if (e.type === "support") {
     next.support = { ...state.support, [e.payload.citation_id]: e.payload };
     next.stages = { ...state.stages, support: state.stages.support ?? "STARTED" };
-  } else if (e.type === "stage") {
+  } else if (e.type === "source") next.sources = { ...state.sources, [e.payload.reference_id]: e.payload };
+  else if (e.type === "hidden_text") next.hidden = { ...state.hidden, [e.payload.id]: e.payload };
+  else if (e.type === "claim_map") next.claimMap = e.payload;
+  else if (e.type === "stage") {
     next.stages = { ...state.stages, [e.payload.stage === "paper" ? "parse" : e.payload.stage]: e.payload.status };
     if (e.payload.status === "CHECK_INCOMPLETE") next.errors = { ...state.errors, [e.seq]: e.payload.reason || "Stage incomplete. Needs review." };
   }
@@ -76,7 +89,7 @@ export function jobCounts(state: JobState) {
   const refs = Object.values(state.rows), support = Object.values(state.support);
   const uncertain = new Set(refs.filter(r => r.existence && !["VERIFIED", "NOT_FOUND"].includes(r.existence.status) || r.retraction && !["NONE", "RETRACTED"].includes(r.retraction.status)).map(r => r.reference?.id));
   for (const s of support.filter(s => s.label === "NEEDS_REVIEW")) uncertain.add(state.paper?.citations?.find(c => c.id === s.citation_id)?.reference_id ?? s.citation_id);
-  return { checked: (state.paper?.citations ?? []).filter(c => state.rows[c.reference_id]?.existence).length, total: state.paper?.citations?.length ?? 0, missing: refs.filter(r => r.existence?.status === "NOT_FOUND").length, retracted: refs.filter(r => r.retraction?.status === "RETRACTED").length, overstated: support.filter(s => s.label === "PARTIALLY_SUPPORTED").length, needsReview: uncertain.size };
+  return { checked: refs.filter(r => r.reference && r.existence).length, total: state.paper?.references?.length ?? 0, missing: refs.filter(r => r.existence?.status === "NOT_FOUND").length, retracted: refs.filter(r => r.retraction?.status === "RETRACTED").length, partiallySupported: support.filter(s => s.label === "PARTIALLY_SUPPORTED").length, needsReview: uncertain.size };
 }
 
 // The journal names individual source checks; present those as readable phases.

@@ -24,7 +24,7 @@ import { ReportCompactHeader, ReportSkeleton, ReportState, ReportTab } from "./r
 
 const ClaimGraph = dynamic(() => import("@/components/claim-graph").then(m => m.ClaimGraph), { ssr: false, loading: () => <ReportSkeleton label="Loading claim graph" /> });
 const getTab = () => new URLSearchParams(window.location.search).get("tab") || "Report";
-const counters = ["References", "Not found", "DOI mismatch", "Retracted", "Overstated", "Needs review"];
+const counters = ["References", "Not found", "DOI mismatch", "Retracted", "Partially supported", "Needs review"];
 const tabs = ["Report", "Peer review", "Claim graph"];
 const filters: Filter[] = ["All", "Problems only", "Needs review"];
 

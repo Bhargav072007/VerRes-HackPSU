@@ -1,13 +1,14 @@
 "use client";
-import { memo, useEffect, useState, type CSSProperties } from "react";
+import { memo, useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import NumberFlow from "@number-flow/react";
 import { ArrowLeft, ArrowRight, Check, Minus } from "lucide-react";
 import { useJobStream } from "@/hooks/useJobStream";
+import { liveFindings } from "@/lib/live-findings";
+import { LiveFindings, LiveFindingsRail } from "./live-findings";
 import { jobCounts, stageStatus, type Row } from "@/lib/job-stream";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { VerdictBadge } from "@/components/verdict-badge";
 import { counterTiming, motionTokens } from "@/lib/motion";
@@ -25,7 +26,7 @@ const phases = [
 const ReferenceRow = memo(function ReferenceRow({ row, index }: { row: Row; index: number }) {
   const e = row.existence, r = row.retraction;
   const verified = e?.status === "VERIFIED" && r?.status === "NONE";
-  const label = r?.status === "RETRACTED" ? "Retracted" : r && r.status !== "NONE" ? "Needs review" : e?.status === "NOT_FOUND" ? "Not found" : verified ? "Verified" : e ? "Needs review" : "Pending";
+  const label = r?.status === "RETRACTED" ? "Retracted" : r && r.status !== "NONE" ? "Needs review" : e?.status === "NOT_FOUND" ? "Not found" : e?.status === "DOI_MISMATCH" ? "DOI mismatch" : verified ? "Verified" : e ? "Needs review" : "Pending";
   return <li data-reference-id={row.reference.id} className="reference-row" style={{ "--i": Math.min(index, 3) } as CSSProperties}>
     <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
       <span className="mt-1 text-[10px] text-muted-foreground tabular-nums">{String(index + 1).padStart(2, "0")}</span>
@@ -34,7 +35,7 @@ const ReferenceRow = memo(function ReferenceRow({ row, index }: { row: Row; inde
       </div>
       <span data-chip={label} className="ml-7 inline-flex min-w-24 items-center sm:mt-1 sm:ml-0">
         <span key={label} className="verdict-flip">
-          {label === "Pending" ? <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Minus size={12} />Pending</span> : <VerdictBadge status={r?.status === "RETRACTED" ? "RETRACTED" : e?.status === "NOT_FOUND" ? "NOT_FOUND" : verified ? "VERIFIED" : "NEEDS_REVIEW"} />}
+          {label === "Pending" ? <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Minus size={12} />Pending</span> : <VerdictBadge status={r?.status === "RETRACTED" ? "RETRACTED" : e?.status === "NOT_FOUND" ? "NOT_FOUND" : e?.status === "DOI_MISMATCH" ? "DOI_MISMATCH" : verified ? "VERIFIED" : "NEEDS_REVIEW"} />}
         </span>
       </span>
     </div>
@@ -45,7 +46,7 @@ const ReferenceRow = memo(function ReferenceRow({ row, index }: { row: Row; inde
 export function LiveCheck({ id, report = false }: { id: string; report?: boolean }) {
   const state = useJobStream(id), router = useRouter(), reduced = usePolishMotion();
   const [leaving, setLeaving] = useState(false);
-  const counts = jobCounts(state);
+  const counts = jobCounts(state), model = useMemo(() => liveFindings(state), [state]);
   const rows = Object.values(state.rows).filter(row => row.reference);
   const statuses = phases.map(({ key }) => {
     if (key !== "source" && key !== "support") return stageStatus(state, key);
@@ -72,16 +73,18 @@ export function LiveCheck({ id, report = false }: { id: string; report?: boolean
     <div className="section-container live-content">
       <Link href="/" className="live-back"><ArrowLeft size={14} /> Back to VerRes</Link>
       <motion.header layoutId="job" transition={reduced ? { duration: 0 } : motionTokens.layout} className="live-header" aria-label="Paper under review"><div><p className="section-pill">● 02 · The review</p><h1>{state.done ? "Your review is ready." : "Following the evidence."}</h1><p>{state.paper?.title || "Reading your paper and gathering its references."}</p></div>{state.done && !report && <Button asChild><Link href={href}>View report <ArrowRight size={14} /></Link></Button>}</motion.header>
-      <div aria-label="Review counters" className="live-counters">
-        <span role="status" aria-label={`${counts.checked} / ${counts.total} citations checked`}><strong><NumberFlow aria-hidden value={counts.checked} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /><span className="counter-slash"> / </span><NumberFlow aria-hidden value={counts.total} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /></strong><span>citations checked</span></span>
-        {([[counts.missing, "not found", "NOT_FOUND"], [counts.retracted, "retracted", "RETRACTED"], [counts.overstated, "overstated", "PARTIALLY_SUPPORTED"], [counts.needsReview, "need review", "NEEDS_REVIEW"]] as const).map(([value, label, verdict]) => <span key={label} aria-label={`${value} ${label}`}><strong><NumberFlow aria-hidden value={value} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /></strong><VerdictBadge status={verdict} /></span>)}
+      <p className="so-far">So far · from checks received</p>
+      <div aria-label="So far" className="live-counters">
+        <span role="status" aria-label={`${counts.checked} / ${counts.total} references checked`}><strong><NumberFlow aria-hidden value={counts.checked} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /><span className="counter-slash"> / </span><NumberFlow aria-hidden value={counts.total} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /></strong><span>references checked</span></span>
+        {([[model.quotes, "verified quotes"], [model.findings.length, "flags"]] as const).map(([value, label]) => <span key={label} aria-label={`${value} ${label}`}><strong><NumberFlow aria-hidden value={value} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={counterTiming} /></strong><span>{label}</span></span>)}
       </div>
       <div className="live-grid"><nav className="stage-rail" aria-label="Review stages"><ol>{phases.map(({ key, label, description }, i) => {
         const status = statuses[i], done = status === "COMPLETED", current = !state.done && i === activeIndex;
         return <li key={key} data-complete={done} aria-current={current ? "step" : undefined}><span className="stage-stop">{done ? <Check size={12} /> : i + 1}</span><div><span className="stage-name">{label}</span>{current && <span className="current-stage">CURRENT STAGE</span>}{current && <p>{description}</p>}{status === "CHECK_INCOMPLETE" && <span className="stage-incomplete">? Needs review</span>}</div></li>;
       })}</ol><div className="stage-segments" aria-hidden="true">{statuses.map((status, i) => <span key={i} data-complete={status === "COMPLETED"} />)}</div><div className="stage-progress"><span>Stage {state.done ? 6 : activeIndex + 1} of 6</span><span>Paper to receipts</span></div><p className="stage-parallel">Some checks run in parallel.<br />Each stage keeps its own record.</p></nav>
       <div className="live-panels"><p aria-live="polite" className="happening"><span>{state.done ? "Ready" : "Happening now"}</span>{happening}</p>
-        <section className="stage-panel crosshair" aria-label="Current stage checks"><p className="eyebrow">{String((state.done ? 5 : activeIndex) + 1).padStart(2, "0")} / {active.label.toUpperCase()}</p><h2>{state.done ? "Checks recorded. Receipts ready." : active.description}</h2><ol>{(active.key === "parse" ? [{ id: "paper", title: state.paper?.title || "Reading paper text and references", status: statuses[0] }]
+        <LiveFindings model={model} id={id} ready={state.done} reduced={reduced} />
+        <section className="stage-panel crosshair" aria-label="Current stage checks"><p className="eyebrow">{String((state.done ? 5 : activeIndex) + 1).padStart(2, "0")} / {active.label.toUpperCase()}</p><h2>{state.done ? "Checks recorded. Receipts ready." : active.description}</h2><ol>{(!statuses[state.done ? 5 : activeIndex] ? [] : active.key === "parse" ? [{ id: "paper", title: state.paper?.title || "Reading paper text and references", status: statuses[0] }]
           : active.key === "review" ? [{ id: "review", title: "Three reviewers and the area chair summary", status: statuses[5] }]
           : active.key === "support" ? (state.paper?.citations || []).map(citation => ({ id: citation.id, title: citation.claim_text, status: state.stages[`support:${citation.id}`] }))
           : rows.map(row => ({ id: row.reference.id, title: row.reference.title || row.reference.raw_text, status: state.stages[`${active.key}:${row.reference.id}`] || (active.key === "existence" && row.existence ? "COMPLETED" : active.key === "retraction" && row.retraction ? "COMPLETED" : undefined) }))).map((task, i) => {
@@ -91,13 +94,13 @@ export function LiveCheck({ id, report = false }: { id: string; report?: boolean
           const hasResult = active.key === "existence" ? !!row?.existence : active.key === "retraction" ? !!row?.retraction : active.key === "support" ? !!state.support[task.id] : true;
           const done = task.status === "COMPLETED" && hasResult && !flagged && !uncertain;
           return <li className="stage-task" key={`${active.key}:${task.id}`} style={{ "--i": Math.min(i, 3) } as CSSProperties}><span>{task.title}</span><span key={`${task.status}:${flagged}:${uncertain}`} className={`status-pill ${uncertain ? "blue" : flagged ? "red" : done ? "sage" : "checking"}`}>{uncertain ? "? NEEDS REVIEW" : flagged ? "✕ FLAGGED" : done ? "✓ PASSED" : "◌ CHECKING"}</span></li>;
-        })}</ol><p className="stage-note">Stage status describes the check. Source and claim verdicts remain separate.</p></section>
+        })}</ol>{!statuses[state.done ? 5 : activeIndex] && <p className="live-empty">Waiting for this stage’s first event.</p>}<p className="stage-note">Stage status describes the check. Source and claim verdicts remain separate.</p></section>
         <section aria-label="References" className="references-panel"><div className="references-heading"><h2>Reference by reference.</h2><span>Receipts, not scores.</span></div>
           {Object.entries(state.errors).map(([key, reason]) => <p role="alert" key={key} className="live-error">{reason}</p>)}
-          {!state.paper ? <div aria-label="Loading references" className="space-y-6 p-5">{[0, 1, 2, 3].map(i => <div key={i} className="space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/3" /></div>)}</div> : <ol>{rows.map((row, index) => <ReferenceRow key={row.reference.id} row={row} index={index} />)}</ol>}
+          {!state.paper ? <p className="live-empty">Waiting for extracted references.</p> : <ol>{rows.map((row, index) => <ReferenceRow key={row.reference.id} row={row} index={index} />)}</ol>}
           {state.paper && !state.paper.references?.length && <p className="live-empty">No references were extracted. Needs review.</p>}
         </section>
-      </div></div>
+      </div><LiveFindingsRail state={state} model={model} reduced={reduced} /></div>
     </div>
   </main>;
 }

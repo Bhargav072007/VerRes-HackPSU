@@ -35,7 +35,7 @@ test.describe("live transport", () => {
       await expect(page.locator('[data-reference-id="ref-1"]')).toHaveAttribute("data-original", "yes");
       await expect(page.locator('[data-reference-id="ref-2"]')).toContainText("Fixture trial 2");
       await expect(page.locator('[data-chip="Verified"]')).toHaveCount(3);
-      await expect(page.getByRole("status").first()).toHaveAttribute("aria-label", "4 / 4 citations checked");
+      await expect(page.getByRole("status").first()).toHaveAttribute("aria-label", "3 / 3 references checked");
       await page.screenshot({ path: info.outputPath("live-complete.png") });
       await expect(page).toHaveURL(/\/report\/browser-run$/);
       expect(errors).toEqual([]);

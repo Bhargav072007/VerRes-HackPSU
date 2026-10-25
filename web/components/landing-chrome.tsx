@@ -18,7 +18,7 @@ export function usePolishMotion() {
 
 export function LandingChrome({ live = false }: { live?: boolean }) {
   const progress = useRef<HTMLSpanElement>(null);
-  const [section, setSection] = useState(live ? "02 · THE REVIEW" : "FRONT MATTER");
+  const [section, setSection] = useState(live ? "02 · THE REVIEW" : "Overview");
   useEffect(() => {
     let frame = 0;
     const update = () => {
@@ -27,7 +27,7 @@ export function LandingChrome({ live = false }: { live?: boolean }) {
       progress.current?.style.setProperty("transform", `scaleX(${total > 0 ? scrollY / total : 0})`);
       if (!live) {
         const sections = [...document.querySelectorAll<HTMLElement>("[data-section]")];
-        setSection(sections.reverse().find(node => node.getBoundingClientRect().top < innerHeight * .4)?.dataset.section || "FRONT MATTER");
+        setSection(sections.reverse().find(node => node.getBoundingClientRect().top < innerHeight * .4)?.dataset.section || "Overview");
       }
     };
     const scroll = () => { if (!frame) frame = requestAnimationFrame(update); };

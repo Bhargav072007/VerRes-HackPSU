@@ -35,7 +35,7 @@ test("review and summary events update the running panel without replacing citat
   const report = reviewFixture(), comment = report.review_comments![0];
   let running = { ...report, status: "RUNNING" as const, review: undefined, review_comments: [] } as typeof report;
   assert.ok(reviewState(running).running);
-  for (const [type, payload] of [["review", comment], ["review_summary", report.review], ["hidden_text", { id: "h1" }], ["stage", { stage: "run_review_panel", status: "COMPLETED" }]] as const) {
+  for (const [type, payload] of [["review", comment], ["review_summary", report.review], ["hidden_text", { id: "h1", kind: "HIDDEN_TEXT", quote: "Recorded hidden text", reason: "Needs review", page: 1 }], ["stage", { stage: "run_review_panel", status: "COMPLETED" }]] as const) {
     running = applyReviewEvent(running, decodeEvent({ type, payload, seq: 1 })!);
   }
   assert.equal(reviewState(running).running, false); assert.ok(reviewState(running).hidden);
