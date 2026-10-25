@@ -1,23 +1,17 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import NumberFlow from "@number-flow/react";
-import { ArrowLeft, BookOpen, Check, CircleAlert, FileSearch, Minus, X } from "lucide-react";
+import { ArrowLeft, BookOpen, FileSearch } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motionTokens } from "@/lib/motion";
 import { citationVerdict, loadReport, matchesFilter, referenceVerdict, reportCounts, verifiedEvidence, type Filter, type Report } from "@/lib/report";
 
-const verdicts = {
-  SUPPORTED: ["Supported", "#2f7d4f", Check], VERIFIED: ["Verified", "#2f7d4f", Check], NONE: ["No retraction found", "#2f7d4f", Check],
-  PARTIALLY_SUPPORTED: ["Partially supported", "#b7791f", Minus], NOT_SUPPORTED: ["Not supported", "#b42318", X], CONTRADICTED: ["Contradicted", "#b42318", X],
-  NOT_FOUND: ["Not found", "#b42318", X], DOI_MISMATCH: ["DOI mismatch", "#b42318", CircleAlert], RETRACTED: ["Retracted", "#b42318", CircleAlert],
-  NEEDS_REVIEW: ["Needs review", "#5b6b8c", CircleAlert],
-} as const;
-function VerdictBadge({ status }: { status?: string }) {
-  const [label, color, Icon] = status && Object.hasOwn(verdicts, status) ? verdicts[status as keyof typeof verdicts] : verdicts.NEEDS_REVIEW;
-  return <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-medium" style={{ color }}><Icon size={12} aria-hidden />{label}</span>;
-}
+import { verdicts, VerdictBadge } from "@/components/verdict-badge";
+import { EvidencePanel } from "@/components/evidence-panel";
+import { getFlag, subscribeFlag, updateFlag } from "@/lib/evidence";
+
 const counters = ["References", "Not found", "DOI mismatch", "Retracted", "Overstated", "Needs review"];
 const tabs = ["Report", "Claim graph", "Peer review", "Integrity"];
 const filters: Filter[] = ["All", "Problems only", "Needs review"];
@@ -26,6 +20,7 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
   const [report, setReport] = useState<Report | null>(null), [loading, setLoading] = useState(true), [attempt, setAttempt] = useState(0);
   const [filter, setFilter] = useState<Filter>("All"), [tab, setTab] = useState("Report"), [selected, setSelected] = useState("");
   const reader = useRef<HTMLDivElement>(null), sources = useRef<HTMLDivElement>(null), reduced = useReducedMotion();
+  const flag = useSyncExternalStore(subscribeFlag, getFlag, () => "");
   const paper = report?.paper, citations = paper?.citations ?? [], references = paper?.references ?? [];
   const visibleCitations = report ? citations.filter(c => matchesFilter([citationVerdict(report, c)], filter)) : [];
   const sentences = (paper?.sentences ?? []).filter(s => filter === "All" || visibleCitations.some(c => c.sentence_ids?.includes(s.id)));
@@ -48,7 +43,7 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
   useEffect(() => {
     if (tab !== "Report") return;
     const navigate = (event: KeyboardEvent) => {
-      if (event.ctrlKey || event.metaKey || event.altKey || event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]")) return;
+      if (document.querySelector('[role="dialog"]') || event.ctrlKey || event.metaKey || event.altKey || event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]")) return;
       if (event.key !== "j" && event.key !== "k") return;
       const flags = Array.from(reader.current?.querySelectorAll<HTMLButtonElement>("[data-flag=true]") ?? []);
       if (!flags.length) return;
@@ -76,6 +71,7 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
 
   function openEvidence(citationId: string) {
     setSelected(citationId);
+    updateFlag(citationId);
     onOpenEvidence?.(citationId);
     if (!onOpenEvidence) window.dispatchEvent(new CustomEvent("verres:open-evidence", { detail: { citationId } }));
   }
@@ -131,5 +127,6 @@ export function ReportReader({ id, onOpenEvidence }: { id: string; onOpenEvidenc
       </TabsContent>
       {tabs.slice(1).map(name => <TabsContent key={name} value={name} className="rounded-xl border bg-white px-6 py-14 text-center"><FileSearch size={24} className="mx-auto text-muted-foreground" /><h2 className="mt-4 font-serif text-2xl">{name}</h2><p className="mt-2 text-sm text-muted-foreground">This view is coming soon. Citation receipts are available in the Report tab.</p></TabsContent>)}
     </Tabs>
+    {report && <EvidencePanel report={report} citationId={flag} onClose={() => updateFlag("")} />}
   </main>;
 }

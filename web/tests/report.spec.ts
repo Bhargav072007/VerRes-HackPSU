@@ -27,6 +27,9 @@ for (const width of [1440, 390]) test(`completed report at ${width}px: filters, 
   await page.evaluate(() => window.addEventListener("verres:open-evidence", e => { document.body.dataset.evidence = (e as CustomEvent).detail.citationId; }));
   await page.keyboard.press("Enter");
   await expect(page.locator("body")).toHaveAttribute("data-evidence", "cite-2");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.keyboard.press("j"); await expect(page.locator('[data-citation-id="cite-3"]')).toBeFocused();
   await page.keyboard.press("k"); await expect(page.locator('[data-citation-id="cite-2"]')).toBeFocused();
   await page.locator('[data-source-id="ref-2"] summary').click();
