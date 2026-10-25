@@ -17,6 +17,8 @@ class FixturePool:
         self.events = []
         self.results = {}
         self.leases = set()
+        self.shares = {}
+        self.share_creations = {}
         self.sql = []
         self.lock = asyncio.Lock()
         self.close = AsyncMock()
@@ -30,13 +32,15 @@ class FixturePool:
     @asynccontextmanager
     async def transaction(self):
         async with self.lock:
-            previous = deepcopy((self.rows, self.events, self.results))
+            previous = deepcopy(
+                (self.rows, self.events, self.results, self.shares, self.share_creations)
+            )
             try:
                 yield self
                 if self.fail_commit:
                     raise asyncpg.PostgresConnectionError("private commit failure")
             except BaseException:
-                self.rows, self.events, self.results = previous
+                self.rows, self.events, self.results, self.shares, self.share_creations = previous
                 raise
 
     async def execute(self, sql, *args):
@@ -56,7 +60,22 @@ class FixturePool:
                 raise asyncpg.PostgresConnectionError("private credentials")
             job_id, seq, kind, payload = args
             assert not any(e["job_id"] == job_id and e["seq"] == seq for e in self.events)
-            self.events.append({"job_id": job_id, "seq": seq, "type": kind, "payload": payload})
+            self.events.append(
+                {
+                    "job_id": job_id,
+                    "seq": seq,
+                    "type": kind,
+                    "payload": payload,
+                    "created_at": datetime.now(UTC),
+                }
+            )
+        elif sql.startswith("INSERT INTO share_creations"):
+            self.share_creations[args[0]] = {"ip_hash": args[1], "created_at": datetime.now(UTC)}
+        elif sql.startswith("UPDATE shares"):
+            if "revoked_at" in sql:
+                self.shares[args[0]]["revoked_at"] = datetime.now(UTC)
+            else:
+                self.shares[args[0]]["view_count"] += 1
         elif sql.startswith("UPDATE jobs"):
             self.rows[args[0]].update(status=args[1], updated_at=datetime.now(UTC))
         elif sql.startswith("INSERT INTO job_results"):
@@ -66,10 +85,26 @@ class FixturePool:
             if "pg_advisory_unlock" in sql:
                 self.leases.remove(args[0])
             else:
-                assert "pg_advisory_xact_lock(739122)" in sql
+                assert "pg_advisory_xact_lock" in sql
 
     async def fetchrow(self, sql, *args):
         self.sql.append(sql)
+        if sql.startswith("INSERT INTO shares"):
+            token, job_id, days = args
+            assert token not in self.shares and job_id in self.rows
+            now = datetime.now(UTC)
+            self.shares[token] = {
+                "token": token,
+                "job_id": job_id,
+                "created_at": now,
+                "expires_at": now + timedelta(days=days),
+                "revoked_at": None,
+                "view_count": 0,
+            }
+            return {key: self.shares[token][key] for key in ("token", "expires_at")}
+        if "FROM shares" in sql:
+            row = self.shares.get(args[0])
+            return {**row, "expired": row["expires_at"] <= datetime.now(UTC)} if row else None
         if "FILTER" in sql:
             return {
                 "hourly": sum(
@@ -92,6 +127,14 @@ class FixturePool:
 
     async def fetchval(self, sql, *args):
         self.sql.append(sql)
+        if "SELECT EXISTS (SELECT 1 FROM jobs" in sql:
+            return args[0] in self.rows
+        if "FROM share_creations" in sql:
+            return sum(
+                row["ip_hash"] == args[0]
+                and row["created_at"] > datetime.now(UTC) - timedelta(hours=1)
+                for row in self.share_creations.values()
+            )
         if "pg_try_advisory_lock" in sql:
             if args[0] in self.leases:
                 return False
@@ -119,7 +162,13 @@ class FixturePool:
             ]
         job_id, after = args
         assert "ORDER BY seq" in sql
-        return deepcopy([e for e in self.events if e["job_id"] == job_id and e["seq"] > after])
+        return deepcopy(
+            [
+                {key: value for key, value in e.items() if key != "created_at"}
+                for e in self.events
+                if e["job_id"] == job_id and e["seq"] > after
+            ]
+        )
 
 
 @pytest.fixture

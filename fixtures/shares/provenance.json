@@ -1,0 +1,25 @@
+{
+  "job_input": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "source": {
+    "source_url": "https://publisher.example/trial",
+    "source_type": "publisher",
+    "retrieved_at": "2024-06-01T12:00:00Z"
+  },
+  "verdict": {"model_id": "fixture-model", "prompt_version": "judge.v1", "quote_offsets": [[0, 37]]},
+  "stage_events": [
+    {"at": "2024-06-01T12:00:00Z", "stage": "parse", "status": "STARTED"},
+    {"at": "2024-06-01T12:00:03.500000Z", "stage": "parse", "status": "COMPLETED"},
+    {"at": "2024-06-01T12:00:04Z", "stage": "verify", "status": "STARTED"},
+    {"at": "2024-06-01T12:00:05Z", "stage": "verify", "status": "CHECK_INCOMPLETE"},
+    {"at": "2024-06-01T12:00:06Z", "stage": "verify", "status": "STARTED"},
+    {"at": "2024-06-01T12:00:08Z", "stage": "verify", "status": "COMPLETED"}
+  ],
+  "finished_at": "2024-06-01T12:00:09Z",
+  "private": {
+    "sentence": "private paper body that is not a report quote",
+    "passage": "private full source text that is not evidence",
+    "trace": "private internal error trace",
+    "pdf": "private uploaded PDF bytes",
+    "ip": "192.0.2.123"
+  }
+}
