@@ -2,11 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, type MotionStyle, useInView, useMotionValueEvent, useScroll, useTransform, type MotionValue } from "motion/react";
-import { Ban, CircleCheck, CircleDashed, CircleHelp, CircleX, Link2Off, SearchX, type LucideIcon } from "lucide-react";
-import { countWord, findingStyles, heroCards, heroPaper, heroTally, type HeroChip } from "@/lib/landing-data";
+import { countWord, findingStyles, heroCards, heroPaper, heroTally } from "@/lib/landing-data";
 import { useMediaQuery, useSceneReducedMotion } from "./landing-chrome";
+import { Finding } from "./finding-label";
 
-const icons: Record<HeroChip, LucideIcon> = { SUPPORTED: CircleCheck, PARTIALLY_SUPPORTED: CircleDashed, NOT_SUPPORTED: CircleX, CONTRADICTED: CircleX, NOT_FOUND: SearchX, DOI_MISMATCH: Link2Off, RETRACTED: Ban, NEEDS_REVIEW: CircleHelp };
 // Resting slots around the headline: [side, inset %, top %, rotation°]. Landing order interleaves left and right.
 const slots = [["left", 2.5, 9, -4], ["right", 3, 7, 3.5], ["left", 9, 33, 2.5], ["right", 9.5, 31, -3], ["left", 1.5, 56, -2], ["right", 2, 54, 4], ["left", 10, 76, 3], ["right", 11, 77, -2.5]] as const;
 const order = [3, 0, 6, 1, 5, 2, 7, 4];
@@ -21,11 +20,6 @@ function gravity(t: number) {
   let lo = 0, hi = 1, s = t;
   for (let i = 0; i < 18; i++) { s = (lo + hi) / 2; if (bez(.55, .1, s) < t) lo = s; else hi = s; }
   return bez(0, 1, s);
-}
-
-function Finding({ chip, children }: { chip: HeroChip; children?: React.ReactNode }) {
-  const { label, color, text } = findingStyles[chip], Icon = icons[chip];
-  return <span className="finding-label" style={{ color: text }}><Icon size={15} aria-hidden style={{ color }} />{label}{children}</span>;
 }
 
 type Target = { dx: number; dy: number; scale: number };

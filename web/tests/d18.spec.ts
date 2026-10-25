@@ -14,3 +14,32 @@ for (const [width, height] of [[1440, 900], [1280, 800], [1024, 768], [390, 844]
   expect(overlaps).toBe(0);
   if (width >= 900) expect(await page.evaluate(() => document.querySelector(".hero-paper")!.getBoundingClientRect().bottom <= document.querySelector(".hero-stage")!.getBoundingClientRect().bottom)).toBe(true);
 });
+
+test("D18 review room replays the recorded sample: every agent ends terminal, then the report opens", async ({ page }) => {
+  const { readFileSync } = await import("node:fs");
+  const events = readFileSync("../fixtures/demo/paper3.jsonl", "utf8").trim().split("\n").map(line => JSON.parse(line));
+  const done = events.at(-1).payload;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route("**/jobs/room-sample", route => route.fulfill({ json: route.request().url().includes("/report/") ? done : { events, ...done } }));
+  await page.route("**/jobs/room-sample/events", route => route.fulfill({ contentType: "text/event-stream", body: "retry: 60000\n\n" }));
+  await page.goto("/check/room-sample");
+  await expect(page.locator(".agent-card")).toHaveCount(11);
+  for (const card of await page.locator(".agent-card").all()) await expect(card).toHaveAttribute("data-status", /^(DONE|FLAGGED|NEEDS_REVIEW)$/);
+  await expect(page.locator('.agent-card[data-agent="resolver"]')).toHaveAttribute("data-status", "FLAGGED");
+  await expect(page.locator(".room-done")).toContainText("Review complete");
+  await expect(page.locator(".room-slots .hero-slot[data-filled=true]")).toHaveCount(5);
+  await expect(page.locator(".room-feed")).toContainText("[4] Kowalczyk 2021 Not found in Crossref, OpenAlex, arXiv");
+  await expect(page).toHaveURL("/report/room-sample", { timeout: 6000 });
+});
+
+test("D18 review room stays put after done if the reader interacts", async ({ page }) => {
+  const { readFileSync } = await import("node:fs");
+  const events = readFileSync("../fixtures/demo/paper3.jsonl", "utf8").trim().split("\n").map(line => JSON.parse(line));
+  await page.route("**/jobs/room-stay", route => route.fulfill({ json: { events } }));
+  await page.route("**/jobs/room-stay/events", route => route.fulfill({ contentType: "text/event-stream", body: "retry: 60000\n\n" }));
+  await page.goto("/check/room-stay");
+  await expect(page.locator(".room-done")).toBeVisible();
+  await page.mouse.move(200, 300); await page.mouse.move(260, 340);
+  await page.waitForTimeout(3600);
+  await expect(page).toHaveURL("/check/room-stay");
+});
