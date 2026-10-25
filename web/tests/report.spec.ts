@@ -51,7 +51,7 @@ test("reduced motion, unavailable text and hostile external data remain readable
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/jobs/reduced", route => route.fulfill({ json: report }));
   await page.goto("/report/reduced");
-  await expect(page.locator("[data-underline]")).toHaveCSS("transform", "none");
+  for (const underline of await page.locator("[data-underline]").all()) await expect(underline).toHaveCSS("transform", "none");
   if (process.env.NEXT_PUBLIC_MOCK === "1") return;
   await page.route("**/jobs/malformed", route => route.fulfill({ json: { status: "COMPLETE", paper: { sentences: [null] } } }));
   await page.goto("/report/malformed");

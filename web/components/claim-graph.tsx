@@ -1,19 +1,22 @@
 "use client";
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { ReactFlow, Controls, Handle, Position, BaseEdge, getBezierPath, type NodeProps, type EdgeProps } from "@xyflow/react";
+import { useMemo, useRef, useState, useSyncExternalStore, createContext, useContext } from "react";
+import { ReactFlow, Controls, MiniMap, Handle, Position, BaseEdge, getBezierPath, type NodeProps, type EdgeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion, useReducedMotion } from "motion/react";
 import { claimGraph, type GraphData, type GraphNode, type GraphEdge } from "@/lib/claim-graph";
 import { motionTokens } from "@/lib/motion";
 import type { Report } from "@/lib/report";
 import { VerdictBadge, verdicts } from "./verdict-badge";
+import { ReportState } from "./report-chrome";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "./ui/sheet";
 
-function ReceiptNode({ data }: NodeProps<GraphNode>) {
-  return <div className="h-[150px] w-[250px] rounded-xl border bg-white p-4 text-left" style={data.flag ? { borderColor: "#b42318", borderWidth: 2 } : undefined}>
+const GraphOrder = createContext(new Map<string, number>());
+function ReceiptNode({ id, data }: NodeProps<GraphNode>) {
+  const order = useContext(GraphOrder).get(id) ?? 0;
+  return <div className="graph-node h-[150px] w-[250px] rounded-xl border bg-white p-4 text-left" style={{ animationDelay: `${order * 35}ms`, ...(data.flag ? { borderColor: "#b42318", borderWidth: 2 } : {}) }}>
     <Handle type="target" position={Position.Left} isConnectable={false} />
-    <p className="mb-2 text-[10px] tracking-wider text-muted-foreground uppercase">{data.kind}</p>
-    <p className={`line-clamp-3 text-sm leading-5 ${data.kind === "Source" ? "" : "font-serif"}`}>{data.label}</p>
+    <p className="mb-2 text-[10px] tracking-wider text-muted-foreground uppercase">{data.kind}</p>{" "}
+    <p className={`line-clamp-3 text-sm leading-5 ${data.kind === "Source" ? "" : "font-serif"}`}>{data.label}</p>{" "}
     {data.flag && <div className="mt-2"><VerdictBadge status={data.flag} /></div>}
     <Handle type="source" position={Position.Right} isConnectable={false} />
   </div>;
@@ -21,8 +24,10 @@ function ReceiptNode({ data }: NodeProps<GraphNode>) {
 function ReceiptEdge(props: EdgeProps<GraphEdge>) {
   const reduced = useReducedMotion(), [path, x, y] = getBezierPath(props);
   const [label, color, Icon] = verdicts[props.data?.verdict ?? "NEEDS_REVIEW"];
-  return <motion.g initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={reduced ? { duration: 0 } : motionTokens.fade}>
-    <BaseEdge id={props.id} path={path} style={{ ...props.style, stroke: color, strokeWidth: 2 }} interactionWidth={30} />
+  const [drawn, setDrawn] = useState(false), complete = reduced || drawn;
+  return <motion.g style={{ opacity: props.style?.opacity ?? 1 }} initial={reduced ? false : { opacity: 0 }} animate={{ opacity: props.style?.opacity ?? 1 }} transition={reduced ? { duration: 0 } : motionTokens.fade}>
+    <BaseEdge id={props.id} path={path} style={{ stroke: complete ? color : "transparent", strokeWidth: 2, strokeDasharray: props.style?.strokeDasharray }} interactionWidth={30} />
+    <motion.path d={path} fill="none" stroke={color} strokeWidth={2} onAnimationComplete={() => setDrawn(true)} style={{ pointerEvents: "none", opacity: complete ? 0 : 1 }} initial={reduced ? false : { pathLength: 0 }} animate={{ pathLength: 1 }} transition={reduced ? { duration: 0 } : { duration: .36 }} />
     <title>{label} · {props.data?.kind}</title>
     <foreignObject x={x - 10} y={y - 10} width={20} height={20} pointerEvents="none"><span style={{ color }} className="flex size-5 items-center justify-center rounded-full border bg-white"><Icon size={12} aria-hidden /></span></foreignObject>
   </motion.g>;
@@ -34,15 +39,18 @@ const subscribe = (change: () => void) => { const query = window.matchMedia("(ma
 export function ClaimGraph({ report, onOpenEvidence }: { report: Report; onOpenEvidence: (id: string) => void }) {
   const graph = useMemo(() => claimGraph(report), [report]);
   const mobile = useSyncExternalStore(subscribe, smallScreen, () => true);
+  const [hovered, setHovered] = useState("");
+  const order = useMemo(() => new Map([...graph.nodes].sort((a, b) => a.position.x - b.position.x || a.position.y - b.position.y).map((n, i) => [n.id, i])), [graph]);
+  const related = new Set([hovered, ...graph.edges.filter(e => e.source === hovered || e.target === hovered || e.id === hovered).flatMap(e => [e.source, e.target])]);
   const [selection, setSelection] = useState<GraphData | null>(null);
   const jump = useRef("");
   const pending = report.claim_map?.status === "NEEDS_REVIEW";
-  return <section aria-label="Claim graph" className="overflow-hidden rounded-xl border bg-white">
+  return <section aria-label="Claim graph" className="report-card report-graph overflow-hidden border bg-white">
     <header className="border-b p-5 sm:p-6"><h2 className="font-serif text-2xl">Claim graph</h2><p className="mt-2 text-xs leading-5 text-muted-foreground">Follow each claim to its cited sources. Select a claim, source, or connection to inspect its receipts.</p>
       <div aria-label="Graph legend" className="mt-4 flex flex-wrap gap-2">{["SUPPORTED", "PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED", "NEEDS_REVIEW"].map(status => <VerdictBadge key={status} status={status} />)}</div>
       {(pending || graph.unlinked) && <p role="status" className="mt-4 text-sm"><VerdictBadge /> {report.claim_map?.needs_review_reason || (graph.unlinked ? "Some claim relationships could not be linked. Inspect the available receipts." : "The claim map is incomplete. Inspect the available receipts.")}</p>}
     </header>
-    {!graph.nodes.length ? <p className="p-8 text-sm text-muted-foreground">No claims extracted</p> : mobile ? <ul aria-label="Claim graph list" className="space-y-4 p-5">
+    {!graph.nodes.length ? <ReportState title="No claims extracted"><p>The available text did not yield a claim map. Citation receipts remain available in the Report tab.</p></ReportState> : mobile ? <ul aria-label="Claim graph list" className="space-y-4 p-5">
       {graph.nodes.filter(n => n.data.kind !== "Source").map(n => <li key={n.id} className="rounded-xl border p-4"><button className="w-full text-left font-serif text-lg" onClick={() => setSelection(n.data)}>{n.data.label}</button><ul className="mt-4 space-y-3">
         {n.data.receipts.map(r => <li key={r.citationId}><button className="w-full rounded-lg border p-3 text-left" style={r.sourceFlag ? { borderColor: "#b42318" } : undefined} onClick={() => setSelection({ label: r.source, kind: "Citation", receipts: [r] })}><span className="mb-2 block text-xs">{r.source}</span><span className="flex flex-wrap gap-2"><VerdictBadge status={r.verdict} />{r.sourceFlag && <VerdictBadge status={r.sourceFlag} />}</span></button></li>)}
       </ul></li>)}
@@ -51,7 +59,7 @@ export function ClaimGraph({ report, onOpenEvidence }: { report: Report; onOpenE
       if (e.key !== "Enter" && e.key !== " ") return;
       const id = (e.target as Element).closest("[data-id]")?.getAttribute("data-id"), data = graph.nodes.find(n => n.id === id)?.data ?? graph.edges.find(edge => edge.id === id)?.data;
       if (data) { e.preventDefault(); e.stopPropagation(); setSelection(data); }
-    }}><ReactFlow nodes={graph.nodes} edges={graph.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={{ padding: .15 }} minZoom={.25} maxZoom={1.5} nodesConnectable={false} nodesDraggable={false} edgesReconnectable={false} deleteKeyCode={null} onNodeClick={(_, n) => setSelection(n.data)} onEdgeClick={(_, e) => setSelection(e.data ?? null)}><Controls showInteractive={false} /></ReactFlow></div>}
+    }}><GraphOrder.Provider value={order}><ReactFlow nodes={graph.nodes.map(n => ({ ...n, ariaLabel: `${n.data.kind} ${n.data.label} ${n.data.flag ? verdicts[n.data.flag][0] : ""} Open receipts`, style: { opacity: hovered && !related.has(n.id) ? .25 : 1 } }))} edges={graph.edges.map(e => ({ ...e, style: { ...e.style, opacity: hovered && !(related.has(e.source) && related.has(e.target)) ? .15 : 1 } }))} nodeTypes={nodeTypes} edgeTypes={edgeTypes} fitView fitViewOptions={{ padding: .15 }} minZoom={.25} maxZoom={1.5} nodesConnectable={false} nodesDraggable={false} edgesReconnectable={false} deleteKeyCode={null} onNodeMouseEnter={(_, n) => setHovered(n.id)} onNodeMouseLeave={() => setHovered("")} onEdgeMouseEnter={(_, e) => setHovered(e.id)} onEdgeMouseLeave={() => setHovered("")} onNodeClick={(_, n) => setSelection(n.data)} onEdgeClick={(_, e) => setSelection(e.data ?? null)}><Controls showInteractive={false} /><MiniMap ariaLabel="Claim graph overview" nodeColor="#b9b8b2" maskColor="#f6f6f5bb" pannable zoomable /></ReactFlow></GraphOrder.Provider></div>}
     <Sheet open={!!selection} onOpenChange={open => { if (!open) setSelection(null); }}><SheetContent className="w-full overflow-y-auto p-6 sm:max-w-lg" onCloseAutoFocus={e => { if (jump.current) { e.preventDefault(); const id = jump.current; jump.current = ""; onOpenEvidence(id); } }}>
       <SheetTitle className="font-serif text-2xl">Claim receipt</SheetTitle><SheetDescription>Select a receipt to follow it into the evidence panel.</SheetDescription>
       {selection && <><p className="text-xs text-muted-foreground">{selection.kind}</p><p className="font-serif text-lg leading-7">{selection.label}</p>{selection.flag && <VerdictBadge status={selection.flag} />}{selection.note && <p className="text-sm leading-6"><VerdictBadge /> {selection.note}</p>}
