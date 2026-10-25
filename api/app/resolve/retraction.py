@@ -31,6 +31,57 @@ class RetractionResult(Record):
     records: list[RetractionRecord] = Field(default_factory=list)
 
 
+def crossref_notices(work: Work, original_doi: str) -> list[RetractionRecord] | None:
+    """An original's updated-by points to notices; a notice's update-to points back.
+
+    Never interpret update-to on the original as a retraction of that original.
+    Partial dates remain unknown rather than inventing a month/day.
+    """
+    original_doi = normalize_doi(original_doi)
+    if not original_doi or not normalize_doi(work.doi):
+        return None
+    inbound = work.doi == original_doi
+    updates = work.updated_by if inbound else work.update_to
+    if updates is None:
+        return None
+    records = []
+    for update in updates:
+        kind = {
+            "retraction": "RETRACTION",
+            "correction": "CORRECTION",
+            "expression-of-concern": "EXPRESSION_OF_CONCERN",
+        }.get(str(update.get("type")).replace("_", "-"))
+        target = normalize_doi(update.get("DOI"))
+        if not kind or not target or (not inbound and target != original_doi):
+            continue
+        notice_doi = target if inbound else work.doi
+        if notice_doi == original_doi:
+            continue
+        updated = update.get("updated")
+        stamp = updated.get("date-parts", [[]]) if isinstance(updated, dict) else [[]]
+        try:
+            parts = stamp[0]
+            retracted = (
+                date(*parts)
+                if isinstance(parts, list)
+                and len(parts) == 3
+                and all(type(p) is int for p in parts)
+                else None
+            )
+        except (TypeError, ValueError, IndexError, KeyError):
+            retracted = None
+        records.append(
+            RetractionRecord(
+                doi=original_doi,
+                retracted=retracted,
+                provenance="Crossref updated-by" if inbound else "Crossref notice update-to",
+                notice_type=kind,
+                notice_url="https://doi.org/" + quote(notice_doi, safe="/"),
+            )
+        )
+    return records
+
+
 def parse_date(value: str) -> date | None:
     for pattern in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S"):
         try:
@@ -194,7 +245,12 @@ def check_retraction(
                 records=matched,
             )
         return RetractionResult(
-            status="RETRACTED", reason="retraction predates the citing paper", records=matched
+            status="RETRACTED",
+            reason=(
+                f"cited work was retracted ({min(r.retracted for r in prior_retractions).year}); "
+                f"retraction date: {min(r.retracted for r in prior_retractions).isoformat()}"
+            ),
+            records=matched,
         )
     if any(r.retracted is None for r in matched) or (work.is_retracted and not retractions):
         return RetractionResult(

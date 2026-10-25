@@ -33,6 +33,8 @@ def crossref_work(item: dict) -> Work:
         venue=first_string(item.get("container-title")),
         abstract=item.get("abstract") if isinstance(item.get("abstract"), str) else None,
         abstract_origin="crossref" if item.get("abstract") else None,
+        updated_by=item.get("updated-by", []),
+        update_to=item.get("update-to", []),
     )
 
 
