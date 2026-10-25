@@ -88,6 +88,19 @@ def strict_schema(schema: dict) -> dict:
             if node.get("type") == "object" and "properties" in node:
                 node["required"] = list(node["properties"])
                 node["additionalProperties"] = False
+                # These nullable receipts are filled by the application, not invented
+                # by an LLM (including dates that later become datetime objects).
+                for name, prop in node["properties"].items():
+                    if name in {
+                        "source_url",
+                        "source_type",
+                        "retrieved_at",
+                        "evidence_level",
+                        "quote_offsets",
+                        "model_id",
+                        "prompt_version",
+                    } and any(option.get("type") == "null" for option in prop.get("anyOf", [])):
+                        node["properties"][name] = {"type": "null"}
             for value in node.values():
                 visit(value)
         elif isinstance(node, list):
