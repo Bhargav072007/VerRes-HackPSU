@@ -20,3 +20,13 @@ test("shared loading handles public reports, expired links, bad data and network
   t.mock.method(globalThis, "fetch", async () => { throw new Error("Offline"); });
   assert.deepEqual(await loadSharedReport("token", new AbortController().signal), { report: null, expired: false });
 });
+
+test("429 share responses round retry seconds up to whole minutes", async t => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ code: "rate_limited", message: "Wait.", retry_after_seconds: 125 }, { status: 429 }));
+  assert.deepEqual(await createShare("token"), { error: "Too many share requests.", retryMinutes: 3 });
+});
+
+test("malformed or missing retry_after_seconds leaves a normal retry action", async t => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ code: "rate_limited", message: "Wait.", retry_after_seconds: -1 }, { status: 429 }));
+  assert.deepEqual(await createShare("token"), { error: "Too many share requests.", retryMinutes: undefined });
+});

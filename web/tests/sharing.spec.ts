@@ -102,11 +102,12 @@ test("share failures recover, clipboard fallback works, and incomplete scans sta
   const report = reviewFixture();
   report.hidden_text = [{ ...hidden[0], kind: "CHECK_INCOMPLETE", page: null, quote: "", reason: "Scan unavailable." }];
   await page.route("**/jobs/failure", route => route.fulfill({ json: report }));
-  await page.route("**/jobs/failure/share", route => route.fulfill({ status: 429, json: {} }));
+  await page.route("**/jobs/failure/share", route => route.fulfill({ status: 429, json: { code: "rate_limited", message: "Wait before retrying.", retry_after_seconds: 125 } }));
   await page.goto("/report/failure");
   await expect(page.getByRole("heading", { name: "Hidden-text check incomplete · Needs review" })).toBeVisible();
   await page.getByRole("button", { name: "Share", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Share report" }).getByRole("alert")).toContainText("Too many share requests");
+  await expect(page.getByRole("button", { name: "Try again in 3 min" })).toBeVisible();
   await page.route("**/jobs/failure/share", route => route.abort());
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("dialog", { name: "Share report" }).getByRole("alert")).toContainText("could not be created");
