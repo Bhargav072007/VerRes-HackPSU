@@ -15,9 +15,16 @@ export const scholarlySources = ["Crossref", "OpenAlex", "arXiv", "PubMed", "Ret
 
 // Hero scene: every reference from the two recorded manuscripts becomes one verdict chip.
 export type HeroChip = "SUPPORTED" | "PARTIALLY_SUPPORTED" | "NOT_SUPPORTED" | "CONTRADICTED" | "NOT_FOUND" | "DOI_MISMATCH" | "RETRACTED" | "NEEDS_REVIEW";
-export const heroChipLabels: Record<HeroChip, [glyph: string, label: string, tone: string]> = {
-  SUPPORTED: ["✓", "Supported", "sage"], PARTIALLY_SUPPORTED: ["◐", "Partial", "brass"], NOT_SUPPORTED: ["✕", "Not supported", "red"], CONTRADICTED: ["✕", "Contradicted", "red"],
-  NOT_FOUND: ["✕", "Not found", "red"], DOI_MISMATCH: ["✕", "DOI mismatch", "red"], RETRACTED: ["✕", "Retracted", "red"], NEEDS_REVIEW: ["?", "Needs review", "blue"],
+// Finding colours: `color` for the bar and icon (3:1 on paper), `text` for labels (4.5:1 on paper).
+export const findingStyles: Record<HeroChip, { label: string; short: string; color: string; text: string }> = {
+  SUPPORTED: { label: "Supported", short: "supported", color: "#3F6B4F", text: "#3F6B4F" },
+  PARTIALLY_SUPPORTED: { label: "Partially supported", short: "partial", color: "#B7791F", text: "#8A5A0F" },
+  NOT_SUPPORTED: { label: "Not supported", short: "not supported", color: "#B42318", text: "#B42318" },
+  CONTRADICTED: { label: "Contradicted", short: "contradicted", color: "#B42318", text: "#B42318" },
+  NOT_FOUND: { label: "Not found", short: "not found", color: "#B42318", text: "#B42318" },
+  DOI_MISMATCH: { label: "DOI mismatch", short: "DOI mismatch", color: "#6B4FA0", text: "#6B4FA0" },
+  RETRACTED: { label: "Retracted", short: "retracted", color: "#850909", text: "#850909" },
+  NEEDS_REVIEW: { label: "Needs review", short: "needs review", color: "#46677A", text: "#46677A" },
 };
 export function referenceChip(report: Report, id: string): HeroChip {
   const verdict = referenceVerdict(report, id);
@@ -29,6 +36,10 @@ export const heroCards = recordings.flatMap(recording => {
   const report = decodeReport(recording);
   return (report?.paper?.references ?? []).map(r => ({ id: `${recording.job_id}-${r.id}`, author: r.authors?.[0] ? `${r.authors[0]}${r.authors.length > 1 ? " et al." : ""}` : "Unknown author", year: r.year ?? null, title: r.title || "Untitled reference", chip: referenceChip(report!, r.id) }));
 });
+const tallyOrder: HeroChip[] = ["SUPPORTED", "PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED", "NOT_FOUND", "DOI_MISMATCH", "RETRACTED", "NEEDS_REVIEW"];
+export const heroTally = tallyOrder.map(chip => ({ chip, count: heroCards.filter(c => c.chip === chip).length })).filter(t => t.count);
+// Both recorded drafts open with the same two sentences; they stand in for the abstract.
+export const heroPaper = { title: recordings[1].paper.title ?? "Untitled manuscript", byline: "Test drafts · references from paper 2 and paper 3, combined", abstract: recordings[1].paper.sentences.slice(0, 2).map(s => s.text) };
 const countWords = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
 export const countWord = (n: number) => countWords[n] ?? String(n);
 

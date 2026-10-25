@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { countWord, heroCards, referenceChip } from "../lib/landing-data";
+import { countWord, findingStyles, heroCards, heroPaper, heroTally, referenceChip } from "../lib/landing-data";
 import { decodeReport } from "../lib/report";
 import paper3 from "./fixtures/prod/paper3-job.json";
 
@@ -36,4 +36,14 @@ test("stepper demo cards come from the recorded runs", async () => {
   assert.equal(stepperDemo.verify.verdict, "PARTIALLY_SUPPORTED");
   assert.deepEqual(stepperDemo.review.panel.map(r => [r.id, r.name, r.major, r.minor]), [["R1", "Methods", 3, 0], ["R2", "Claims", 1, 0], ["R3", "Evidence", 4, 0]]);
   assert.match(stepperDemo.review.areaChair!, /BERT/);
+});
+
+test("hero tally and paper page come from the fixtures, and every label meets 4.5:1 on paper", () => {
+  assert.deepEqual(heroTally.map(t => [t.chip, t.count]), [["SUPPORTED", 2], ["PARTIALLY_SUPPORTED", 1], ["NOT_FOUND", 1], ["DOI_MISMATCH", 1], ["RETRACTED", 1], ["NEEDS_REVIEW", 2]]);
+  assert.equal(heroTally.reduce((n, t) => n + t.count, 0), heroCards.length);
+  assert.equal(heroPaper.title, "Attention-Only Architectures Are Sufficient for General Language Understanding");
+  assert.deepEqual(heroPaper.abstract, ["TEST DRAFT constructed for the VerRes HackPSU demo.", "Not a real manuscript; problems are planted on purpose."]);
+  const lum = (hex: string) => { const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126 * r + .7152 * g + .0722 * b; };
+  const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+  for (const { text, color } of Object.values(findingStyles)) { assert.ok(ratio(text, "#F3EBDD") >= 4.5, text); assert.ok(ratio(color, "#FBF6EC") >= 3, color); }
 });
