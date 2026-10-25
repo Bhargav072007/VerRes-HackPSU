@@ -145,3 +145,27 @@ class JSONGatewayModel:
             return content
         except (ValueError, TypeError, KeyError, IndexError) as error:
             raise ModelFailure("malformed model service response") from error
+
+
+def _openai_tuples(node):
+    """OpenAI strict mode rejects tuple schemas (prefixItems); emit plain arrays instead."""
+    if isinstance(node, dict):
+        if "prefixItems" in node:
+            prefix = node.pop("prefixItems")
+            node.pop("minItems", None)
+            node.pop("maxItems", None)
+            same = all(item == prefix[0] for item in prefix)
+            node["items"] = prefix[0] if same else {"anyOf": prefix}
+        for value in node.values():
+            _openai_tuples(value)
+    elif isinstance(node, list):
+        for value in node:
+            _openai_tuples(value)
+    return node
+
+
+_strict_schema_base = strict_schema
+
+
+def strict_schema(schema):  # noqa: F811 - wraps the base builder for OpenAI compatibility
+    return _openai_tuples(_strict_schema_base(schema))
