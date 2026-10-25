@@ -1,11 +1,12 @@
 import dagre from "dagre";
 import type { Edge, Node } from "@xyflow/react";
 import type { components } from "./api-types";
+import { informationalOutcomes, reviewOutcome, type ReviewOutcome } from "./review-outcome";
 import { citationSupportVerdict, referenceVerdict, verifiedEvidence, type Report, type Verdict } from "./report";
 
 type Claim = components["schemas"]["ClaimNode"];
-export type Receipt = { citationId: string; claim: string; source: string; sourceFlag?: Verdict; verdict: Verdict; quotes: components["schemas"]["EvidenceSpan"][]; reason: string };
-export type GraphData = { label: string; kind: string; receipts: Receipt[]; flag?: Verdict; verdict?: Verdict; note?: string };
+export type Receipt = { citationId: string; claim: string; source: string; sourceFlag?: Verdict; verdict: Verdict | ReviewOutcome; quotes: components["schemas"]["EvidenceSpan"][]; reason: string };
+export type GraphData = { label: string; kind: string; receipts: Receipt[]; flag?: Verdict; verdict?: Verdict | ReviewOutcome; note?: string };
 export type GraphNode = Node<GraphData>;
 export type GraphEdge = Edge<GraphData>;
 
@@ -16,10 +17,12 @@ export function claimGraph(report: Report) {
   const linked = (n: Claim) => citations.filter(c => n.citation_ids ? n.citation_ids.includes(c.id) : c.sentence_ids?.some(id => n.sentence_ids?.includes(id)));
   const receiptsByCitation = new Map(citations.map(c => {
     const flag = referenceVerdict(report, c.reference_id);
+    const support = report.support?.find(s => s.citation_id === c.id);
+    const supportVerdict = citationSupportVerdict(report, c), outcome = reviewOutcome(support);
     const receipt: Receipt = { citationId: c.id,
       claim: report.paper?.sentences?.filter(s => c.sentence_ids?.includes(s.id)).map(s => s.text).join(" ") || c.claim_text || "Claim unavailable. Needs review.",
       source: references.find(r => r.id === c.reference_id)?.title || references.find(r => r.id === c.reference_id)?.raw_text || "Source unavailable. Needs review.",
-      verdict: citationSupportVerdict(report, c), sourceFlag: ["RETRACTED", "NOT_FOUND", "DOI_MISMATCH"].includes(flag) ? flag : undefined,
+      verdict: supportVerdict === "NEEDS_REVIEW" && informationalOutcomes.includes(outcome) ? outcome : supportVerdict, sourceFlag: ["RETRACTED", "NOT_FOUND", "DOI_MISMATCH"].includes(flag) ? flag : undefined,
       quotes: verifiedEvidence(report, c), reason: report.support?.find(s => s.citation_id === c.id)?.reason || "Claim support check incomplete. Needs review." };
     const sourceId = `source:${c.reference_id}`;
     let source = nodes.find(node => node.id === sourceId);

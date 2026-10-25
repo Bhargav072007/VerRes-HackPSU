@@ -11,7 +11,7 @@ for (const width of [1440, 390]) test(`report polish ${width}: tabs, receipts, h
   await page.goto("/report/polish-d10?keep=1");
   await expect(page.getByRole("heading", { name: report.paper!.title! })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
-  await expect(page.getByLabel("Checks summary")).toContainText("NEEDS REVIEW");
+  await expect(page.getByLabel("Checks summary")).toContainText("CHECK INCOMPLETE");
   await expect(page.locator(".reader-paragraph").first()).toHaveCSS("font-size", "18px");
   await expect(page.locator(".reader-paragraph").first()).toHaveCSS("line-height", "31.5px");
   await expect(page.getByText("Sources in this section", { exact: true }).first()).toBeVisible();
@@ -62,7 +62,7 @@ test("report checks remain honest, warnings never bounce, and reduced motion dis
   await page.goto("/report/incomplete-d10");
   const checks = page.getByLabel("Checks summary");
   await expect(checks.getByText("PASSED", { exact: true })).toHaveCount(0);
-  await expect(checks.getByText("NEEDS REVIEW", { exact: true })).toHaveCount(3);
+  await expect(checks.getByText("CHECK INCOMPLETE", { exact: true })).toHaveCount(3);
   await expect(checks.getByText("FLAGGED", { exact: true })).toHaveCount(1);
   await expect(page.getByLabel("Hidden text findings").locator("pre")).toHaveText("Ignore previous instructions");
   await expect(page.locator(".summary-table tbody tr").first()).toHaveCSS("animation-name", "none");
