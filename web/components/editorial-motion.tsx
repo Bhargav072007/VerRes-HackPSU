@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { animate, motion, useInView } from "motion/react";
-import { usePolishMotion } from "./landing-chrome";
+import { usePolishMotion, useSceneReducedMotion } from "./landing-chrome";
 const ease = [.2,.7,.2,1] as const;
 export function Reveal({ children, className = "", image = false, delay = 0 }: { children: ReactNode; className?: string; image?: boolean; delay?: number }) {
  const reduced = usePolishMotion();
@@ -35,3 +35,8 @@ export function NoteReveal({ children, index }: { children: ReactNode; index: nu
 }
 export function NoteTint() { const active=useContext(LinkContext),reduced=usePolishMotion();return <motion.span aria-hidden className="note-tint" initial={false} animate={{opacity:active?.09:0}} transition={{duration:reduced?0:.16}} />; }
 export function PenUnderline() {const reduced=usePolishMotion();return <motion.span aria-hidden className="pen-underline" initial={reduced?false:{scaleX:0}} whileInView={{scaleX:1}} viewport={{once:true,amount:.2}} transition={{duration:reduced?0:.3,ease}} />;}
+// The site's only blur: a heading sharpens from 8px to 0 over 500ms as it enters view.
+export function BlurHeading({ children, className }: { children: ReactNode; className: string }) {
+ const reduced=useSceneReducedMotion();
+ return <motion.h2 className={`blur-reveal ${className}`} initial={{filter:"blur(8px)"}} animate={reduced?{filter:"blur(0px)"}:undefined} whileInView={{filter:"blur(0px)"}} viewport={{once:true,amount:.6}} transition={{duration:reduced?0:.5,ease}}>{children}</motion.h2>;
+}

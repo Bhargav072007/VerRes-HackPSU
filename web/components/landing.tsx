@@ -9,7 +9,7 @@ import { LandingScene } from "./landing-scene";
 import { LandingResults } from "./landing-results";
 import { LandingStepper } from "./landing-stepper";
 import { MockupImage } from "./mockup-image";
-import { CountOnce, Reveal } from "./editorial-motion";
+import { BlurHeading, CountOnce, Reveal } from "./editorial-motion";
 import { Brand } from "./brand";
 import { recordedStats, productChecks, scholarlySources } from "@/lib/landing-data";
 const samples = [
@@ -83,7 +83,7 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Stick
 <LandingStepper />
 <Reveal><LandingResults /></Reveal>
 <section id="anywhere" className="phone-moment section-container" aria-labelledby="phone-title"><h2 id="phone-title" className="editorial-title">The same evidence, <strong>wherever you read.</strong></h2><MockupImage scene="s2" sizes="(max-width:700px) 80vw, 40vw" alt="The BERT finding and inline reviewer note on a phone" /></section>
-<section id="honesty" className="article-section section-container limitations"><h2 className="editorial-title">What we won’t guess.</h2><p>A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p><ul aria-label="Cases that need review"><li>Source text is unavailable.</li><li>The retrieved abstract does not address the claim.</li><li>The quoted passage cannot be verified.</li><li>The reference identity is ambiguous.</li></ul><p>These findings return <span className="needs-review">Needs review</span>, with the reason available for inspection.</p></section>
+<section id="honesty" className="article-section section-container limitations"><BlurHeading className="editorial-title">What we won’t guess.</BlurHeading><p>A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p><ul aria-label="Cases that need review"><li>Source text is unavailable.</li><li>The retrieved abstract does not address the claim.</li><li>The quoted passage cannot be verified.</li><li>The reference identity is ambiguous.</li></ul><p>These findings return <span className="needs-review">Needs review</span>, with the reason available for inspection.</p></section>
 <section id="submit" className="upload-band" aria-labelledby="upload-heading"><div className="upload-content section-container"><div><h2 id="upload-heading">Careful work deserves<br />a careful review.</h2><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p></div>      <form
         onSubmit={submit}
         className="upload-form"
