@@ -5,6 +5,12 @@ Prepared on `codex/bc-evaluation` from B/C correctness commit
 `0dac983c953a341e3625b60a25f44d2dce3fdf38` after the review panel and report
 reader merged. This branch does not modify PR #1 or its branch.
 
+The follow-up offline review workflow is based on main `21ecc9c`, including the
+new primary-model/graph wiring, same-vendor adjudicator option and report UI.
+See [BAKEOFF.md](BAKEOFF.md) for the human review packet, guarded export, local
+rehearsal and integration handoff. A bakeoff measures judgment quality; it is not
+required for the service to start or the demo to finish.
+
 There are **40 distinct sentence–source pairs**, covering **33 source works**:
 
 | Fixture | Candidates | Status |

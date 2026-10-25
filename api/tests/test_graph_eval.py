@@ -76,12 +76,15 @@ async def test_bakeoff_records_actual_fixture_outcomes(claim, source, tmp_path):
         FixtureModel({"judge": "bad json"}, model_id="model2"),
     ]
     path = tmp_path / "report.json"
-    report = await run_bakeoff(pairs, models, dataset_version="synthetic-test-only", output=path)
+    report = await run_bakeoff(
+        pairs, models, dataset_version="synthetic-test-only", output=path, rehearsal=True
+    )
     assert path.exists() and not report["dataset_ready"]
-    assert report["models"]["model1"]["metrics"]["accuracy"] == 1
+    assert report["models"]["model1"]["metrics"]["accuracy"] is None
     assert report["models"]["model1"]["vendor"] == models[0].vendor
     assert report["models"]["model2"]["metrics"]["invalid_json_rate"] == 1
-    assert report["models"]["model2"]["metrics"]["accuracy"] == 0
+    assert report["models"]["model2"]["metrics"]["accuracy"] is None
+    assert report["scientific_accuracy"] is False
 
 
 def test_metrics_severe_false_positive_and_no_labels(claim, source):
@@ -94,6 +97,7 @@ def test_metrics_severe_false_positive_and_no_labels(claim, source):
             source=source,
             human_label="SUPPORTED",
             labeled_by="fixture",
+            label_reason="Deterministic synthetic fixture for metric arithmetic only.",
         )
     ]
     predictions = [
