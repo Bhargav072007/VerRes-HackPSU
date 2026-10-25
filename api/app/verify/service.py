@@ -65,15 +65,40 @@ class VerifyService(Verify):
             parsed, internal, self.primary, adjudicator=self.adjudicator, source_passages=parts
         )
         finding = verification.finding
+        configured = {
+            model.model_id: model for model in (self.adjudicator, self.primary) if model is not None
+        }
+        models = [configured[mid] for mid in dict.fromkeys(finding.model_ids) if mid in configured]
+        reason = finding.reason
+        if models:
+            reason += (
+                " Models: "
+                + "; ".join(
+                    f"{m.model_id} (vendor={m.vendor or 'unknown'}, family={m.family})"
+                    for m in models
+                )
+                + "."
+            )
+        if (
+            len(models) == 2
+            and (models[0].vendor or "").strip().casefold()
+            == (models[1].vendor or "").strip().casefold()
+        ):
+            reason += " second-model check (same vendor)."
+        provenance = {
+            "model_id": ", ".join(finding.model_ids) or None,
+            "prompt_version": finding.prompt_version,
+        }
         if finding.status == "NEEDS_REVIEW":
-            return needs_review(citation.id, finding.reason)
+            return needs_review(citation.id, reason).model_copy(update=provenance)
         return SupportResult(
             citation_id=citation.id,
             label=SupportLabel(finding.status),
             mismatch_types=[MismatchType(m) for m in finding.mismatch_types],
             evidence=finding.evidence,
             evidence_strength=finding.evidence_strength,
-            reason=finding.reason,
+            reason=reason,
             adjudicated=finding.status in {"NOT_SUPPORTED", "CONTRADICTED"}
             and len(set(finding.model_ids)) == 2,
+            **provenance,
         )

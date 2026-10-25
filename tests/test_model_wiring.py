@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -47,7 +48,21 @@ def model_case(respx_mock):
         )
 
     route = respx_mock.post("https://api.openai.com/v1/chat/completions").mock(side_effect=respond)
-    return report, route
+    return report, route, responses
+
+
+@pytest.fixture
+def disputed_case(model_case):
+    report, _, responses = model_case
+    report.paper.citations[0].claim_text = "Treatment did not improve outcomes in adults."
+    responses["split"]["claims"][0]["text"] = report.paper.citations[0].claim_text
+    responses["judge"].update(
+        label="CONTRADICTED",
+        reason="The source states improvement, contradicting the claim.",
+        model_id="untrusted-model-id",
+    )
+    responses["adjudicate"] = deepcopy(responses["judge"])
+    return model_case
 
 
 @pytest.fixture
@@ -56,6 +71,8 @@ async def wired_app(monkeypatch, job_pool, request, tmp_path):
     monkeypatch.delenv("STUBS")
     monkeypatch.setenv("MODEL_PRIMARY", config.get("primary", "fixture-primary"))
     monkeypatch.setenv("REVIEW_MODEL", config.get("legacy", "fixture-legacy"))
+    monkeypatch.setenv("MODEL_ADJUDICATOR", config.get("adjudicator", ""))
+    monkeypatch.delenv("ADJUDICATOR_ALLOW_SAME_VENDOR", raising=False)
     monkeypatch.setenv("LLM_INPUT_USD_PER_MILLION", "1")
     monkeypatch.setenv("LLM_OUTPUT_USD_PER_MILLION", "2")
     monkeypatch.setattr(main, "create_pool", AsyncMock(return_value=job_pool))
@@ -94,7 +111,7 @@ async def test_startup_wires_support_graph_panel_and_accounting(
     wired_app, model_case, caplog, expected_model
 ):
     app, client = wired_app
-    report, route = model_case
+    report, route, _ = model_case
     services = app.state.services
     model = services.review.model
     assert model.model_id == expected_model
@@ -102,7 +119,9 @@ async def test_startup_wires_support_graph_panel_and_accounting(
     assert services.backend.verify.primary is services.backend.graph.model is model
     assert services.backend.verify.adjudicator is None
     startup = "\n".join(record.getMessage() for record in caplog.get_records("setup"))
-    assert startup.count(f"model configured: openai/{model.model_id}, adjudicator: none") == 1
+    assert (
+        startup.count(f"model configured: openai/{model.model_id}, adjudicator: openai/none") == 1
+    )
     status = (await client.get("/status")).json()
     assert status["providers"]["model"]["state"] == "CLOSED"
     job_id = await Jobs(app.state.pool).create("model-test", {"sha256": "a" * 64})
@@ -154,7 +173,7 @@ async def test_startup_wires_support_graph_panel_and_accounting(
 )
 async def test_unconfigured_model_is_reviewable(wired_app, model_case, reason, caplog):
     app, client = wired_app
-    report, route = model_case
+    report, route, _ = model_case
     services = app.state.services
     assert services.model_gateway is None and services.review.model is None
     model_status = (await client.get("/status")).json()["providers"]["model"]
@@ -171,7 +190,7 @@ async def test_unconfigured_model_is_reviewable(wired_app, model_case, reason, c
 
 async def test_wired_model_budget_exhaustion_returns_needs_review(wired_app, model_case):
     app, client = wired_app
-    report, route = model_case
+    report, route, _ = model_case
     await Jobs(app.state.pool).record_spend(None, app.state.settings.llm_daily_budget)
     issues = []
     token = provider_issues.set(issues)
@@ -189,7 +208,7 @@ async def test_wired_model_budget_exhaustion_returns_needs_review(wired_app, mod
 
 async def test_wired_model_failures_open_status_breaker(wired_app, model_case):
     app, client = wired_app
-    _, route = model_case
+    _, route, _ = model_case
     route.respond(503)
     gateway = app.state.services.model_gateway
     gateway.attempts = 1
@@ -204,6 +223,99 @@ async def test_wired_model_failures_open_status_breaker(wired_app, model_case):
             task="fixture", system="fixture", data="fixture", schema={}
         )
     assert route.call_count == 3
+
+
+@pytest.mark.parametrize("wired_app", [{"adjudicator": " fixture-adjudicator "}], indirect=True)
+@pytest.mark.parametrize("outcome", ["agree", "disagree", "bad_quote", "supported"])
+async def test_openai_adjudication_and_honest_provenance(wired_app, disputed_case, outcome, caplog):
+    app, client = wired_app
+    report, route, responses = disputed_case
+    if outcome == "supported":
+        responses["judge"]["label"] = "SUPPORTED"
+    elif outcome == "disagree":
+        responses["adjudicate"]["label"] = "SUPPORTED"
+    elif outcome == "bad_quote":
+        responses["adjudicate"]["evidence"][0]["quote"] = "An invented quote about other outcomes."
+    services = app.state.services
+    assert services.adjudicator_model is services.backend.verify.adjudicator
+    assert (
+        services.adjudicator_model.gateway
+        is services.primary_model.gateway
+        is services.model_gateway
+    )
+    result = await services.backend.verify.verify_citation(
+        report.paper.citations[0], report.sources[0]
+    )
+    calls = [json.loads(call.request.content) for call in route.calls]
+    tasks = [call["response_format"]["json_schema"]["name"] for call in calls]
+    assert tasks == ["classify", "split", "judge"] + (
+        [] if outcome == "supported" else ["adjudicate"]
+    )
+    assert all(call["model"] == "fixture-primary" for call in calls[:3])
+    assert result.prompt_version == "v2" and "untrusted-model-id" not in result.model_dump_json()
+    assert "fixture-primary (vendor=openai, family=openai)" in result.reason
+    if outcome == "supported":
+        assert result.label == "SUPPORTED" and not result.adjudicated
+        assert result.model_id == "fixture-primary" and "fixture-adjudicator" not in result.reason
+    else:
+        assert calls[-1]["model"] == "fixture-adjudicator"
+        assert result.model_id == "fixture-primary, fixture-adjudicator"
+        assert "fixture-adjudicator (vendor=openai, family=openai)" in result.reason
+        assert "second-model check (same vendor)" in result.reason
+        assert "independent" not in result.reason
+        assert result.label == ("CONTRADICTED" if outcome == "agree" else "NEEDS_REVIEW")
+        assert result.adjudicated == (outcome == "agree")
+    assert all(e.quote in report.sources[0].passages[0].text for e in result.evidence)
+    status = (await client.get("/status")).json()
+    assert status["models"] == {
+        role: {"model_id": model_id, "vendor": "openai", "family": "openai", "state": "CLOSED"}
+        for role, model_id in (
+            ("primary", "fixture-primary"),
+            ("adjudicator", "fixture-adjudicator"),
+        )
+    }
+    assert len(app.state.pool.usage) == len(calls)
+    assert status["llm"]["spend_usd"] == pytest.approx(len(calls) * 0.005)
+    startup = "\n".join(record.getMessage() for record in caplog.get_records("setup"))
+    assert (
+        "model configured: openai/fixture-primary, adjudicator: openai/fixture-adjudicator"
+        in startup
+    )
+    assert "fixture-private-key" not in startup + caplog.text + json.dumps(status)
+
+
+@pytest.mark.parametrize("wired_app", [{}, {"adjudicator": "fixture-primary"}], indirect=True)
+async def test_unset_or_identical_adjudicator_preserves_review_fallback(wired_app, disputed_case):
+    app, client = wired_app
+    report, route, _ = disputed_case
+    result = await app.state.services.backend.verify.verify_citation(
+        report.paper.citations[0], report.sources[0]
+    )
+    assert result.label == "NEEDS_REVIEW" and not result.adjudicated
+    assert result.model_id == "fixture-primary" and route.call_count == 3
+    assert "second-model check" not in result.reason
+    if app.state.services.adjudicator_model is None:
+        assert (await client.get("/status")).json()["models"]["adjudicator"][
+            "state"
+        ] == "UNCONFIGURED"
+
+
+@pytest.mark.parametrize("wired_app", [{"adjudicator": "fixture-adjudicator"}], indirect=True)
+async def test_adjudicator_uses_primary_daily_budget(wired_app, disputed_case):
+    app, client = wired_app
+    report, route, _ = disputed_case
+    await Jobs(app.state.pool).record_spend(None, 0.035)
+    issues = []
+    token = provider_issues.set(issues)
+    try:
+        result = await app.state.services.backend.verify.verify_citation(
+            report.paper.citations[0], report.sources[0]
+        )
+    finally:
+        provider_issues.reset(token)
+    assert result.label == "NEEDS_REVIEW" and not result.adjudicated
+    assert route.call_count == 3 and issues == ["model: daily budget exhausted"]
+    assert (await client.get("/status")).json()["llm"]["spend_usd"] == 0.05
 
 
 async def test_multiple_origins_and_first_origin_share_link(wired_app):

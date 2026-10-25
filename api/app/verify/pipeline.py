@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from pydantic import ValidationError
 
@@ -19,6 +20,7 @@ from api.app.verify.retrieval import passages, retrieve, retrieve_passages
 def independent_models(primary: Model, adjudicator: Model | None) -> bool:
     if adjudicator is None:
         return False
+    identities = {}
     for name in ("model_id", "family", "vendor"):
         first, second = getattr(primary, name, None), getattr(adjudicator, name, None)
         if (
@@ -26,10 +28,19 @@ def independent_models(primary: Model, adjudicator: Model | None) -> bool:
             or not isinstance(second, str)
             or not first.strip()
             or not second.strip()
-            or first.strip().casefold() == second.strip().casefold()
         ):
             return False
-    return True
+        identities[name] = (first.strip().casefold(), second.strip().casefold())
+    if identities["model_id"][0] == identities["model_id"][1]:
+        return False
+    if identities["vendor"][0] == identities["vendor"][1]:
+        return os.getenv("ADJUDICATOR_ALLOW_SAME_VENDOR", "true").strip().casefold() in {
+            "true",
+            "1",
+            "yes",
+            "on",
+        }
+    return identities["family"][0] != identities["family"][1]
 
 
 async def classify_citations(citations: list[ParsedCitation], model: Model) -> dict[str, str]:
@@ -119,13 +130,13 @@ async def verify_citation(
             continue
         finding = gate(judgment, selected, source, primary.model_id)
         if judgment.label in SEVERE and source.evidence_level == "FULL_TEXT":
-            # Confirm primary evidence BEFORE spending an independent full-source call.
+            # Confirm primary evidence BEFORE spending a second full-source call.
             proposed = gate(judgment, selected, source, primary.model_id, adjudicated=True)
             if proposed.status in SEVERE:
                 if not independent_models(primary, adjudicator):
                     finding = uncertain(
                         source,
-                        "a different-vendor, different-family adjudicator is not configured",
+                        "an eligible adjudicator is not configured (model/vendor/family policy)",
                         [primary.model_id],
                     )
                 else:

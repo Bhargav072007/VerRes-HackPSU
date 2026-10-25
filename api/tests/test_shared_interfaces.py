@@ -203,6 +203,8 @@ async def test_verification_preserves_shared_passage_ids(claim, level):
     assert isinstance(result, SupportResult) and result.label == SupportLabel.SUPPORTED
     assert result.evidence[0].passage_id == source.passages[0].passage_id
     assert result.evidence_strength == "DIRECT" and not result.adjudicated
+    assert result.model_id == primary.model_id and result.prompt_version == "v2"
+    assert f"vendor={primary.vendor}, family={primary.family}" in result.reason
     sent_schema = primary.calls[-1]["schema"]
     assert sent_schema["properties"]["evidence"].pop("maxItems") == 3
     assert sent_schema == Judgment.model_json_schema()
@@ -221,6 +223,9 @@ async def test_public_severe_finding_requires_independent_same_receipts(claim):
     second = FixtureModel({"adjudicate": answer}, model_id="other", family="other-family")
     result = await VerifyService(primary, adjudicator=second).verify_citation(citation, source)
     assert result.label == SupportLabel.CONTRADICTED and result.adjudicated
+    assert result.model_id == f"{primary.model_id}, {second.model_id}"
+    assert f"vendor={second.vendor}, family={second.family}" in result.reason
+    assert "same vendor" not in result.reason
     assert all(e.passage_id == "external-passage-42" for e in result.evidence)
     source.evidence_level = EvidenceLevel.ABSTRACT_ONLY
     result = await VerifyService(primary, adjudicator=second).verify_citation(citation, source)

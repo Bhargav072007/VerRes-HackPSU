@@ -42,6 +42,18 @@ async def status(request: Request):
         for gateway in (getattr(services.backend, "gateway", None), services.model_gateway):
             if gateway and hasattr(gateway, "breaker_states"):
                 result["providers"].update(gateway.breaker_states())
+    result["models"] = {
+        role: {
+            "model_id": model.model_id if model else None,
+            "vendor": model.vendor if model else None,
+            "family": model.family if model else None,
+            "state": result["providers"]["model"]["state"] if model else "UNCONFIGURED",
+        }
+        for role, model in (
+            ("primary", services.primary_model if services else None),
+            ("adjudicator", services.adjudicator_model if services else None),
+        )
+    }
     try:
         if state.event_bus is None:
             raise OSError()
