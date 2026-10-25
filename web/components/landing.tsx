@@ -7,7 +7,7 @@ import { createJob, parseIdentifier, validatePdf, type ApiError } from "@/lib/ap
 import { LandingChrome, StickyNav, receiptNavigate } from "./landing-chrome";
 import { LandingScene } from "./landing-scene";
 import { LandingResults } from "./landing-results";
-import { LandingMethod } from "./landing-method";
+import { LandingStepper } from "./landing-stepper";
 import { MockupImage } from "./mockup-image";
 import { CountOnce, Reveal } from "./editorial-motion";
 import { Brand } from "./brand";
@@ -80,7 +80,7 @@ export function Landing() {
 
 return <main id="main" className="landing polished-page"><LandingChrome /><StickyNav /><LandingScene />
 <section className="trust-band section-container" aria-label="Product facts"><div className="trust-columns"><div><span className="large-numeral"><CountOnce value={productChecks.length} /></span><p>checks per citation</p><div className="tiny-dots" aria-hidden>{productChecks.map(check => <span key={check} />)}</div></div><div><span className="large-numeral"><CountOnce value={scholarlySources.length} /></span><p>scholarly sources</p><div className="tiny-dots" aria-hidden>{scholarlySources.map(source => <span key={source} />)}</div></div>{recordedStats.medianSeconds != null && <div><span className="large-numeral"><CountOnce value={recordedStats.medianSeconds} /><small> s</small></span><p>median review time, recorded runs</p><div className="tiny-bars" aria-hidden><span style={{width:`${Math.min(100,recordedStats.medianSeconds)}%`}} /></div></div>}</div></section>
-<Reveal><LandingMethod /></Reveal>
+<LandingStepper />
 <Reveal><LandingResults /></Reveal>
 <section id="anywhere" className="phone-moment section-container" aria-labelledby="phone-title"><h2 id="phone-title" className="editorial-title">The same evidence, <strong>wherever you read.</strong></h2><MockupImage scene="s2" sizes="(max-width:700px) 80vw, 40vw" alt="The BERT finding and inline reviewer note on a phone" /></section>
 <section id="honesty" className="article-section section-container limitations"><h2 className="editorial-title">What we won’t guess.</h2><p>A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p><ul aria-label="Cases that need review"><li>Source text is unavailable.</li><li>The retrieved abstract does not address the claim.</li><li>The quoted passage cannot be verified.</li><li>The reference identity is ambiguous.</li></ul><p>These findings return <span className="needs-review">Needs review</span>, with the reason available for inspection.</p></section>

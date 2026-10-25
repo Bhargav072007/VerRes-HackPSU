@@ -21,3 +21,19 @@ test("a reference chip never claims support without verified evidence", () => {
   assert.equal(referenceChip(report, "b1"), "NEEDS_REVIEW");
   assert.equal(referenceChip(report, "missing-id"), "NEEDS_REVIEW");
 });
+
+test("stepper demo cards come from the recorded runs", async () => {
+  const { stepperDemo } = await import("../lib/landing-data");
+  assert.deepEqual(stepperDemo.parse.map(l => l.line), [3, 4, 5, 6]);
+  assert.deepEqual(stepperDemo.resolve.map(r => r.label), ["FOUND", "FOUND", "FOUND", "NOT FOUND", "DOI MISMATCH"]);
+  const wakefield = stepperDemo.retraction.find(r => r.retracted)!;
+  assert.match(wakefield.byline, /^Wakefield/);
+  assert.equal(wakefield.year, "2010");
+  assert.equal(wakefield.notice, "https://doi.org/10.1016/s0140-6736%2810%2960175-4");
+  assert.equal(stepperDemo.retraction.filter(r => r.retracted).length, 1);
+  assert.equal(stepperDemo.source.identifier, "arXiv:1810.04805");
+  assert.match(stepperDemo.source.passage!, /^BERT is conceptually simple/);
+  assert.equal(stepperDemo.verify.verdict, "PARTIALLY_SUPPORTED");
+  assert.deepEqual(stepperDemo.review.panel.map(r => [r.id, r.name, r.major, r.minor]), [["R1", "Methods", 3, 0], ["R2", "Claims", 1, 0], ["R3", "Evidence", 4, 0]]);
+  assert.match(stepperDemo.review.areaChair!, /BERT/);
+});
