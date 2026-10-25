@@ -43,7 +43,7 @@ for (const width of [1440, 390]) test(`hidden text, share, exports and provenanc
   await page.getByRole("button", { name: "Share", exact: true }).click();
   expect(posts).toBe(1);
   await page.keyboard.press("Escape");
-  for (const [format, name] of [["json", "Download JSON"], ["md", "Download Markdown receipt"]]) {
+  for (const [format, name] of [["json", "Download JSON"], ["md", "Download Markdown report"]]) {
     await page.route(`**/jobs/paper3/export?format=${format}`, route => route.fulfill({ contentType: format === "json" ? "application/json" : "text/markdown", body: format === "json" ? JSON.stringify(report) : "# VerRes receipt" }));
     await page.getByRole("button", { name: "Export", exact: true }).click();
     await expect(page.getByRole("menuitem", { name })).toHaveAttribute("href", `http://localhost:8000/jobs/paper3/export?format=${format}`);
@@ -79,7 +79,7 @@ test("shared snapshot is read-only, uses token exports, and has an expired state
   await expect(page.getByText("Full paper text is omitted", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Export", exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "Download JSON" })).toHaveAttribute("href", "http://localhost:8000/shares/receipt-token/export?format=json");
-  await expect(page.getByRole("menuitem", { name: "Download Markdown receipt" })).toHaveAttribute("href", "http://localhost:8000/shares/receipt-token/export?format=md");
+  await expect(page.getByRole("menuitem", { name: "Download Markdown report" })).toHaveAttribute("href", "http://localhost:8000/shares/receipt-token/export?format=md");
   await page.keyboard.press("Escape");
   await page.locator('[data-source-id="ref-1"] summary').click();
   await page.getByRole("button", { name: "Open evidence for cite-1", exact: true }).click();

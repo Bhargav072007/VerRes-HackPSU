@@ -1,6 +1,7 @@
 "use client";
+import { usePolishMotion } from "./landing-chrome";
 import { useEffect, useRef, useState, forwardRef } from "react";
-import { motion, useIsPresent, useReducedMotion } from "motion/react";
+import { motion, useIsPresent } from "motion/react";
 import { motionTokens } from "@/lib/motion";
 import { BookOpen, CircleAlert } from "lucide-react";
 
@@ -30,6 +31,6 @@ export function ReportSkeleton({ label = "Loading your report…" }: { label?: s
 }
 
 export const ReportTab = forwardRef<HTMLDivElement, { children: React.ReactNode }>(function ReportTab({ children }, ref) {
-  const present = useIsPresent(), reduced = useReducedMotion();
+  const present = useIsPresent(), reduced = usePolishMotion();
   return <motion.div ref={ref} aria-hidden={!present} inert={!present} initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={reduced ? { duration: 0 } : motionTokens.fade}>{children}</motion.div>;
 });

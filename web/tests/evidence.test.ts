@@ -11,7 +11,7 @@ test("evidence receipts preserve verdicts, exact quotes, specific reasons and sa
     const details = evidenceDetails(report, c);
     assert.equal(details.verdict, ["DOI_MISMATCH", "NOT_FOUND"].includes(evidenceStates[i]) ? "NEEDS_REVIEW" : evidenceStates[i]);
     assert.equal(details.quotes[0].quote, report.support[i].evidence[0].quote);
-    assert.deepEqual(details.links.slice(0, 3).map(l => l.label), ["DOI", "OpenAlex", "Open-access copy / receipt"]);
+    assert.deepEqual(details.links.slice(0, 3).map(l => l.label), ["DOI", "OpenAlex", "Open-access copy / evidence"]);
     assert.equal(details.links.some(l => l.href.startsWith("javascript:")), false);
     assert.equal(details.agreement, i === 2 || i === 3 ? "2 of 2 models agree" : null);
   });

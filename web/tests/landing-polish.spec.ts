@@ -11,8 +11,8 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
     await page.emulateMedia({ reducedMotion });
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
-    await expect(page.locator(".floating-reference")).toHaveCount(12);
-    await expect(page.getByRole("heading", { name: "Proof, not vibes." })).toBeVisible();
+    await expect(page.locator(".manuscript-page")).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "Read your paper like Reviewer 2 would." })).toBeVisible();
     await expect(page).toHaveScreenshot(`landing-${width}-${reducedMotion}.png`, { animations: "disabled", maxDiffPixelRatio: .01 });
     if (width === 390) {
       await page.getByLabel("Navigation menu").click();
@@ -21,12 +21,12 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     }
     if (width === 1440 && reducedMotion === "no-preference") {
-      const before = await page.locator(".floating-reference").first().evaluate(node => getComputedStyle(node).transform);
+      const before = await page.locator(".manuscript-sequence").evaluate(node => getComputedStyle(node).getPropertyValue("--beat-1"));
       await page.evaluate(() => window.scrollTo({ top: 850, behavior: "instant" }));
-      await expect.poll(() => page.locator(".floating-reference").first().evaluate(node => getComputedStyle(node).transform)).not.toBe(before);
+      await expect.poll(() => page.locator(".manuscript-sequence").evaluate(node => getComputedStyle(node).getPropertyValue("--beat-1"))).not.toBe(before);
       await page.screenshot({ path: info.outputPath("references-become-report.png") });
     } else {
-      await expect(page.locator(".floating-reference").first()).toHaveCSS("transform", "none");
+      await expect(page.locator(".retracted-stamp")).toHaveCSS("transform", "none");
       await expect(page.locator(".hero-stage")).toHaveCSS("position", "relative");
     }
     await page.locator("#submit").scrollIntoViewIfNeeded();
@@ -38,8 +38,8 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
     await page.getByLabel("arXiv ID or DOI", { exact: true }).fill("");
     await page.locator("#honesty").scrollIntoViewIfNeeded();
     await expect(page.locator(".honesty-card")).toBeVisible();
-    await expect(page.locator(".honesty-card")).toContainText("NEEDS_REVIEW");
-    await expect(page.locator(".unblur")).toHaveCSS("filter", reducedMotion === "reduce" ? "none" : "blur(0px)");
+    await expect(page.locator(".honesty-card")).toContainText("NEEDS REVIEW");
+    await expect(page.locator(".hidden-instruction")).toHaveCSS("filter", "blur(0px)");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.route("**/jobs/d9-polish", route => route.fulfill({ json: { events: journal.slice(0, 31) } }));
     await page.route("**/jobs/d9-polish/events", route => route.fulfill({ contentType: "text/event-stream", body: "retry: 60000\n\n" }));
@@ -67,8 +67,8 @@ test("D9 flags uncertain results, preserves receipts and honors the in-app motio
   await page.goto("/");
   await page.evaluate(() => { document.documentElement.dataset.a11yMotion = "reduce"; });
   await expect(page.locator(".hero-scene")).toHaveAttribute("data-static", "");
-  await expect(page.locator(".floating-reference").first()).toHaveCSS("transform", "none");
-  await expect(page.locator(".source-card").first()).toHaveCSS("animation-name", "none");
+  await expect(page.locator(".retracted-stamp")).toHaveCSS("transform", "none");
+  await expect(page.locator(".manuscript-claim path")).toHaveCSS("animation-name", "none");
 });
 
 test("D9 upload connects the shared card to the live header", async ({ page }) => {

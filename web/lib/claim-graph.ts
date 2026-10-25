@@ -42,11 +42,11 @@ export function claimGraph(report: Report) {
   for (const [i, e] of (report.claim_map?.edges ?? []).entries()) {
     const source = nodes.find(n => n.id === `claim:${e.source_id}`), target = nodes.find(n => n.id === `claim:${e.target_id}`);
     if (!source || !target) { unlinked = true; continue; }
-    edges.push({ id: `relationship:${i}`, source: source.id, target: target.id, type: "receipt", data: { label: `${source.data.label} → ${target.data.label}`, kind: "Relationship", verdict: "NEEDS_REVIEW", receipts: [...source.data.receipts, ...target.data.receipts], note: `${e.relation.replaceAll("_", " ")}: ${e.reason} This relationship has no citation support verdict. Needs review. Receipts below describe its linked citations.` }, style: { strokeDasharray: "5 5" } });
+    edges.push({ id: `relationship:${i}`, source: source.id, target: target.id, type: "receipt", data: { label: `${source.data.label} → ${target.data.label}`, kind: "Relationship", verdict: "NEEDS_REVIEW", receipts: [...source.data.receipts, ...target.data.receipts], note: `${e.relation.replaceAll("_", " ")}: ${e.reason} This relationship has no citation support verdict. Needs review. Evidence below describes its linked citations.` }, style: { strokeDasharray: "5 5" } });
   }
   const layout = new dagre.graphlib.Graph({ multigraph: true }).setGraph({ rankdir: "LR", ranksep: 110, nodesep: 32 }).setDefaultEdgeLabel(() => ({}));
   nodes.forEach(n => layout.setNode(n.id, { width: 250, height: 150 }));
   edges.forEach(e => layout.setEdge(e.source, e.target, {}, e.id));
   dagre.layout(layout);
-  return { nodes: nodes.map(n => { const p = layout.node(n.id); return { ...n, focusable: true, draggable: false, ariaRole: "button", ariaLabel: `${n.data.kind}: ${n.data.label}. Open receipts`, position: { x: p.x - 125, y: p.y - 75 } }; }), edges: edges.map(e => ({ ...e, focusable: true, ariaRole: "button", ariaLabel: `${e.data!.kind}: ${e.data!.label}. ${e.data!.verdict?.replaceAll("_", " ").toLowerCase()}. Open receipt` })), unlinked };
+  return { nodes: nodes.map(n => { const p = layout.node(n.id); return { ...n, focusable: true, draggable: false, ariaRole: "button", ariaLabel: `${n.data.kind}: ${n.data.label}. Open evidence`, position: { x: p.x - 125, y: p.y - 75 } }; }), edges: edges.map(e => ({ ...e, focusable: true, ariaRole: "button", ariaLabel: `${e.data!.kind}: ${e.data!.label}. ${e.data!.verdict?.replaceAll("_", " ").toLowerCase()}. Open evidence` })), unlinked };
 }

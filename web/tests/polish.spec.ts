@@ -19,8 +19,8 @@ for (const width of [1440, 390]) {
       for (const [name, url] of [["landing", "/"], ["live", "/check/polish-live"], ["report", "/report/polish-report"]]) {
         await page.goto(url);
         await page.evaluate(() => document.fonts.ready);
-        await expect(page).toHaveTitle("VerRes — proof, not vibes");
-        await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "VerRes — proof, not vibes");
+        await expect(page).toHaveTitle("VerRes — read your paper like Reviewer 2 would");
+        await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "VerRes — read your paper like Reviewer 2 would");
         if (name === "live") {
           await expect(page.locator('[data-chip="Verified"]')).toHaveCount(3);
           await expect(page.getByText("Happening now")).toBeVisible();
@@ -40,7 +40,7 @@ for (const width of [1440, 390]) {
           await page.setViewportSize({ width, height: 600 });
           const tabs = page.getByRole("tablist", { name: "Report views" });
           await tabs.evaluate(node => window.scrollTo({ top: window.scrollY + node.getBoundingClientRect().top + 50, behavior: "instant" }));
-          await expect.poll(() => tabs.evaluate(node => Math.round(node.getBoundingClientRect().top))).toBe(84);
+          await expect.poll(() => tabs.evaluate(node => Math.round(node.getBoundingClientRect().top))).toBe(width === 390 ? 158 : 174);
           for (const tab of await page.getByRole("tab").all()) {
             await tab.click();
             await expect(page.getByRole("tabpanel")).toBeVisible();

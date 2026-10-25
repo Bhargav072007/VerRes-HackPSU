@@ -14,14 +14,14 @@ body:has(.report-root) > header {display:none}
 .report-root .check-row {animation:msg-in var(--motion-base) var(--ease-out-soft) both}
 .report-root [role=tab]::after {display:none}
 .report-root .tab-indicator {position:absolute;bottom:-7px;left:8px;right:8px;height:2px;background:var(--ink)}
-.report-root .reader-paragraph {position:relative;max-width:70ch;font-size:18px;line-height:1.75;scroll-margin-top:250px}
+.report-root .reader-paragraph {position:relative;max-width:70ch;font-size:var(--reader-size,18px);line-height:var(--reader-leading,1.75);font-family:var(--reader-font,var(--font-source-serif));scroll-margin-top:250px}
 .report-root .paragraph-number {position:absolute;right:calc(100% + 16px);top:6px;width:18px;white-space:nowrap;text-align:right;font:10px/2 var(--font-inter);color:var(--stone);user-select:none}
 .report-root .cited-text {text-decoration-line:underline;text-decoration-color:var(--verdict-color);text-decoration-thickness:2px;text-underline-offset:5px;text-decoration-skip-ink:none}
 .report-root .citation-mark {scroll-margin-top:250px}
 .report-root .citation-mark:hover {background:var(--cloud)}
-.report-root .citation-preview {pointer-events:none;position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);width:min(280px,70vw);padding:16px;border:1px solid var(--border);border-radius:12px;background:white;box-shadow:var(--shadow-2);font:12px/1.6 var(--font-inter);text-align:left;color:var(--ink);max-height:280px;overflow:hidden;opacity:0;visibility:hidden;z-index:25;transition:opacity var(--motion-fast)}
+.report-root .citation-preview {pointer-events:none;position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);width:min(280px,70vw);padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-2);font:12px/1.6 var(--font-inter);text-align:left;color:var(--ink);max-height:280px;overflow:hidden;opacity:0;visibility:hidden;z-index:25;transition:opacity var(--motion-fast)}
 .report-root .citation-mark:is(:hover,:focus-visible) .citation-preview {opacity:1;visibility:visible}
-.report-root [data-flash=true] {animation:cl-flash 1s var(--ease-out-soft)}
+.report-root [data-flash=true] {animation:cl-flash .36s var(--ease-out-soft)}
 .report-root .compact-header {position:fixed;inset:calc(var(--report-nav-bottom) + 12px) 24px auto;max-width:1104px;margin:auto;z-index:35;border:1px solid var(--border);border-radius:9999px;background:#fffffff5;box-shadow:var(--shadow-1);overflow:hidden;transition:transform var(--motion-base) var(--ease-standard),opacity var(--motion-base) var(--ease-standard)}
 .report-root .report-floating-actions {position:fixed;top:calc(var(--report-nav-bottom) + 26px);right:max(48px,calc((100vw - 1104px)/2 + 24px));z-index:36}
 .report-root .report-tabs {top:calc(var(--report-nav-bottom) + 12px)}
@@ -36,7 +36,7 @@ body:has(.report-root) > header {display:none}
 .report-root .verdict-chip[data-critical=true],.report-overlay .verdict-chip[data-critical=true] {animation:msg-in var(--motion-fast) var(--ease-standard)}
 .report-root .xray-panel {border:1px solid var(--border);border-radius:10px;background:repeating-linear-gradient(0deg,#1b1b1903 0px,#1b1b1903 1px,transparent 1px,transparent 4px),var(--snow);padding:16px}
 .report-root .report-skeleton {position:relative;overflow:hidden;background:var(--cloud);border-radius:8px}
-.report-root .report-skeleton::after {content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffffb3,transparent);animation:report-shimmer 1.4s infinite;transform:translateX(-100%)}
+.report-root .report-skeleton::after {content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffffb3,transparent);animation:report-shimmer .36s both;transform:translateX(-100%)}
 .report-root .review-receipts[open] > div {animation:msg-in var(--motion-base) var(--ease-out-soft)}
 .report-root .graph-node {animation:settle var(--motion-slow) var(--ease-out-soft) both}
 .report-root .graph-edge {animation:report-edge .36s var(--ease-standard) both}
@@ -49,7 +49,7 @@ body:has(.report-root) > header {display:none}
 @keyframes panel-out {to {opacity:0;transform:translateX(16px)}}
 @keyframes modal-in {from {opacity:0;transform:translateY(8px)}to {opacity:1;transform:none}}
 @keyframes chip-in {0% {opacity:0;transform:scale(.9)}65% {transform:scale(1.06)}100% {opacity:1;transform:none}}
-@keyframes cl-flash {from {background-color:var(--brass-tint)}to {background-color:transparent}}
+@keyframes cl-flash {from {opacity:.55}to {opacity:1}}
 @keyframes report-fade {from {opacity:0}to {opacity:1}}
 @keyframes report-shimmer {to {transform:translateX(100%)}}
 @keyframes report-edge {from {stroke-dashoffset:1}to {stroke-dashoffset:0}}

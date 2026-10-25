@@ -11,6 +11,9 @@ import {
   ScanText,
   Quote,
   Network,
+  BookOpen,
+  ShieldCheck,
+  Eye,
   CircleAlert,
   LoaderCircle,
 } from "lucide-react";
@@ -23,7 +26,10 @@ import {
 } from "@/lib/api";
 import { motionTokens } from "@/lib/motion";
 import { LandingChrome, receiptNavigate, usePolishMotion } from "./landing-chrome";
-import { LandingScene, DemoStats } from "./landing-scene";
+import { LandingScene } from "./landing-scene";
+
+import { LandingResults } from "./landing-results";
+import { Brand } from "./brand";
 
 const samples = [
   ["Attention Is All You Need", "paper1_attention.pdf"],
@@ -32,21 +38,12 @@ const samples = [
 ] as const;
 
 const features = [
-  {
-    icon: ScanText,
-    title: "Check the references.",
-    text: "Trace citations to real sources and check for retractions.",
-  },
-  {
-    icon: Quote,
-    title: "Follow the evidence.",
-    text: "Test claims against sources, with verbatim quotes you can inspect.",
-  },
-  {
-    icon: Network,
-    title: "See the whole paper.",
-    text: "Map the claims, hear a review panel, and flag hidden prompts.",
-  },
+  { icon: BookOpen, title: "Reference existence", text: "Resolve each citation through Crossref, OpenAlex, and arXiv.", diagram: "Citation → bibliographic record" },
+  { icon: ShieldCheck, title: "Retraction history", text: "Check whether a cited work has been retracted, with a link to the notice.", diagram: "Record → retraction notice" },
+  { icon: Quote, title: "Claim support", text: "Compare a claim with a verbatim passage verified against the source.", diagram: "Claim ↔ source passage" },
+  { icon: Network, title: "Claim graph", text: "Inspect connections between claims, assumptions, and cited evidence.", diagram: "Claim → evidence → claim" },
+  { icon: ScanText, title: "Peer-review panel", text: "Read three reviewer perspectives and the area chair’s priorities.", diagram: "Methods · claims · evidence → chair" },
+  { icon: Eye, title: "Hidden instructions", text: "Flag concealed or instruction-like text for human inspection.", diagram: "Manuscript → text and styling" },
 ];
 
 export function Landing() {
@@ -117,11 +114,13 @@ export function Landing() {
     >
       <LandingChrome />
       <LandingScene />
-      <div className="section-container"><DemoStats /></div>
-      <section id="submit" data-section="01 · UPLOAD" className="section-container numbered-section" aria-labelledby="upload-heading">
-        <span className="section-number" aria-hidden="true">01</span>
-        <div className="section-heading" data-enter><div><p className="section-pill">● 01 · Upload</p><h2 id="upload-heading">Your paper.<br />A second look.</h2></div><p>Bring the work you care about.<br />We’ll follow the references, inspect the claims, and <strong>leave a trail you can check.</strong></p></div>
-        <div className="upload-grid"><aside className="upload-aside" data-enter><p className="eyebrow">BEFORE THE NEXT SUBMISSION</p><h3>Careful work deserves<br />a careful review.</h3><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p><ol><li><span>01</span>Upload a PDF or paste an identifier.</li><li><span>02</span>Follow each check as it happens.</li><li><span>03</span>Open the findings. Inspect the receipts.</li></ol><p className="privacy-note"><LockKeyhole size={13} /> Private. Deleted after 7 days.</p></aside>
+      <section id="abstract" data-section="1 · ABSTRACT" className="article-section section-container"><div className="article-section-title" data-enter><span>1</span><h2>Abstract</h2></div><p className="abstract-text" data-enter>A reference can exist without supporting the sentence that cites it. VerRes reads the space between the two: the identity of a source, the passage it contains, and the limits of the claim. <em>Every finding links to its evidence.</em></p></section>
+      <section id="how-it-works" data-section="2 · METHODS" className="article-section section-container" aria-labelledby="checks-heading"><div className="article-section-title" data-enter><span>2</span><h2 id="checks-heading">Methods</h2></div><p className="section-intro">Six checks, each with a record you can inspect.</p><div className="methods-grid">{features.map(({ icon: Icon, title, text, diagram }) => <article key={title} data-enter><Icon size={19} strokeWidth={1.4} /><h3>{title}</h3><p>{text}</p><div className="inline-diagram">{diagram}</div></article>)}</div></section>
+      <LandingResults />
+      <section id="honesty" data-section="4 · LIMITATIONS" className="article-section section-container" aria-labelledby="honesty-heading"><div className="article-section-title" data-enter><span>4</span><h2 id="honesty-heading">Limitations</h2></div><div className="limitations-grid"><div><h3 className="font-serif text-3xl">What we <em>won’t guess.</em></h3><p className="section-intro">A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p></div><article className="honesty-card" data-enter><div><p className="eyebrow">WHEN EVIDENCE IS INSUFFICIENT</p><h3>Needs review</h3><p>We could not retrieve enough source text to verify this claim.</p></div><div><span className="status-pill blue"><CircleAlert size={13} /> NEEDS REVIEW</span><p>Inspect the full paper and cited passage before submission.</p></div></article></div></section>
+      <section id="submit" data-section="5 · SUBMIT" className="article-section section-container" aria-labelledby="upload-heading">
+        <div className="article-section-title" data-enter><span>5</span><h2 id="upload-heading">Submit</h2></div>
+        <div className="upload-grid"><aside className="upload-aside" data-enter><p className="eyebrow">BEFORE THE NEXT SUBMISSION</p><h3>Careful work deserves<br />a careful review.</h3><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p><ol><li><span>01</span>Upload a PDF or paste an identifier.</li><li><span>02</span>Follow each check as it happens.</li><li><span>03</span>Open the findings. Inspect the evidence.</li></ol><p className="privacy-note"><LockKeyhole size={13} /> Private. Deleted after 7 days.</p></aside>
       <form
         onSubmit={submit}
         className="upload-form"
@@ -138,7 +137,7 @@ export function Landing() {
               Give your paper a second look.
             </h2>
             <span className="text-[9px] tracking-[.14em] text-muted-foreground">
-              01 / SUBMIT
+              SUBMIT
             </span>
           </div>
           <div
@@ -298,12 +297,7 @@ export function Landing() {
       </form>
 
       </div></section>
-      <section id="how-it-works" data-section="02 · THE CHECKS" className="white-sheet numbered-section" aria-labelledby="checks-heading">
-        <div className="section-container"><span className="section-number" aria-hidden="true">02</span><div className="section-heading" data-enter><div><p className="section-pill">● 02 · The checks</p><h2 id="checks-heading">Every finding.<br />A paper trail.</h2></div><p>A reference should exist. A source should support the claim. <strong>You should be able to see exactly why.</strong></p></div>
-        <div className="feature-grid">{features.map(({ icon: Icon, title, text }, i) => <article className="feature-card crosshair" key={title} data-enter style={{ transitionDelay: `${i * 80}ms` }}><div><Icon size={22} strokeWidth={1.3} /><span className="eyebrow">0{i + 1}</span></div><h3>{title}</h3><p>{text}</p><span className="feature-receipt">↳ Evidence included</span></article>)}</div></div>
-      </section>
-      <section id="honesty" data-section="03 · OUR PRINCIPLE" className="section-container numbered-section honesty-section" aria-labelledby="honesty-heading"><span className="section-number" aria-hidden="true">03</span><div className="section-heading" data-enter><div><p className="section-pill">● 03 · Our principle</p><h2 id="honesty-heading" className="unblur">What we<br />won’t guess.</h2></div><p>Missing evidence is a reason to pause.<br /><strong>Receipts, not scores.</strong> Every verdict explains what we found — and what we couldn’t verify.</p></div><article className="honesty-card crosshair" data-enter><div><p className="eyebrow">ILLUSTRATIVE FINDING / CLAIM 04</p><h3>Does the source support this claim?</h3><p>We couldn’t retrieve the full source text. The abstract alone isn’t enough to verify this claim.</p></div><div><span className="status-pill blue">? NEEDS_REVIEW</span><p>Next step: inspect the full paper and the cited passage before submission.</p></div></article></section>
-      <footer className="landing-footer"><div className="section-container"><div className="footer-top"><div><p className="section-pill">A LITTLE SCRUTINY GOES A LONG WAY</p><h2>Submit with receipts.</h2></div><a className="pill-button" href="#submit">Review your paper <ArrowRight size={15} /></a></div><div className="footer-meta"><span>VerRes · Research deserves a second look.</span><a href="#honesty">Receipts, not scores.</a></div></div><span className="footer-wordmark" aria-hidden="true">VerRes</span></footer>
+      <footer className="journal-colophon section-container"><Brand lockup /><div><p className="eyebrow">VERRES · PRE-SUBMISSION REVIEW</p><p>Every finding links to its evidence.</p><p>Set in Inter, Source Serif 4, and Sora.</p><p>Data sources: Crossref, OpenAlex, arXiv, PubMed, Retraction Watch.</p><a href="#submit">Review your paper <ArrowRight size={13} /></a></div></footer>
     </main>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Menu } from "lucide-react";
+import { ArrowRight, Menu } from "lucide-react";
 
+import { Brand } from "./brand";
 const motionSnapshot = () => matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.a11yMotion === "reduce";
 const motionServerSnapshot = () => true;
 function subscribeMotion(update: () => void) {
@@ -41,7 +42,7 @@ export function LandingChrome({ live = false, report = false }: { live?: boolean
     document.dispatchEvent(new Event("verres:route-ready"));
     return () => { cancelAnimationFrame(frame); observer.disconnect(); removeEventListener("scroll", scroll); removeEventListener("resize", scroll); };
   }, [live, report]);
-  return <header className="polish-nav"><Link className="polish-brand" href="/" aria-label="VerRes home"><BookOpen size={23} strokeWidth={1.5} /><strong>VerRes</strong><span className="beta-tag">BETA</span></Link><span className="nav-section">{section}</span><nav aria-label="Main navigation"><Link href="/#submit" aria-current={!report && section.startsWith("01") ? "location" : undefined}>Upload</Link><Link href="/#how-it-works" aria-current={!report && section.startsWith("02") ? "location" : undefined}>The checks</Link><Link href="/#honesty" aria-current={!report && section.startsWith("03") ? "location" : undefined}>Our principle</Link></nav><details className="polish-menu"><summary aria-label="Navigation menu"><Menu size={15} /> Menu</summary><nav aria-label="Mobile navigation" onClick={event => { if ((event.target as HTMLElement).closest("a")) event.currentTarget.closest("details")?.removeAttribute("open"); }}><Link href="/#submit">Upload a paper</Link><Link href="/#how-it-works">The checks</Link><Link href="/#honesty">Our principle</Link></nav></details><Link className="pill-button" href="/#submit">Start a review <ArrowRight size={13} /></Link><span ref={progress} className="nav-progress" /></header>;
+  return <header className="polish-nav"><Link className="polish-brand" href="/" aria-label="VerRes home"><Brand /><span className="beta-tag">BETA</span></Link><span className="nav-section">{section}</span><nav aria-label="Main navigation"><Link href="/#submit" aria-current={!report && section.startsWith("5") ? "location" : undefined}>Upload</Link><Link href="/#how-it-works" aria-current={!report && section.startsWith("2") ? "location" : undefined}>The checks</Link><Link href="/#honesty" aria-current={!report && section.startsWith("4") ? "location" : undefined}>Our principle</Link></nav><details className="polish-menu"><summary aria-label="Navigation menu"><Menu size={15} /> Menu</summary><nav aria-label="Mobile navigation" onClick={event => { if ((event.target as HTMLElement).closest("a")) event.currentTarget.closest("details")?.removeAttribute("open"); }}><Link href="/#submit">Upload a paper</Link><Link href="/#how-it-works">The checks</Link><Link href="/#honesty">Our principle</Link></nav></details><Link className="pill-button" href="/#submit">Start a review <ArrowRight size={13} /></Link><span ref={progress} className="nav-progress" /></header>;
 }
 
 export function receiptNavigate(push: (href: string) => void, href: string) {

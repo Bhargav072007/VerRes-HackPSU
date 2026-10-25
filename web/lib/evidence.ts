@@ -28,7 +28,7 @@ export function evidenceDetails(report: Report, citation: Citation) {
       || (source?.evidence_level === "ABSTRACT_ONLY" ? "Abstract only: full text needed" : null)
       || (support?.label === "NEEDS_REVIEW" ? support.reason : null)
       || (incomplete ? "Verified source quotes are missing or could not be matched. Inspect the source." : null)
-      || support?.reason || pendingCheck || "Claim support check incomplete. Inspect the available receipts.";
+      || support?.reason || pendingCheck || "Claim support check incomplete. Inspect the available evidence.";
   const urls = [...(existence?.receipt_urls ?? []), ...(retraction?.notice_urls ?? []), source?.url, source?.source_url, support?.source_url].filter((url): url is string => typeof url === "string");
   const doi = report.paper?.references?.find(r => r.id === citation.reference_id)?.doi;
   if (doi) urls.unshift(`https://doi.org/${doi}`);
@@ -36,7 +36,7 @@ export function evidenceDetails(report: Report, citation: Citation) {
     try {
       const url = new URL(href);
       if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return [];
-      const label = /^(dx\.)?doi\.org$/.test(url.hostname) ? "DOI" : /^(api\.)?openalex\.org$/.test(url.hostname) ? "OpenAlex" : retraction?.notice_urls?.includes(href) ? "Retraction notice" : "Open-access copy / receipt";
+      const label = /^(dx\.)?doi\.org$/.test(url.hostname) ? "DOI" : /^(api\.)?openalex\.org$/.test(url.hostname) ? "OpenAlex" : retraction?.notice_urls?.includes(href) ? "Retraction notice" : "Open-access copy / evidence";
       return [{ href, label }];
     } catch { return []; }
   });

@@ -13,7 +13,7 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: "Proof, not vibes." }),
+      page.getByRole("heading", { name: "Read your paper like Reviewer 2 would." }),
     ).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await expect(page.locator("[data-reveal]").last()).toHaveCSS(

@@ -18,7 +18,7 @@ for (const width of [1440, 390]) test(`peer review fixture at ${width}px: chair,
     const card = page.getByRole("region", { name });
     await expect(card.getByLabel("1 major · 0 minor", { exact: true })).toBeVisible();
     if (width === 390) await expect(card).toHaveCSS("transform", "none");
-    await card.getByText("Receipts (1)").click();
+    await card.getByText("Evidence (1)").click();
     await expect(card.getByRole("blockquote")).toBeVisible();
   }
   await expect(page.getByRole("region", { name: "R2 Evidence" })).toContainText("cite-2");

@@ -24,7 +24,7 @@ export function EvidencePanel({ report, citationId, onClose, shared = false }: {
           else document.querySelector<HTMLButtonElement>(`[data-citation-id="${CSS.escape(citationId || lastCitation)}"]`)?.focus({ preventScroll: true });
         }} className="report-overlay evidence-panel fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l bg-background sm:max-w-[820px]">
             <header className="flex shrink-0 items-center justify-between border-b bg-white px-6 py-5 sm:rounded-tl-xl sm:px-8">
-              <div><Dialog.Title className="font-serif text-2xl">Evidence receipt</Dialog.Title><Dialog.Description className="mt-1 text-xs text-muted-foreground">Follow the claim to its source.</Dialog.Description></div>
+              <div><Dialog.Title className="font-serif text-2xl">Evidence details</Dialog.Title><Dialog.Description className="mt-1 text-xs text-muted-foreground">Follow the claim to its source.</Dialog.Description></div>
               <Dialog.Close aria-label="Close evidence" className="rounded-md border p-2.5"><X size={18} /></Dialog.Close>
             </header>
             <div key={citation.id} className="min-h-0 overflow-y-auto overscroll-contain px-6 py-6 sm:px-8">
@@ -57,7 +57,7 @@ export function EvidencePanel({ report, citationId, onClose, shared = false }: {
               <Provenance label="Claim check" value={data.support} />
               <Provenance label="Citation check" value={report.existence?.find(e => e.reference_id === citation.reference_id)} />
               <Provenance label="Retraction check" value={report.retractions?.find(e => e.reference_id === citation.reference_id)} />
-              <nav aria-label="Evidence links" className="mt-6 space-y-2 border-t pt-5">{data.links.map(({ href, label }) => <a key={href} href={href} target="_blank" rel="noreferrer" className="flex items-start justify-between gap-3 rounded-lg border bg-white p-3 text-xs"><span className="min-w-0"><span className="font-medium">{label}</span><span className="mt-1 block break-all text-[10px] text-muted-foreground">{href}</span></span><ArrowUpRight size={14} className="shrink-0" /></a>)}{!data.links.length && <p className="text-xs text-muted-foreground">No receipt links available.</p>}</nav>
+              <nav aria-label="Evidence links" className="mt-6 space-y-2 border-t pt-5">{data.links.map(({ href, label }) => <a key={href} href={href} target="_blank" rel="noreferrer" className="flex items-start justify-between gap-3 rounded-lg border bg-white p-3 text-xs"><span className="min-w-0"><span className="font-medium">{label}</span><span className="mt-1 block break-all text-[10px] text-muted-foreground">{href}</span></span><ArrowUpRight size={14} className="shrink-0" /></a>)}{!data.links.length && <p className="text-xs text-muted-foreground">No evidence links available.</p>}</nav>
             </div>
         </Dialog.Content>
       </Dialog.Portal>}
