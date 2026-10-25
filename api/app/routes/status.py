@@ -35,6 +35,9 @@ async def status(request: Request):
         "reason": None,
     }
     services = state.services
+    result["providers"]["model"]["reason"] = (
+        services.model_unconfigured_reason if services else "model not configured"
+    )
     if services:
         for gateway in (getattr(services.backend, "gateway", None), services.model_gateway):
             if gateway and hasattr(gateway, "breaker_states"):

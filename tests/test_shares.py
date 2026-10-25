@@ -76,7 +76,7 @@ async def test_share_lifecycle_and_private_projection(
     token = created["token"]
     assert len(token) == 22 and token != str(receipt)
     assert set(created) == {"token", "url", "expires_at"}
-    assert created["url"] == f"http://test/shares/{token}"
+    assert created["url"] == f"http://localhost:3000/shares/{token}"
     expires = datetime.fromisoformat(created["expires_at"])
     assert (
         timedelta(days=30) - timedelta(seconds=2) < expires - datetime.now(UTC) < timedelta(days=30)

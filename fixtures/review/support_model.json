@@ -1,0 +1,17 @@
+{
+  "classify": {"items": [{"citation_id": "cite-1", "function": "SPECIFIC_CLAIM"}]},
+  "split": {
+    "ambiguous": false,
+    "claims": [{
+      "text": "Treatment improved outcomes in adults.",
+      "subject_or_population": "adults",
+      "exposure_or_intervention": "treatment",
+      "outcome": "outcomes",
+      "direction": "increase",
+      "magnitude": null,
+      "relation": "causal",
+      "hedge": "definite",
+      "scope_or_time": null
+    }]
+  }
+}

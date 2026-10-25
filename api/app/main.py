@@ -64,6 +64,13 @@ async def lifespan(app: FastAPI):
 def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="VerRes", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings or Settings()
+    app.state.frontend_origins = list(
+        dict.fromkeys(
+            origin.strip().rstrip("/")
+            for origin in app.state.settings.frontend_origin.split(",")
+            if origin.strip().rstrip("/")
+        )
+    ) or ["http://localhost:3000"]
     app.state.event_bus = None
     app.state.tasks = set()
     app.state.services = None
@@ -72,7 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.demo_fixture = os.getenv("DEMO_FIXTURE", "0") == "1"
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=list({"http://localhost:3000", app.state.settings.frontend_origin}),
+        allow_origins=list(dict.fromkeys([*app.state.frontend_origins, "http://localhost:3000"])),
         allow_methods=["GET", "POST", "DELETE"],
         allow_headers=["Content-Type", "Last-Event-ID"],
     )
