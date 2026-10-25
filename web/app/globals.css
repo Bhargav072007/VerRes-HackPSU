@@ -324,3 +324,6 @@ html[data-reader-theme=dark] .verdict-chip{background:#FAF9F6}html[data-reader-t
 .phone-parallax,.phone-rise{will-change:transform}.phone-rise .mockup-image{max-height:820px;width:auto;max-width:100%;margin-left:auto}
 @media(max-width:700px){.phone-moment{grid-template-columns:1fr;gap:28px;padding-block:60px}.phone-moment .editorial-title,.phone-moment .editorial-title strong{font-size:36px}}
 @media(prefers-reduced-motion:reduce){.phone-parallax,.phone-rise{transform:none!important}}html[data-a11y-motion=reduce] :is(.phone-parallax,.phone-rise){transform:none!important}
+.upload-content{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}.upload-slip{display:grid;gap:40px;align-content:start}.upload-slip>div>p{font-size:18px;max-width:40ch;margin-top:24px}
+.dot-matrix{display:flex;flex-direction:column;min-height:520px}.dot-matrix canvas{flex:1;width:100%;min-height:0;display:block}.dot-matrix figcaption{margin-top:14px;font:14px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#c5c1b9}
+@media(max-width:700px){.upload-content{grid-template-columns:1fr}.dot-matrix{min-height:260px}}

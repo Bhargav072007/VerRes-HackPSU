@@ -11,6 +11,7 @@ import { LandingStepper } from "./landing-stepper";
 import { LandingPhone } from "./landing-phone";
 import { BlurHeading, CountOnce, Reveal } from "./editorial-motion";
 import { Brand } from "./brand";
+import { DotMatrix } from "./dot-matrix";
 import { recordedStats, productChecks, scholarlySources } from "@/lib/landing-data";
 const samples = [
   ["Attention Is All You Need", "paper1_attention.pdf"],
@@ -84,7 +85,7 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Stick
 <Reveal><LandingResults /></Reveal>
 <LandingPhone />
 <section id="honesty" className="article-section section-container limitations"><BlurHeading className="editorial-title">What we won’t guess.</BlurHeading><p>A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p><ul aria-label="Cases that need review"><li>Source text is unavailable.</li><li>The retrieved abstract does not address the claim.</li><li>The quoted passage cannot be verified.</li><li>The reference identity is ambiguous.</li></ul><p>These findings return <span className="needs-review">Needs review</span>, with the reason available for inspection.</p></section>
-<section id="submit" className="upload-band" aria-labelledby="upload-heading"><div className="upload-content section-container"><div><h2 id="upload-heading">Careful work deserves<br />a careful review.</h2><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p></div>      <form
+<section id="submit" className="upload-band" aria-labelledby="upload-heading"><div className="upload-content section-container"><div className="upload-slip"><div><h2 id="upload-heading">Careful work deserves<br />a careful review.</h2><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p></div>      <form
         onSubmit={submit}
         className="upload-form"
         aria-label="Submit a paper"
@@ -241,5 +242,5 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Stick
             ),
           )}
         </div>
-      </form></div></section><footer className="journal-colophon section-container"><Brand /><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></footer></main>;
+      </form></div><DotMatrix /></div></section><footer className="journal-colophon section-container"><Brand /><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></footer></main>;
 }
