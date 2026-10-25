@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     grobid_url: str = "http://127.0.0.1:8070"
     anthropic_api_key: SecretStr | None = None
     openai_api_key: SecretStr | None = None
+    model_primary: str | None = None
+    model_adjudicator: str | None = None
+    review_model: str | None = None
     gemini_api_key: SecretStr | None = None
     openalex_api_key: SecretStr | None = None
     crossref_mailto: str | None = None

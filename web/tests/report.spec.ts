@@ -36,7 +36,7 @@ for (const width of [1440, 390]) test(`completed report at ${width}px: filters, 
   await page.locator('[data-source-id="ref-2"] summary').click();
   await expect(page.locator('[data-source-id="ref-2"]').getByRole("blockquote")).toContainText("children were not enrolled.");
   await page.screenshot({ path: info.outputPath(`problems-${width}.png`), fullPage: true });
-  await page.getByRole("button", { name: "Needs review", exact: true }).click();
+  await page.getByRole("button", { name: "Unresolved", exact: true }).click();
   await expect(page.locator("[data-source-id]")).toHaveCount(1);
   await expect(page.locator('[data-citation-id="cite-3"]')).toBeVisible();
   await page.getByRole("button", { name: "All", exact: true }).click();

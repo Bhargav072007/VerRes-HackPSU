@@ -1,4 +1,4 @@
-import { citationVerdict, verifiedEvidence, type Citation, type Report } from "./report";
+import { citationDisplayVerdict, citationVerdict, verifiedEvidence, type Citation, type Report } from "./report";
 
 export const getFlag = () => new URLSearchParams(window.location.search).get("flag") || "";
 export function subscribeFlag(change: () => void) {
@@ -46,5 +46,5 @@ export function evidenceDetails(report: Report, citation: Citation) {
   const said = (text?: string | null) => (text ?? "").trim().toLowerCase().replace(/[.\s]+$/, "");
   const reasons = [verdict === "NOT_FOUND" ? "Not found in Crossref, OpenAlex or arXiv." : reason || "Claim support check incomplete. Needs review.", existence?.reason]
     .filter((text, i, all): text is string => !!text?.trim() && said(text) !== said(needsReview) && all.findIndex(other => said(other) === said(text)) === i);
-  return { verdict, quotes, source, support, reason, reasons, needsReview, links, agreement, mismatches: [...(support?.mismatch_types ?? []), ...(existence?.discrepancies ?? [])] };
+  return { verdict, displayVerdict: citationDisplayVerdict(report, citation), quotes, source, support, reason, reasons, needsReview, links, agreement, mismatches: [...(support?.mismatch_types ?? []), ...(existence?.discrepancies ?? [])] };
 }

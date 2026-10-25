@@ -6,7 +6,7 @@ import hashlib
 from api.app.providers.boundary import parsed_reference, receipt_urls, reference_work
 from api.app.providers.http import Gateway
 from api.app.resolve.existence import agrees, combine_works
-from api.app.sources.acquire import acquire_source
+from api.app.sources.acquire import PARTIAL_PDF_SECTION, acquire_source
 from api.app.verify.retrieval import passages
 from contracts.interfaces import Sources
 from contracts.schema import (
@@ -63,7 +63,14 @@ class SourceService(Sources):
                 reason=acquired.reason,
             )
         chunks = passages(acquired.text) if acquired.evidence_level == "FULL_TEXT" else []
-        public_passages = [SourcePassage(passage_id=p.id, text=p.text) for p in chunks]
+        public_passages = [
+            SourcePassage(
+                passage_id=p.id,
+                text=p.text,
+                section=PARTIAL_PDF_SECTION if not acquired.whole_source else None,
+            )
+            for p in chunks
+        ]
         if acquired.abstract:
             public_passages.append(
                 SourcePassage(passage_id="abstract", text=acquired.abstract, section="Abstract")

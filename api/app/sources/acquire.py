@@ -18,9 +18,13 @@ from api.app.providers.metadata import normalize_doi
 from api.app.providers.models import Work
 from api.app.resolve.existence import agrees, metadata_mismatch, normalize, title_similarity
 
+PARTIAL_PDF_PREFIX = "Partial PDF text coverage: "
+PARTIAL_PDF_SECTION = "Extracted text (partial coverage)"
+
 
 class Source(Record):
     work_id: str
+    whole_source: bool = True
     evidence_level: Literal["FULL_TEXT", "ABSTRACT", "NONE"]
     text: str = ""
     abstract: str | None = None
@@ -54,22 +58,22 @@ def abstract_text(work: Work) -> str | None:
     return " ".join(tokens[i] for i in range(len(tokens)))
 
 
-def extract_full_pdf(data: bytes, work: Work) -> str | None:
+def extract_pdf_text(data: bytes, work: Work) -> Source | None:
     if not valid_pdf(data) or len(data) > MAX_BYTES:
         return None
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             if not pdf.pages or len(pdf.pages) > 2000:
                 return None
-            # A text layer can contain only running headers while the actual study
-            # is rasterized/outlined. Without OCR/vision, graphical PDFs cannot establish
-            # whole-source coverage. Use the real abstract or abstain instead.
-            if any(page.images or page.curves or page.rects for page in pdf.pages):
-                return None
+            # Figures do not invalidate extracted prose, but they prevent whole-source
+            # absence claims. A page containing only a running header is not usable text.
+            graphical = any(page.images or page.curves or page.rects for page in pdf.pages)
             pages = [page.extract_text() or "" for page in pdf.pages]
             # Blank/scanned pages mean text coverage cannot justify whole-source negatives.
-            if any(not page.strip() for page in pages):
+            word_counts = [len(re.findall(r"\w+", page)) for page in pages]
+            if not any(count >= 12 for count in word_counts):
                 return None
+            partial = graphical or any(count < 8 for count in word_counts)
             value = "\n\n".join(pages)
             if len(value) > 2_000_000:
                 return None
@@ -79,9 +83,26 @@ def extract_full_pdf(data: bytes, work: Work) -> str | None:
                 rf"\b{re.escape(normalize(work.authors[0]))}\b", normalize(value[:2000])
             ):
                 return None
-            return value
+            return Source(
+                work_id=work.id,
+                evidence_level="FULL_TEXT",
+                text=value,
+                whole_source=not partial,
+                reason=(
+                    PARTIAL_PDF_PREFIX + "some pages or graphical content may be missing; "
+                    "absence cannot be established."
+                )
+                if partial
+                else "metadata-selected PDF; title and first author matched",
+            )
     except PDF_ERRORS:
         return None
+
+
+def extract_full_pdf(data: bytes, work: Work) -> str | None:
+    """Compatibility helper for callers that require complete text coverage."""
+    extracted = extract_pdf_text(data, work)
+    return extracted.text if extracted and extracted.whole_source else None
 
 
 async def pubmed_abstract(doi: str, gateway: Gateway) -> str | None:
@@ -131,16 +152,14 @@ async def acquire_source(
     for url in dict.fromkeys(urls):
         response = await gateway.safe_fetch(url)
         if not response.error and response.status == 200:
-            value = await asyncio.to_thread(extract_full_pdf, response.content, work)
-            if value:
-                return Source(
-                    work_id=work.id,
-                    evidence_level="FULL_TEXT",
-                    text=value,
-                    abstract=abstract,
-                    abstract_origin=abstract_origin,
-                    origin=url,
-                    reason="metadata-selected PDF; title and first author matched",
+            extracted = await asyncio.to_thread(extract_pdf_text, response.content, work)
+            if extracted:
+                return extracted.model_copy(
+                    update={
+                        "abstract": abstract,
+                        "abstract_origin": abstract_origin,
+                        "origin": url,
+                    }
                 )
             reasons.append("PDF text coverage or identity could not be verified")
         else:

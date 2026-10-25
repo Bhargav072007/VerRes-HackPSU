@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Dialog } from "radix-ui";
 import { ArrowUpRight, FileSearch, Users, X } from "lucide-react";
 import { VerdictBadge } from "@/components/verdict-badge";
+import { sourceEvidenceLabel } from "@/lib/review-outcome";
 import { evidenceDetails } from "@/lib/evidence";
 import type { Report } from "@/lib/report";
 import { Provenance } from "./provenance";
@@ -29,7 +30,7 @@ export function EvidencePanel({ report, citationId, onClose, shared = false }: {
               <Dialog.Close aria-label="Close evidence" className="rounded-md border p-2.5"><X size={18} /></Dialog.Close>
             </header>
             <div key={citation.id} className="min-h-0 overflow-y-auto overscroll-contain px-6 py-6 sm:px-8">
-              <div className="flex flex-wrap items-center gap-2"><VerdictBadge status={data.verdict} />{data.mismatches.map((m, i) => <span key={i} className="rounded-md border bg-white px-2 py-1 text-xs text-muted-foreground">{m.replaceAll("_", " ").toLowerCase()}</span>)}</div>
+              <div className="flex flex-wrap items-center gap-2"><VerdictBadge status={data.displayVerdict} />{data.mismatches.map((m, i) => <span key={i} className="rounded-md border bg-white px-2 py-1 text-xs text-muted-foreground">{m.replaceAll("_", " ").toLowerCase()}</span>)}</div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>Reference</span><VerdictBadge status={report.existence?.find(e => e.reference_id === citation.reference_id)?.status} /><span>Retraction</span><VerdictBadge status={report.retractions?.find(e => e.reference_id === citation.reference_id)?.status} /></div>
               {data.needsReview && <p role="status" className="mt-4 rounded-md border bg-white p-4 text-sm font-medium leading-6">{data.needsReview}</p>}
               <p className="source-identifier">{reference?.doi ? `DOI ${reference.doi}` : reference?.arxiv_id ? `arXiv:${reference.arxiv_id}` : "Source identifier unavailable"}</p><div className="mt-6 grid items-start gap-4 md:grid-cols-2"><section className="rounded-md border bg-white p-5">
@@ -45,10 +46,10 @@ export function EvidencePanel({ report, citationId, onClose, shared = false }: {
                 <h3 className="mb-4 text-xs font-medium  text-muted-foreground">The source says</h3>
                 {quotes.map((e, i) => <figure key={i} className="mt-4 first:mt-0">
                   <blockquote className="font-serif text-lg leading-8">“<span data-quote-sweep className="matched-span">{e.quote}</span>”</blockquote>
-                  <figcaption className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1 rounded-md border px-2 py-1"><FileSearch size={12} />{data.source?.evidence_level === "FULL_TEXT" ? "Full text" : data.source?.evidence_level === "ABSTRACT_ONLY" ? "Abstract only" : "Metadata only"}</span><span>{data.quotes.includes(e) ? "Verified verbatim" : "Reported quote · source passages omitted"} · {e.passage_id}</span></figcaption>
+                  <figcaption className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1 rounded-md border px-2 py-1"><FileSearch size={12} />{sourceEvidenceLabel(data.source)}</span><span>{data.quotes.includes(e) ? "Verified verbatim" : "Reported quote · source passages omitted"} · {e.passage_id}</span></figcaption>
                   <Provenance label="Quote" value={e} />
                 </figure>)}
-                {!data.quotes.length && <p className="text-sm leading-6 text-muted-foreground">{quotes.length ? "Source passages are omitted from shared reports. Quotes cannot be verified here. Needs review." : "No verified source quote available. Needs review."}</p>}
+                {!data.quotes.length && <p className="text-sm leading-6 text-muted-foreground">{quotes.length ? "Source passages are omitted from shared reports. Quotes cannot be verified here. Needs review." : "No verified source quote was returned for this check."}</p>}
               </section>
               </div>{!!data.reasons.length && <><h3 className="mt-7 text-xs font-medium  text-muted-foreground">Why this verdict</h3>
               {data.reasons.map((text, i) => <p key={text} className={i ? "mt-3 text-xs leading-6 text-muted-foreground" : "mt-3 text-sm leading-6"}>{text}</p>)}</>}

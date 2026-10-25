@@ -63,6 +63,12 @@ def gate(
         return uncertain(source, "source evidence is unavailable", [model_id])
     if len(judgment.evidence) > 3:
         return uncertain(source, "judge returned more than three evidence quotes", [model_id])
+    if judgment.label == "NOT_SUPPORTED" and not source.whole_source:
+        return uncertain(
+            source,
+            "extracted text cannot establish absence; complete source coverage needed",
+            [model_id],
+        )
     if judgment.label == "NOT_SUPPORTED" and source.evidence_level == "ABSTRACT":
         return uncertain(
             source, "abstract does not address this claim; full text unavailable", [model_id]

@@ -165,6 +165,16 @@ class JSONGatewayModel:
         )
         if result.error or result.status != 200:
             code = f"HTTP_{result.status}" if result.status is not None else "TRANSPORT_FAILURE"
+            if result.error:
+                for marker, failure_code in (
+                    ("daily budget exhausted", "BUDGET_EXHAUSTED"),
+                    ("accounting", "BUDGET_UNAVAILABLE"),
+                    ("usage unavailable", "BUDGET_UNAVAILABLE"),
+                    ("circuit open", "CIRCUIT_OPEN"),
+                ):
+                    if marker in result.error:
+                        code = failure_code
+                        break
             raise ModelFailure("model service failed", code=code)
         try:
             choice = result.json()["choices"][0]

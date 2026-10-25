@@ -1,10 +1,11 @@
 import type { components, paths } from "./api-types";
+import { informationalOutcomes, reviewOutcome, type ReviewOutcome } from "./review-outcome";
 import { readReview } from "./review";
 
 type Snapshot = paths["/jobs/{job_id}"]["get"]["responses"][200]["content"]["application/json"];
 export type Report = Pick<Snapshot, "paper" | "existence" | "retractions" | "sources" | "support" | "claim_map" | "status" | "reason" | "review" | "review_comments" | "hidden_text" | "stages">;
 export type Citation = components["schemas"]["Citation"];
-export type Filter = "All" | "Problems only" | "Needs review";
+export type Filter = "All" | "Problems only" | "Needs review" | "Unresolved";
 export type Verdict = components["schemas"]["SupportLabel"] | "NOT_FOUND" | "DOI_MISMATCH" | "RETRACTED";
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown) => v == null || typeof v === "string";
@@ -51,7 +52,7 @@ export function referenceVerdict(report: Report, id: string): Verdict {
   const retraction = report.retractions?.find(r => r.reference_id === id)?.status;
   if (retraction === "RETRACTED") return "RETRACTED";
   if (existence === "NOT_FOUND" || existence === "DOI_MISMATCH") return existence;
-  return existence === "VERIFIED" ? "SUPPORTED" : "NEEDS_REVIEW";
+  return ["VERIFIED", "VERIFIED_WITH_DISCREPANCIES"].includes(existence || "") ? "SUPPORTED" : "NEEDS_REVIEW";
 }
 
 export function verifiedEvidence(report: Report, citation: Citation) {
@@ -72,8 +73,17 @@ export function citationSupportVerdict(report: Report, citation: Citation): comp
     && !!support.evidence?.length && verifiedEvidence(report, citation).length === support.evidence.length ? support.label : "NEEDS_REVIEW";
 }
 
-export function matchesFilter(verdicts: Verdict[], filter: Filter) {
-  return filter === "All" || verdicts.some(v => filter === "Needs review" ? v === "NEEDS_REVIEW" : v !== "SUPPORTED");
+export function citationDisplayVerdict(report: Report, citation: Citation): Verdict | ReviewOutcome {
+  const verdict = citationVerdict(report, citation);
+  if (verdict !== "NEEDS_REVIEW") return verdict;
+  const existence = report.existence?.find(e => e.reference_id === citation.reference_id)?.status;
+  if (existence === "NOT_FOUND" || existence === "DOI_MISMATCH") return existence;
+  return reviewOutcome(report.support?.find(s => s.citation_id === citation.id));
+}
+
+export function matchesFilter(verdicts: (Verdict | ReviewOutcome)[], filter: Filter) {
+  const unresolved = ["NEEDS_REVIEW", "CHECK_INCOMPLETE", "SECOND_CHECK_PENDING", "INSUFFICIENT_EVIDENCE"];
+  return filter === "All" || verdicts.some(v => (filter === "Needs review" || filter === "Unresolved") ? unresolved.includes(v) : v !== "SUPPORTED" && !informationalOutcomes.includes(v));
 }
 
 export function reportCounts(report: Report) {
@@ -82,5 +92,5 @@ export function reportCounts(report: Report) {
     report.existence?.filter(e => e.status === "DOI_MISMATCH").length ?? 0,
     report.retractions?.filter(r => r.status === "RETRACTED").length ?? 0,
     citations.filter(c => ["PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED"].includes(citationSupportVerdict(report, c))).length,
-    refs.filter(r => referenceVerdict(report, r.id) === "NEEDS_REVIEW" || citations.some(c => c.reference_id === r.id && citationVerdict(report, c) === "NEEDS_REVIEW")).length];
+    refs.filter(r => referenceVerdict(report, r.id) === "NEEDS_REVIEW" || citations.some(c => c.reference_id === r.id && ["NEEDS_REVIEW", "CHECK_INCOMPLETE", "SECOND_CHECK_PENDING", "INSUFFICIENT_EVIDENCE"].includes(citationDisplayVerdict(report, c)))).length];
 }

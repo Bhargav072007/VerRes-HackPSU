@@ -92,3 +92,32 @@ def test_provider_schema_keeps_optional_provenance_application_owned():
     assert strict_schema(SourceDocument.model_json_schema())["properties"]["evidence_level"] != {
         "type": "null"
     }
+
+
+@pytest.mark.parametrize(
+    "detail,code",
+    [
+        ("model daily budget exhausted", "BUDGET_EXHAUSTED"),
+        ("model accounting storage unavailable", "BUDGET_UNAVAILABLE"),
+        ("model usage unavailable; budget cannot be enforced", "BUDGET_UNAVAILABLE"),
+        ("model: circuit open; retry after 60s", "CIRCUIT_OPEN"),
+    ],
+)
+async def test_model_failures_preserve_safe_operational_codes(detail, code):
+    from unittest.mock import AsyncMock
+
+    from api.app.providers.models import HTTPResult
+
+    async with Gateway({"model": Policy("https://model.example", 100, 1, 1)}) as gateway:
+        gateway.request = AsyncMock(return_value=HTTPResult(error=detail))
+        model = JSONGatewayModel(
+            gateway,
+            provider="model",
+            model_id="fixture",
+            family="fixture",
+            api_key="fixture",
+            max_input_chars=1000,
+        )
+        with pytest.raises(ModelFailure) as caught:
+            await model.complete(task="r3_claims", system="", data="", schema={})
+        assert caught.value.code == code

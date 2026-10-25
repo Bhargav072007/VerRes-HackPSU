@@ -50,7 +50,7 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
         await page.getByRole("button", { name: "Problems only", exact: true }).click();
         await expect(page.locator('[data-citation-id="c00001"]')).toHaveCount(0);
         await expect(page.locator('[data-citation-id="c00003"]')).toBeVisible();
-        await page.getByRole("button", { name: "Needs review", exact: true }).click();
+        await page.getByRole("button", { name: "Unresolved", exact: true }).click();
         await expect(page.locator('[data-citation-id="c00003"]')).toHaveCount(0);
         await page.getByRole("button", { name: "All", exact: true }).click();
       } else {

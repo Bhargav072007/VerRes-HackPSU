@@ -29,7 +29,7 @@ for (const width of [1440, 390]) test(`peer review fixture at ${width}px: chair,
     await expect(page.locator(`[id="${target}"]`)).toBeFocused();
     await expect(page.locator(`[id="${target}"]`)).toBeInViewport();
     await expect(page.locator(`[id="${target}"]`)).toHaveAttribute("data-highlighted", "true");
-    await page.getByRole("button", { name: "Needs review", exact: true }).click();
+    await page.getByRole("button", { name: "Unresolved", exact: true }).click();
     await page.getByRole("tab", { name: "Peer review" }).click();
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
