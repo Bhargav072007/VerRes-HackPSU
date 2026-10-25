@@ -1,7 +1,8 @@
 import type { components, paths } from "./api-types";
+import { readReview } from "./review";
 
 type Snapshot = paths["/jobs/{job_id}"]["get"]["responses"][200]["content"]["application/json"];
-export type Report = Pick<Snapshot, "paper" | "existence" | "retractions" | "sources" | "support" | "status" | "reason">;
+export type Report = Pick<Snapshot, "paper" | "existence" | "retractions" | "sources" | "support" | "status" | "reason" | "review" | "review_comments" | "hidden_text" | "stages">;
 export type Citation = components["schemas"]["Citation"];
 export type Filter = "All" | "Problems only" | "Needs review";
 export type Verdict = components["schemas"]["SupportLabel"] | "NOT_FOUND" | "DOI_MISMATCH" | "RETRACTED";
@@ -22,7 +23,7 @@ export function decodeReport(value: unknown): Report | null {
     || !list(value.retractions, r => typeof r.reference_id === "string" && typeof r.status === "string" && text(r.reason) && strings(r.notice_urls))
     || !list(value.sources, s => typeof s.reference_id === "string" && ["FULL_TEXT", "ABSTRACT_ONLY", "METADATA_ONLY"].includes(String(s.evidence_level)) && text(s.reason) && list(s.passages, p => typeof p.passage_id === "string" && typeof p.text === "string"))
     || !list(value.support, s => typeof s.citation_id === "string" && typeof s.label === "string" && text(s.reason) && text(s.needs_review_reason) && strings(s.mismatch_types) && (s.adjudicated === undefined || typeof s.adjudicated === "boolean") && list(s.evidence, e => typeof e.passage_id === "string" && typeof e.quote === "string"))) return null;
-  return value as Report;
+  return { ...value, ...readReview(value) } as Report;
 }
 
 export function replayReport(events: unknown[]): Report | null {

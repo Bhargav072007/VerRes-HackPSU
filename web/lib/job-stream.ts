@@ -1,4 +1,5 @@
 import type { components } from "./api-types";
+import { isReviewComment, isReviewSummary } from "./review";
 
 type Schema = components["schemas"];
 export type JobEvent = Schema["SSEEvent"] & { payload: { provenance?: { cached_at: string } } };
@@ -25,6 +26,8 @@ export function decodeEvent(value: unknown): JobEvent | null {
     : value.type === "existence" ? string(p.reference_id) && string(p.reason) && ["VERIFIED", "VERIFIED_WITH_DISCREPANCIES", "DOI_MISMATCH", "AMBIGUOUS", "NOT_FOUND", "UNCHECKABLE", "CHECK_INCOMPLETE"].includes(String(p.status))
     : value.type === "retraction" ? string(p.reference_id) && string(p.reason) && ["NONE", "RETRACTED", "EXPRESSION_OF_CONCERN", "CORRECTED", "UNKNOWN"].includes(String(p.status))
     : value.type === "support" ? string(p.citation_id) && string(p.reason) && ["SUPPORTED", "PARTIALLY_SUPPORTED", "NOT_SUPPORTED", "CONTRADICTED", "NEEDS_REVIEW"].includes(String(p.label)) && (p.label === "NEEDS_REVIEW" || (Array.isArray(p.evidence) && p.evidence.length > 0 && p.evidence.every(e => object(e) && string(e.quote) && string(e.passage_id))))
+    : value.type === "review" ? isReviewComment(p)
+    : value.type === "review_summary" ? isReviewSummary(p)
     : value.type === "error" ? string(p.reason)
     : value.type === "done" ? ["COMPLETE", "NEEDS_REVIEW", "CHECK_INCOMPLETE"].includes(String(p.status))
     : eventTypes.includes(value.type as typeof eventTypes[number]);
