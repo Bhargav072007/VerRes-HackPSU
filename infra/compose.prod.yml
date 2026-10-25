@@ -13,6 +13,11 @@ services:
       DATA_DIR: /data
       GIT_SHA: ${GIT_SHA:-dev}
       DEMO_FIXTURE: ${DEMO_FIXTURE:-0}
+      # Only Caddy may supply client addresses; never trust the whole network.
+      FORWARDED_ALLOW_IPS: 172.30.0.2
+    networks:
+      default:
+      proxy:
     volumes:
       - api_data:/data
       - ../fixtures/demo:/app/fixtures/demo:ro
@@ -42,6 +47,9 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    networks:
+      proxy:
+        ipv4_address: 172.30.0.2
     environment:
       API_DOMAIN: ${API_DOMAIN:?Set API_DOMAIN in .env}
     ports:
@@ -53,6 +61,11 @@ services:
       - caddy_config:/config
     depends_on:
       - api
+networks:
+  proxy:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
 volumes:
   api_data:
   postgres_data:

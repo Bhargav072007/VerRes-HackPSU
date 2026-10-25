@@ -56,6 +56,7 @@ async def run_migrations(pool: asyncpg.Pool, directory: Path = MIGRATIONS) -> No
 class JobFailure(Contract):
     code: str
     message: str
+    retry_after_seconds: int | None = None
 
 
 EVENTS = TypeAdapter(SSEEvent)
@@ -74,8 +75,9 @@ def cache_key(job_input):
 class Jobs:
     """The event journal is the durable source for A2 snapshots and streams."""
 
-    def __init__(self, pool: asyncpg.Pool):
+    def __init__(self, pool: asyncpg.Pool, settings: Settings | None = None):
         self.pool = pool
+        self.settings = settings or Settings()
 
     async def create(
         self,
@@ -111,11 +113,34 @@ class Jobs:
                 "count(*) FILTER (WHERE status = 'RUNNING') AS running FROM jobs",
                 client_ip,
             )
-            if (not cached and not exempt_hourly and counts["hourly"] >= 5) or (
-                running and counts["running"] >= 3
+            limit = self.settings.jobs_per_hour_per_ip
+            allowlist = {ip.strip() for ip in self.settings.rate_limit_allowlist.split(",")}
+            if (
+                not cached
+                and not exempt_hourly
+                and client_ip not in allowlist
+                and counts["hourly"] >= limit
             ):
+                retry = await connection.fetchval(
+                    "SELECT GREATEST(1, CEIL(EXTRACT(EPOCH FROM "
+                    "(created_at + interval '1 hour' - now()))))::int FROM jobs "
+                    "WHERE client_ip = $1 AND replay_of IS NULL "
+                    "AND created_at > now() - interval '1 hour' "
+                    "ORDER BY created_at DESC OFFSET $2 LIMIT 1",
+                    client_ip,
+                    limit - 1,
+                )
                 return JobFailure(
-                    code="rate_limited", message="Job limit reached; try again later."
+                    code="rate_limited",
+                    message=f"Hourly limit of {limit} new jobs per IP reached; "
+                    f"retry in {retry} seconds. Cached jobs remain available.",
+                    retry_after_seconds=retry,
+                )
+            if running and counts["running"] >= 3:
+                return JobFailure(
+                    code="rate_limited",
+                    message="Three jobs are already running; retry in 60 seconds.",
+                    retry_after_seconds=60,
                 )
             job_id = uuid4()
             await connection.execute(

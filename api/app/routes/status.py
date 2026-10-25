@@ -20,6 +20,7 @@ async def status(request: Request):
         "pipeline_version": version.PIPELINE_VERSION,
         "demo_fixture": state.demo_fixture,
         "jobs_last_hour": None,
+        "jobs_per_hour_per_ip": state.settings.jobs_per_hour_per_ip,
         "avg_duration_seconds": None,
         "providers": {
             name: {"state": "UNCONFIGURED"} for name in ("crossref", "openalex", "arxiv", "model")

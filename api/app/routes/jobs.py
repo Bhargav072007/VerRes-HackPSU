@@ -73,14 +73,20 @@ class JobSnapshot(Report):
     review_comments: list[ReviewComment] = Field(default_factory=list)
 
 
-def error(code, message):
+def error(code, message, retry_after_seconds=None):
     status = {
         "rate_limited": 429,
         "job_not_found": 404,
         "pdf_too_large": 413,
         "CHECK_INCOMPLETE": 503,
     }.get(code, 400)
-    return JSONResponse(JobFailure(code=code, message=message).model_dump(), status_code=status)
+    failure = JobFailure(
+        code=code,
+        message=message,
+        retry_after_seconds=(retry_after_seconds or 60) if status == 429 else None,
+    )
+    headers = {"Retry-After": str(failure.retry_after_seconds)} if status == 429 else None
+    return JSONResponse(failure.model_dump(exclude_none=True), status_code=status, headers=headers)
 
 
 def save_pdf(data: bytes, data_dir: Path):
@@ -233,7 +239,7 @@ async def create_job(request: Request, fresh: bool = False):
         if row["status"] in ("QUEUED", "RUNNING"):
             request.app.state.runner.start(result)
     return (
-        error(result.code, result.message)
+        error(result.code, result.message, result.retry_after_seconds)
         if isinstance(result, JobFailure)
         else Accepted(job_id=result)
     )
@@ -348,7 +354,7 @@ async def fake_job(request: Request):
         exempt_hourly=request.app.state.settings.env == "dev",
     )
     if isinstance(job_id, JobFailure):
-        return error(job_id.code, job_id.message)
+        return error(job_id.code, job_id.message, job_id.retry_after_seconds)
     task = asyncio.create_task(run_fake_job(bus, job_id))
     request.app.state.tasks.add(task)
     task.add_done_callback(request.app.state.tasks.discard)

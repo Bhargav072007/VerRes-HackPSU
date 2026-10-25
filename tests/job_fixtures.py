@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import math
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
@@ -187,6 +188,19 @@ class FixturePool:
 
     async def fetchval(self, sql, *args):
         self.sql.append(sql)
+        if "SELECT GREATEST(1, CEIL" in sql:
+            now = datetime.now(UTC)
+            recent = sorted(
+                (
+                    row["created_at"]
+                    for row in self.rows.values()
+                    if row["client_ip"] == args[0]
+                    and not row.get("replay_of")
+                    and row["created_at"] > now - timedelta(hours=1)
+                ),
+                reverse=True,
+            )
+            return max(1, math.ceil((recent[args[1]] + timedelta(hours=1) - now).total_seconds()))
         if "SELECT EXISTS (SELECT 1 FROM jobs" in sql:
             return args[0] in self.rows
         if "FROM share_creations" in sql:

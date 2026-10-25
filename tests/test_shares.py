@@ -236,6 +236,9 @@ def test_share_openapi_and_generated_schema():
     # Agent D owns the generated web artifact. Explicitly allow A7's additive
     # backend fields/routes while keeping every preexisting schema checked.
     compatible = json.loads(json.dumps(schema))
+    failure = compatible["components"]["schemas"]["JobFailure"]
+    assert "retry_after_seconds" not in failure["required"]
+    failure["properties"].pop("retry_after_seconds")
     assert set(compatible["paths"].pop("/status")) == {"get"}
     parameters = compatible["paths"]["/jobs"]["post"].pop("parameters")
     assert [parameter["name"] for parameter in parameters] == ["fresh"]
