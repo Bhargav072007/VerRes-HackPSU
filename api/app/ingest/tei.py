@@ -12,14 +12,11 @@ from api.app.ingest.models import (
     ParsedSentence,
     ParseResult,
 )
+from api.app.providers.identifiers import extract_arxiv, normalize_arxiv
 
 NS = "{http://www.tei-c.org/ns/1.0}"
 XML_ID = "{http://www.w3.org/XML/1998/namespace}id"
 DOI = re.compile(r"\b10\.\d{4,9}/[^\s<>\"\]]+", re.I)
-ARXIV = re.compile(
-    r"(?:arxiv[:\s/]+|arxiv\.org/(?:abs|pdf)/)(\d{4}\.\d{4,5}(?:v\d+)?|[a-z-]+/\d{7}(?:v\d+)?)",
-    re.I,
-)
 PMID = re.compile(r"(?:PMID\s*[:=]?\s*|pubmed\.ncbi\.nlm\.nih\.gov/)(\d+)", re.I)
 
 
@@ -28,14 +25,14 @@ def text(node) -> str:
 
 
 def identifiers(value: str) -> dict[str, str | None]:
-    doi, arxiv, pmid = DOI.search(value), ARXIV.search(value), PMID.search(value)
+    doi, pmid = DOI.search(value), PMID.search(value)
     doi_value = doi.group().rstrip(".,;").lower() if doi else None
     if doi_value:
         while doi_value.endswith(")") and doi_value.count(")") > doi_value.count("("):
             doi_value = doi_value[:-1]
     return {
         "doi": doi_value,
-        "arxiv": arxiv.group(1) if arxiv else None,
+        "arxiv": extract_arxiv(value),
         "pmid": pmid.group(1) if pmid else None,
     }
 
@@ -81,7 +78,7 @@ def parse_tei(data: bytes) -> ParseResult:
             if kind == "doi":
                 ids["doi"] = identifiers(value)["doi"]
             elif kind in ("arxiv", "pmid"):
-                ids[kind] = value or None
+                ids[kind] = normalize_arxiv(value) if kind == "arxiv" else value or None
         paper.references.append(
             ParsedReference(
                 id=ref_id,

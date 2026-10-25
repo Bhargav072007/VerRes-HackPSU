@@ -1,18 +1,20 @@
 """Explicit conversions between extraction details and A1's frozen public schema."""
 
+import re
 from urllib.parse import quote
 
 import httpx
 
 from api.app.ingest.models import ParsedReference
+from api.app.providers.identifiers import extract_arxiv, normalize_arxiv
 from api.app.providers.metadata import normalize_doi
 from api.app.providers.models import Work
 from contracts.schema import Reference
 
 
 def parsed_reference(reference: Reference) -> ParsedReference:
-    # A1 deliberately has no venue, PMID or work-type fields. Do not infer index
-    # coverage from a DOI alone: books/software can have DOIs too.
+    arxiv = normalize_arxiv(reference.arxiv_id) or extract_arxiv(reference.raw_text)
+    kind = "preprint" if arxiv else reference_kind(reference)
     return ParsedReference(
         id=reference.id,
         raw=reference.raw_text,
@@ -20,9 +22,24 @@ def parsed_reference(reference: Reference) -> ParsedReference:
         authors=reference.authors,
         year=reference.year,
         doi=normalize_doi(reference.doi) or reference.doi,
-        arxiv=reference.arxiv_id,
-        kind="preprint" if reference.arxiv_id else "unknown",
+        arxiv=arxiv or reference.arxiv_id,
+        kind=kind,
     )
+
+
+def reference_kind(reference: Reference) -> str:
+    """Infer journal coverage only from explicit venue + volume/issue/page syntax."""
+    if not reference.title or not reference.authors or not reference.year:
+        return "unknown"
+    parts = re.split(re.escape(reference.title), reference.raw_text, flags=re.I)
+    tail = parts[-1] if len(parts) > 1 else ""
+    if re.search(r"\b(?:ISBN|Press|publisher|chapter)\b", tail, re.I):
+        return "book"
+    if re.search(r"https?://(?!doi\.org)|\b(?:accessed|retrieved)\b", tail, re.I):
+        return "website"
+    if re.search(r"[A-Za-z][^.;]*[,;]\s*\d+\s*\(\d+\)\s*[:,]\s*\d+\s*[-–]\s*\d+", tail):
+        return "journal-article"
+    return "unknown"
 
 
 def public_reference(reference: ParsedReference) -> Reference:
@@ -33,7 +50,7 @@ def public_reference(reference: ParsedReference) -> Reference:
         authors=reference.authors,
         year=reference.year,
         doi=reference.doi,
-        arxiv_id=reference.arxiv,
+        arxiv_id=normalize_arxiv(reference.arxiv),
     )
 
 
