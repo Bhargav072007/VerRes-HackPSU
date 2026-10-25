@@ -194,6 +194,33 @@ async def resolve_reference(
                 candidates=ranked,
                 providers_checked=checked,
             )
+    # Some proceedings have no DOI-index result but are available as arXiv papers.
+    if arxiv is not None and ref.title and not ref.arxiv:
+        alternate = await arxiv.search(ref.title)
+        results.append(alternate)
+        checked = list(dict.fromkeys([*checked, alternate.provider]))
+        alternatives = sorted(alternate.works, key=lambda w: score(ref, w), reverse=True)
+        if (
+            alternatives
+            and agrees(ref, alternatives[0])
+            and (
+                len(alternatives) == 1
+                or score(ref, alternatives[0]) - score(ref, alternatives[1]) >= 0.10 - 1e-9
+            )
+        ):
+            return ExistenceResult(
+                status="FOUND",
+                reason="arXiv title and bibliographic metadata agree",
+                work=alternatives[0],
+                providers_checked=checked,
+            )
+        if alternatives and score(ref, alternatives[0]) >= 0.75:
+            return ExistenceResult(
+                status="AMBIGUOUS",
+                reason="arXiv title candidates need disambiguation",
+                candidates=[*ranked, *alternatives],
+                providers_checked=checked,
+            )
     meaningful = len(normalize(ref.title).split()) >= 5
     indexable = ref.kind.lower() in {"journal-article", "proceedings-article", "preprint"}
     definitive = all(result.definitive for result in direct + results)
