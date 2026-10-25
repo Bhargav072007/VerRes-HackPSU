@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from api.app.ingest.models import ParsedCitation
 from api.app.sources.acquire import Source
 from api.app.verify.gates import SEVERE, aggregate, gate, normalize_quote, uncertain
-from api.app.verify.model import Model, ModelFailure, call_model
+from api.app.verify.model import Model, ModelFailure, call_model, failure_reason
 from api.app.verify.models import (
     CitationVerification,
     ClaimSplit,
@@ -64,9 +64,7 @@ async def classify_citations(citations: list[ParsedCitation], model: Model) -> d
                 continue
             classifications.update({i.citation_id: i.function for i in result.items})
         except (ModelFailure, ValidationError) as error:
-            logging.getLogger(__name__).warning(
-                "classify failed: %s: %s", type(error).__name__, str(error)[:300]
-            )
+            logging.getLogger(__name__).warning("%s", failure_reason("classify", error))
             continue
     return classifications
 
@@ -99,10 +97,8 @@ async def verify_citation(
         return result
     try:
         split = await call_model(primary, "split", citation.model_dump(), ClaimSplit)
-    except (ModelFailure, ValidationError):
-        result.finding = uncertain(
-            source, "atomic claim output failed schema validation", [primary.model_id]
-        )
+    except (ModelFailure, ValidationError) as error:
+        result.finding = uncertain(source, failure_reason("split", error), [primary.model_id])
         return result
     if split.ambiguous:
         result.finding = uncertain(
@@ -133,9 +129,9 @@ async def verify_citation(
                 },
                 Judgment,
             )
-        except (ModelFailure, ValidationError):
+        except (ModelFailure, ValidationError) as error:
             result.claim_findings.append(
-                uncertain(source, "judge output failed schema validation", [primary.model_id])
+                uncertain(source, failure_reason("judge", error), [primary.model_id])
             )
             continue
         finding = gate(judgment, selected, source, primary.model_id)
@@ -185,10 +181,10 @@ async def verify_citation(
                                 "models disagree or adjudicator evidence failed",
                                 [primary.model_id, adjudicator.model_id],
                             )
-                    except (ModelFailure, ValidationError):
+                    except (ModelFailure, ValidationError) as error:
                         finding = uncertain(
                             source,
-                            "adjudicator output failed schema validation",
+                            failure_reason("adjudicator", error),
                             [primary.model_id, adjudicator.model_id],
                         )
         result.claim_findings.append(finding)

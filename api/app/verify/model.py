@@ -7,7 +7,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+from pydantic_core import to_jsonable_python
 
 from api.app.providers.http import Gateway
 
@@ -17,6 +18,18 @@ PROMPT_VERSIONS = {"judge": "v3", "adjudicate": "v3"}
 
 class ModelFailure(Exception):
     """Expected model service, context-limit or structured-output failure."""
+
+    def __init__(self, message: str, *, code: str = "MODEL_FAILURE"):
+        super().__init__(message)
+        self.code = code
+
+
+def failure_reason(task: str, error: ModelFailure | ValidationError) -> str:
+    """Safe diagnostics: no response input, error messages, keys or document text."""
+    if isinstance(error, ValidationError):
+        kinds = sorted({e["type"] for e in error.errors(include_input=False, include_url=False)})
+        return f"{task} output failed schema validation ({', '.join(kinds)})"
+    return f"{task} model call failed ({error.code})"
 
 
 class Model(Protocol):
@@ -30,7 +43,9 @@ class Model(Protocol):
 def untrusted(data: object) -> str:
     nonce = secrets.token_hex(16)
     # Escape angle brackets so document-supplied closing tags cannot end the envelope.
-    value = html.escape(json.dumps(data, ensure_ascii=False), quote=False)
+    value = html.escape(
+        json.dumps(data, ensure_ascii=False, default=to_jsonable_python), quote=False
+    )
     return f'<untrusted nonce="{nonce}">{value}</untrusted>'
 
 
@@ -73,6 +88,19 @@ def strict_schema(schema: dict) -> dict:
             if node.get("type") == "object" and "properties" in node:
                 node["required"] = list(node["properties"])
                 node["additionalProperties"] = False
+                # These nullable receipts are filled by the application, not invented
+                # by an LLM (including dates that later become datetime objects).
+                for name, prop in node["properties"].items():
+                    if name in {
+                        "source_url",
+                        "source_type",
+                        "retrieved_at",
+                        "evidence_level",
+                        "quote_offsets",
+                        "model_id",
+                        "prompt_version",
+                    } and any(option.get("type") == "null" for option in prop.get("anyOf", [])):
+                        node["properties"][name] = {"type": "null"}
             for value in node.values():
                 visit(value)
         elif isinstance(node, list):
@@ -113,7 +141,9 @@ class JSONGatewayModel:
 
     async def complete(self, *, task, system, data, schema) -> str:
         if len(system) + len(data) > self.max_input_chars:
-            raise ModelFailure("complete source exceeds configured model context limit")
+            raise ModelFailure(
+                "complete source exceeds configured model context limit", code="CONTEXT_LIMIT"
+            )
         result = await self.gateway.request(
             self.provider,
             self.path,
@@ -134,11 +164,14 @@ class JSONGatewayModel:
             },
         )
         if result.error or result.status != 200:
-            raise ModelFailure("model service failed")
+            code = f"HTTP_{result.status}" if result.status is not None else "TRANSPORT_FAILURE"
+            raise ModelFailure("model service failed", code=code)
         try:
             choice = result.json()["choices"][0]
             if choice.get("finish_reason") != "stop":
-                raise ModelFailure("model did not finish a complete structured response")
+                raise ModelFailure(
+                    "model did not finish a complete structured response", code="INCOMPLETE_OUTPUT"
+                )
             content = choice["message"]["content"]
             if not isinstance(content, str):
                 raise ModelFailure("model response content is missing")
