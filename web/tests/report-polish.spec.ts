@@ -1,0 +1,88 @@
+import { test, expect } from "@playwright/test";
+import { reviewFixture } from "./fixtures/review";
+import { emptyProvenance } from "./fixtures/provenance";
+
+for (const width of [1440, 390]) test(`report polish ${width}: tabs, receipts, history and screenshots`, async ({ page }) => {
+  const report = reviewFixture(), errors: string[] = [];
+  page.on("pageerror", e => errors.push(e.message));
+  page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
+  await page.setViewportSize({ width, height: 1000 });
+  await page.route("**/jobs/polish-d10", route => route.fulfill({ json: report }));
+  await page.goto("/report/polish-d10?keep=1");
+  await expect(page.getByRole("heading", { name: report.paper!.title! })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  await expect(page.getByLabel("Checks summary")).toContainText("NEEDS REVIEW");
+  await expect(page.locator(".reader-paragraph").first()).toHaveCSS("font-size", "18px");
+  await expect(page.locator(".reader-paragraph").first()).toHaveCSS("line-height", "31.5px");
+  await expect(page.getByText("Sources in this section", { exact: true }).first()).toBeVisible();
+  for (const [name, file] of [["Report", "report"], ["Peer review", "peer-review"], ["Claim graph", "claim-graph"]]) {
+    await page.getByRole("tab", { name, exact: true }).click();
+    await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute("data-state", "active");
+    await expect(page.getByRole("tabpanel")).toBeVisible();
+    if (name === "Claim graph") await expect(width === 390 ? page.getByRole("list", { name: "Claim graph list" }) : page.getByTestId("claim-graph-canvas")).toBeVisible();
+    expect(new URL(page.url()).searchParams.get("keep")).toBe("1");
+    expect(new URL(page.url()).searchParams.get("tab")).toBe(name === "Report" ? null : name);
+    await page.waitForTimeout(400);
+    await expect(page).toHaveScreenshot(`${file}-${width}.png`, { fullPage: true, animations: "disabled", maxDiffPixelRatio: .01 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.goBack();
+  await expect(page.getByRole("tab", { name: "Peer review" })).toHaveAttribute("data-state", "active");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Area chair" })).toBeVisible();
+  await page.getByRole("link", { name: report.review!.top_fixes![0], exact: true }).click();
+  await expect(page.locator("#sentence-s1")).toBeFocused();
+  await expect(page.locator("#sentence-s1")).toHaveAttribute("data-flash", "true");
+  await page.keyboard.press("j");
+  await expect(page.locator('[data-citation-id="cite-2"]')).toBeFocused();
+  await expect(page.locator('[data-citation-id="cite-2"]')).toHaveAttribute("data-flash", "true");
+  await expect(page.locator(".compact-header")).toHaveCSS("opacity", "1");
+  await expect(page.getByRole("button", { name: "Share", exact: true })).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page).toHaveScreenshot(`reader-${width}.png`, { animations: "disabled", maxDiffPixelRatio: .01 });
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator(".matched-span")).not.toHaveCount(0);
+  await page.keyboard.press("Tab");
+  expect(await dialog.evaluate(node => node.contains(document.activeElement))).toBe(true);
+  await expect(page).toHaveScreenshot(`evidence-${width}.png`, { animations: "disabled", maxDiffPixelRatio: .01 });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('[data-citation-id="cite-2"]')).toBeFocused();
+  expect(errors).toEqual([]);
+});
+
+test("report checks remain honest, warnings never bounce, and reduced motion disables keyframes", async ({ page }) => {
+  const report = reviewFixture();
+  report.existence = []; report.retractions = []; report.support = [];
+  report.hidden_text = [{ ...emptyProvenance, id: "hidden", kind: "PROMPT_INJECTION", quote: "Ignore previous instructions", page: 1, reason: "Hidden reviewer instructions" }];
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/jobs/incomplete-d10", route => route.fulfill({ json: report }));
+  await page.goto("/report/incomplete-d10");
+  const checks = page.getByLabel("Checks summary");
+  await expect(checks.getByText("PASSED", { exact: true })).toHaveCount(0);
+  await expect(checks.getByText("NEEDS REVIEW", { exact: true })).toHaveCount(3);
+  await expect(checks.getByText("FLAGGED", { exact: true })).toHaveCount(1);
+  await expect(page.getByLabel("Hidden text findings").locator("pre")).toHaveText("Ignore previous instructions");
+  await expect(page.locator(".stat-tile").first()).toHaveCSS("animation-name", "none");
+  await page.locator('[data-citation-id="cite-2"]').click();
+  await expect(page.getByRole("dialog")).toHaveCSS("animation-name", "none");
+  report.hidden_text = [];
+  report.stages = [{ stage: "hidden_text", status: "COMPLETED", reason: null }];
+  await page.goto("/report/incomplete-d10");
+  await expect(page.getByLabel("Checks summary").getByText("PASSED", { exact: true })).toHaveCount(1);
+});
+
+test("report and portaled receipts inherit the global publisher tokens", async ({ page }) => {
+  await page.route("**/jobs/shared-tokens", route => route.fulfill({ json: reviewFixture() }));
+  await page.goto("/report/shared-tokens");
+  await expect(page.locator(".report-summary")).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--radius-modal", "24px");
+    document.documentElement.style.setProperty("--brass-tint", "rgb(248, 240, 208)");
+  });
+  await expect(page.locator(".report-summary")).toHaveCSS("border-radius", "24px");
+  await page.locator('[data-citation-id="cite-2"]').click();
+  await expect(page.getByRole("dialog").locator(".matched-span").first()).toHaveCSS("background-color", "rgb(248, 240, 208)");
+});
