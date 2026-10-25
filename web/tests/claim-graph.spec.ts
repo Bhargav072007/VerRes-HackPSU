@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { claimGraphFixture } from "./fixtures/claim-graph";
+import { reviewFixture } from "./fixtures/review";
 
 for (const width of [1440, 390]) test(`claim graph at ${width}px: receipts, legend, evidence navigation and fallback`, async ({ page }, info) => {
   const errors: string[] = [], report = claimGraphFixture();
@@ -58,6 +59,7 @@ for (const width of [1440, 390]) test(`missing, empty, incomplete and hostile ma
   await page.emulateMedia({ reducedMotion: "reduce" });
   const report = claimGraphFixture();
   await page.route("**/jobs/states", route => route.fulfill({ json: report }));
+  await page.route("**/jobs/states/events", route => route.fulfill({ contentType: "text/event-stream", body: "retry: 100000\n\n" }));
   report.claim_map = null;
   await page.goto("/report/states");
   await expect(page.getByRole("heading", { name: report.paper!.title! })).toBeVisible();
@@ -96,4 +98,29 @@ test("graph chunk loading shows an accessible skeleton", async ({ page }) => {
   try { await page.getByRole("tab", { name: "Claim graph" }).click(); await expect(page.getByRole("status", { name: "Loading claim graph" })).toBeVisible(); }
   finally { release(); }
   await expect(page.getByTestId("claim-graph-canvas")).toBeVisible();
+});
+
+for (const width of [1440, 390]) test(`peer review and claim graph share report navigation at ${width}px`, async ({ page }) => {
+  const report = reviewFixture(), errors: string[] = [];
+  page.on("pageerror", e => errors.push(e.message));
+  page.on("console", m => { if (m.type() === "error") errors.push(m.text()); });
+  await page.setViewportSize({ width, height: 1000 });
+  await page.route("**/jobs/both-tabs", route => route.fulfill({ json: report }));
+  await page.goto("/report/both-tabs");
+  await page.getByRole("tab", { name: "Peer review", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Area chair" })).toBeVisible();
+  await page.getByRole("link", { name: report.review!.top_fixes![0], exact: true }).click();
+  await expect(page.locator('[id="sentence-s1"]')).toBeFocused();
+  await page.getByRole("tab", { name: "Claim graph", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Claim graph", exact: true })).toHaveCount(1);
+  if (width < 640) await page.getByRole("list", { name: "Claim graph list" }).getByRole("button", { name: /Fixture trial 2/ }).click();
+  else { await page.getByTestId("rf__edge-citation:claim-2:cite-2").focus(); await page.keyboard.press("Enter"); }
+  await page.getByRole("dialog").getByRole("button", { name: "Open in evidence panel" }).click();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "Evidence receipt" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator('[data-citation-id="cite-2"]')).toBeInViewport();
+  await expect(page.locator('[id="sentence-s1"]')).toHaveAttribute("data-highlighted", "false");
+  await page.getByRole("tab", { name: "Peer review", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Area chair" })).toBeVisible();
+  expect(errors).toEqual([]);
 });
