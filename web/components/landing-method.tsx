@@ -4,7 +4,7 @@ import { usePolishMotion } from "./landing-chrome";
 import { useState } from "react";
 import Image from "next/image";
 const methods = [
- ["Exists", "Resolve the reference through Crossref, OpenAlex, and arXiv.", "exists"],
+ ["Exists", "Resolve the reference through Crossref, OpenAlex, and arXiv.", "exists-summary"],
  ["Matches its DOI", "Compare the identifier with the cited bibliographic record.", "doi"],
  ["Not retracted", "Follow a retraction finding back to the linked notice.", "retraction"],
  ["Actually says it", "Read the verified source passage beside the claim.", "evidence"],

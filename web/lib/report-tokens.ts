@@ -14,7 +14,7 @@ body:has(.report-root) > header {display:none}
 .report-root [role=tab]::after {display:none}
 .report-root .tab-indicator {position:absolute;bottom:-7px;left:8px;right:8px;height:2px;background:var(--ink)}
 .report-root .reader-paragraph {position:relative;max-width:70ch;font-size:var(--reader-size,18px);line-height:var(--reader-leading,1.75);font-family:var(--reader-font,var(--font-source-serif));scroll-margin-top:250px}
-.report-root .paragraph-number {position:absolute;right:calc(100% + 16px);top:6px;width:18px;white-space:nowrap;text-align:right;font:10px/2 var(--font-inter);color:var(--stone);user-select:none}
+.report-root .paragraph-number {position:absolute;right:calc(100% + 16px);top:6px;width:2.5ch;min-width:2.5ch;white-space:nowrap;text-align:right;font:10px/2 var(--font-inter);font-variant-numeric:tabular-nums;color:var(--stone);user-select:none}
 .report-root .cited-text {text-decoration-line:underline;text-decoration-color:#EB4603;text-decoration-thickness:2px;text-underline-offset:5px;text-decoration-skip-ink:none}
 .report-root .citation-mark {scroll-margin-top:250px}
 .report-root .citation-mark:hover {background:var(--cloud)}

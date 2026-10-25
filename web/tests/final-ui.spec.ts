@@ -10,12 +10,44 @@ for (const width of [1440, 390]) test(`D15 landing, facts, method and sample at 
  await expect(page.locator('.trust-columns')).toContainText('median review time, recorded runs');
  await expect(page.getByText('Every finding links to its evidence.',{exact:true})).toHaveCount(1);
  await expect(page.locator('.hero-details')).toContainText('Partially supported');
+ const runtime=page.locator('.trust-columns .large-numeral').last();
+ await expect(runtime).toHaveCSS('white-space','nowrap');
+ await expect(runtime.locator('small')).toHaveCSS('vertical-align','baseline');
+ expect(await runtime.evaluate(node=>node.getBoundingClientRect().right<=node.parentElement!.getBoundingClientRect().right)).toBe(true);
+ await expect(page.locator('.trust-band')).toHaveScreenshot(`trust-${width}.png`,{animations:'disabled'});
+ for(const number of await page.locator('.paper-excerpt .line-number').all()){
+  await expect(number).toHaveCSS('white-space','nowrap');
+  await expect(number).toHaveCSS('font-variant-numeric','tabular-nums');
+  expect(await number.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
+ }
+ await expect(page.locator('.paper-excerpt')).toHaveScreenshot(`excerpt-${width}.png`,{animations:'disabled'});
+ await expect(page.locator('.sample-heading')).toHaveCSS('color','rgb(237, 235, 230)');
+ await expect(page.locator('.sample-papers')).toHaveScreenshot(`sample-cta-${width}.png`,{animations:'disabled'});
+ if(width===1440) await expect(page.locator('.method-panel')).toHaveScreenshot(`exists-${width}.png`,{animations:'disabled'});
+ else {
+  await page.locator('.method-accordion summary').first().click();
+  await expect(page.locator('.method-accordion details').first()).toHaveScreenshot(`exists-${width}.png`,{animations:'disabled'});
+  await page.locator('.method-accordion summary').first().click();
+ }
  if(width===1440){await page.locator('.method-list button').nth(3).focus();await expect(page.locator('.method-list button').nth(3)).toHaveAttribute('aria-pressed','true');}
  else {await page.locator('.method-accordion summary').nth(3).click();await expect(page.locator('.method-accordion details').nth(3)).toHaveAttribute('open','');}
  await expect(page.locator('.paper-excerpt .margin-note')).toHaveCount(3);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.getByRole('link',{name:'See a sample report'}).click();await expect(page.getByRole('article',{name:'Paper text'})).toBeVisible();
  await expect(page.locator('[data-citation-id="c00003"]')).toHaveAttribute('aria-label',/Partially supported/);
+ for(const row of await page.locator('.summary-table tbody tr').all()){
+  const count=await row.locator('td').last().textContent();
+  if(count==='0'){
+   await expect(row.locator('td').first()).toHaveText('None found');
+   await expect(row.locator('td').first()).toHaveClass('text-muted-foreground');
+  }
+ }
+ await expect(page.locator('.summary-table')).toHaveScreenshot(`summary-${width}.png`,{animations:'disabled'});
+ for(const number of await page.locator('.paragraph-number').all()){
+  await expect(number).toHaveCSS('white-space','nowrap');
+  await expect(number).toHaveCSS('font-variant-numeric','tabular-nums');
+  expect(await number.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
+ }
 });
 
 for (const width of [1440, 390]) test(`D14 reader preferences persist, themes cover overlays, and hover-to-cite at ${width}px`, async ({ page }, info) => {

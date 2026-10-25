@@ -158,7 +158,7 @@ export function ReportReader({ id, shared = false, onOpenEvidence }: { id: strin
         {!!paper?.authors?.length && <p className="mt-3 text-xs text-muted-foreground">{paper.authors.join(" · ")}</p>}
         <p className="mt-4 text-xs leading-6 text-muted-foreground">Every finding links to its evidence. Start with the flagged claims, then follow the evidence.</p>
       </div>
-      <table className="summary-table" aria-label="Review counts"><thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Count</th></tr></thead><tbody>{counters.map((label,i) => <tr key={label}><th scope="row">{label}</th><td>{i === 0 ? "Extracted" : i === 5 ? "Unresolved" : "Flagged"}</td><td aria-label={report ? `${counts[i]} ${label.toLowerCase()}` : "Unavailable"}>{loading ? "…" : report ? counts[i] : "—"}</td></tr>)}</tbody></table>
+      <table className="summary-table" aria-label="Review counts"><thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Count</th></tr></thead><tbody>{counters.map((label,i) => <tr key={label}><th scope="row">{label}</th><td className={report && counts[i] === 0 ? "text-muted-foreground" : undefined}>{report && counts[i] === 0 ? "None found" : i === 0 ? "Extracted" : i === 5 ? "Unresolved" : "Flagged"}</td><td aria-label={report ? `${counts[i]} ${label.toLowerCase()}` : "Unavailable"}>{loading ? "…" : report ? counts[i] : "—"}</td></tr>)}</tbody></table>
     </section>
     {report && <ReportChecks report={report} />}
     <Tabs activationMode="manual" value={tab} onValueChange={setTab} className="mt-7 gap-6">
