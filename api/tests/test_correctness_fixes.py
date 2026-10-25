@@ -217,8 +217,16 @@ async def test_severe_findings_require_known_distinct_vendors(
     citation, source, claim, first, second
 ):
     primary = FixtureModel(responses(claim, "CONTRADICTED"), vendor=first)
-    other = FixtureModel({}, model_id="other", family="other-family", vendor=second)
+    other = FixtureModel(
+        {"adjudicate": judgment("CONTRADICTED").model_dump()},
+        model_id="other",
+        family="other-family",
+        vendor=second,
+    )
     result = await verify_citation(citation, source, primary, adjudicator=other)
+    if first.strip() and first.strip().casefold() == second.strip().casefold():
+        assert result.finding.status == "CONTRADICTED" and other.calls
+        return
     assert result.finding.status == "NEEDS_REVIEW" and not other.calls
     assert "vendor" in result.finding.reason
 
@@ -230,5 +238,16 @@ def test_independence_checks_each_configured_identity():
     for name in ("model_id", "family", "vendor"):
         previous = getattr(other, name)
         setattr(other, name, getattr(primary, name))
-        assert not independent_models(primary, other)
+        assert independent_models(primary, other) == (name == "vendor")
         setattr(other, name, previous)
+
+
+async def test_same_vendor_flag_off_rejects(citation, source, claim, monkeypatch):
+    monkeypatch.setenv("ADJUDICATOR_ALLOW_SAME_VENDOR", "false")
+    primary = FixtureModel(responses(claim, "CONTRADICTED"), vendor="openai")
+    other = FixtureModel({}, model_id="other", family="other-family", vendor="openai")
+    assert not independent_models(primary, other)
+    result = await verify_citation(citation, source, primary, adjudicator=other)
+    assert result.finding.status == "NEEDS_REVIEW" and not other.calls
+    other.vendor = "other-vendor"
+    assert independent_models(primary, other)

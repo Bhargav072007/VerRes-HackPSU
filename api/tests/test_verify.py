@@ -115,7 +115,8 @@ async def test_severe_adjudication(citation, source, claim, second_label, expect
     assert len(result.finding.model_ids) == 2
 
 
-async def test_same_family_and_missing_adjudicator(citation, source, claim):
+async def test_same_family_and_missing_adjudicator(citation, source, claim, monkeypatch):
+    monkeypatch.setenv("ADJUDICATOR_ALLOW_SAME_VENDOR", "false")
     primary = FixtureModel(responses(claim, "NOT_SUPPORTED"))
     second = FixtureModel({}, model_id="second", family=primary.family)
     result = await verify_citation(citation, source, primary, adjudicator=second)

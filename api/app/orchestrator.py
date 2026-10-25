@@ -46,6 +46,8 @@ class Services:
     model_gateway: object = None
     backend_gateway: object = None
     model_unconfigured_reason: str | None = "model not configured"
+    primary_model: Model | None = None
+    adjudicator_model: Model | None = None
 
     async def aclose(self):
         try:
@@ -70,6 +72,7 @@ class UnconfiguredVerify(Verify):
 
 def build_services(settings, pool=None, *, model: Model | None = None):
     model_gateway = None
+    adjudicator = None
     gateway = None
     model_reason = "model not configured"
     if os.getenv("STUBS") == "1":
@@ -84,6 +87,7 @@ def build_services(settings, pool=None, *, model: Model | None = None):
         model_name = (os.getenv("MODEL_PRIMARY") or "").strip() or (
             os.getenv("REVIEW_MODEL") or ""
         ).strip()
+        adjudicator_name = (os.getenv("MODEL_ADJUDICATOR") or "").strip()
         if model is None and settings.openai_api_key and model_name:
             model_gateway = ResilientGateway(
                 {"review": Policy("https://api.openai.com", 4, 1, 3)},
@@ -99,12 +103,23 @@ def build_services(settings, pool=None, *, model: Model | None = None):
                 api_key=settings.openai_api_key.get_secret_value(),
                 max_input_chars=100_000,
             )
+            if adjudicator_name:
+                adjudicator = JSONGatewayModel(
+                    model_gateway,
+                    provider="review",
+                    model_id=adjudicator_name,
+                    family="openai",
+                    vendor="openai",
+                    api_key=settings.openai_api_key.get_secret_value(),
+                    max_input_chars=100_000,
+                )
         if model is not None:
             model_reason = None
             logger.info(
-                "model configured: %s/%s, adjudicator: none",
+                "model configured: %s/%s, adjudicator: openai/%s",
                 model.vendor or model.family,
                 model.model_id,
+                adjudicator.model_id if adjudicator else "none",
             )
         elif settings.openai_api_key:
             model_reason = "set MODEL_PRIMARY"
@@ -115,14 +130,22 @@ def build_services(settings, pool=None, *, model: Model | None = None):
         policies["grobid"] = Policy(settings.grobid_url, 1, 1, 1)
         policies["arxiv-intake"] = Policy("https://arxiv.org", 1, 3, 1)
         gateway = ResilientGateway(policies, cache=PostgresCache(pool) if pool else None)
-        # TODO: Wire adjudication when verify/ provides an Anthropic-compatible Model adapter.
+        # TODO: Prefer cross-vendor adjudication when verify/ provides an Anthropic Model adapter.
         backend = build_backend(
-            settings, pool=pool, gateway=gateway, primary=model, adjudicator=None
+            settings, pool=pool, gateway=gateway, primary=model, adjudicator=adjudicator
         )
         if model is None:
             backend.verify = UnconfiguredVerify(model_reason)
         review = ReviewPanel(model)
-    return Services(backend, review, model_gateway, gateway, model_reason)
+    return Services(
+        backend,
+        review,
+        model_gateway,
+        gateway,
+        model_reason,
+        primary_model=model if model_reason is None else None,
+        adjudicator_model=adjudicator,
+    )
 
 
 def fallback(kind, row_id, reason):
