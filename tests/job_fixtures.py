@@ -26,6 +26,7 @@ class FixturePool:
         self.fail_insert = False
         self.fail_commit = False
         self.usage = []
+        self.legacy_unknown = set()
 
     @asynccontextmanager
     async def acquire(self):
@@ -128,8 +129,21 @@ class FixturePool:
             return {**row, "expired": row["expires_at"] <= datetime.now(UTC)} if row else None
         if "FROM llm_usage" in sql:
             return {
-                "spend_usd": float(sum(cost for _, _, cost in self.usage if cost is not None)),
-                "unknown_calls": sum(cost is None for _, _, cost in self.usage),
+                "spend_usd": float(sum(r[2] for r in self.usage if r[2] is not None)),
+                "known_spend_usd": float(
+                    sum(r[2] for r in self.usage if r[2] is not None and not r[3])
+                ),
+                "estimated_spend_usd": float(
+                    sum(r[2] for r in self.usage if r[2] is not None and r[3])
+                ),
+                "estimated_calls": sum(r[3] for r in self.usage),
+                "unknown_calls": sum(r[2] is None for r in self.usage),
+                "legacy_unknown_calls": sum(
+                    r[2] is None and r[0] in self.legacy_unknown for r in self.usage
+                ),
+                "unaccounted_calls": sum(
+                    r[2] is None and r[0] not in self.legacy_unknown for r in self.usage
+                ),
             }
         if "AS jobs_last_hour" in sql:
             recent = [

@@ -64,15 +64,12 @@ async def status(request: Request):
             services and services.model_gateway and services.model_gateway.accounting_incomplete
         )
         result["llm"].update(
-            spend_usd=None
-            if spend["unknown_calls"] or accounting_incomplete
-            else spend["spend_usd"],
-            known_spend_usd=spend["spend_usd"],
-            unknown_calls=spend["unknown_calls"],
-            accounting_incomplete=accounting_incomplete or bool(spend["unknown_calls"]),
+            **spend,
+            accounting="estimated"
+            if spend["estimated_calls"] or spend["unknown_calls"] or accounting_incomplete
+            else "known",
+            accounting_incomplete=accounting_incomplete or bool(spend["unaccounted_calls"]),
         )
-        if result["llm"]["accounting_incomplete"]:
-            result.update(status="CHECK_INCOMPLETE", reason="LLM cost accounting incomplete.")
     except (OSError, asyncpg.PostgresError, asyncpg.InterfaceError, TimeoutError):
         result.update(status="CHECK_INCOMPLETE", reason="Operational storage unavailable.")
     return JSONResponse(result, status_code=200 if result["status"] == "ok" else 503)

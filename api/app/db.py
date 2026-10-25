@@ -195,17 +195,23 @@ class Jobs:
     async def llm_spend(self):
         row = await self.pool.fetchrow(
             "SELECT coalesce(sum(cost_usd), 0)::float8 AS spend_usd, "
+            "coalesce(sum(cost_usd) FILTER (WHERE NOT estimated), 0)::float8 AS known_spend_usd, "
+            "coalesce(sum(cost_usd) FILTER (WHERE estimated), 0)::float8 AS estimated_spend_usd, "
+            "count(*) FILTER (WHERE estimated) AS estimated_calls, "
+            "count(*) FILTER (WHERE cost_usd IS NULL AND legacy_unknown) AS legacy_unknown_calls, "
+            "count(*) FILTER (WHERE cost_usd IS NULL AND NOT legacy_unknown) AS unaccounted_calls, "
             "count(*) FILTER (WHERE cost_usd IS NULL) AS unknown_calls FROM llm_usage "
             "WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'"
         )
         return dict(row)
 
-    async def record_spend(self, job_id, cost):
+    async def record_spend(self, job_id, cost, *, estimated=False):
         await self.pool.execute(
-            "INSERT INTO llm_usage (id, job_id, cost_usd) VALUES ($1, $2, $3)",
+            "INSERT INTO llm_usage (id, job_id, cost_usd, estimated) VALUES ($1, $2, $3, $4)",
             uuid4(),
             UUID(str(job_id)) if job_id is not None else None,
             Decimal(str(cost)) if cost is not None else None,
+            estimated,
         )
 
     async def get(self, job_id: UUID):
