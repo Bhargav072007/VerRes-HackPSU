@@ -84,6 +84,7 @@ export function LandingScene() {
       // Slots are measured with offsets (transform-free) against the untransformed paper slot.
       const origin = paperSlot.current.getBoundingClientRect();
       const cards = [...stage.current.querySelectorAll<HTMLElement>(".hero-card-slot")];
+      if (!cards.length) return; // Mobile shows no flying cards.
       setTargets([...paper.current.querySelectorAll<HTMLElement>(".paper-slot")].map((slot, i) => {
         let x = slot.offsetLeft, y = slot.offsetTop;
         for (let n = slot.offsetParent as HTMLElement | null; n && n !== paper.current && paper.current!.contains(n); n = n.offsetParent as HTMLElement | null) { x += n.offsetLeft; y += n.offsetTop; }

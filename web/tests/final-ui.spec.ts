@@ -9,8 +9,8 @@ for (const width of [1440, 390]) test(`D15 landing, facts, method and sample at 
  await expect(page.locator('.trust-columns')).toContainText('scholarly sources');
  await expect(page.locator('.trust-columns')).toContainText('median review time, recorded runs');
  await expect(page.getByText('Every finding links to its evidence.',{exact:true})).toHaveCount(1);
- await expect(page.locator('.hero-chips')).toContainText('Partial');
- await expect(page.locator('.hero-chips li')).toHaveCount(8);
+ await expect(page.locator('.paper-references')).toContainText('Partially supported');
+ await expect(page.locator('.paper-slot')).toHaveCount(8);
  const runtime=page.locator('.trust-columns .large-numeral').last();
  await expect(runtime).toHaveCSS('white-space','nowrap');
  await expect(runtime.locator('small')).toHaveCSS('vertical-align','baseline');
@@ -88,7 +88,7 @@ for (const width of [1440, 390]) test(`D14 reader preferences persist, themes co
   }
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-reader-theme", "light");
-  await expect(page.locator(".hero-laptop")).toHaveCSS("transform", "none");
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", "none");
   await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
   expect(errors).toEqual([]);
 });

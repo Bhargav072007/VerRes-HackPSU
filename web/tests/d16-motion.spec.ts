@@ -18,25 +18,24 @@ test("D16 desktop hero: one pinned scene at most 220vh, cards fly in and land as
   expect(sticky).toEqual(["hero-stage"]);
   expect(await page.locator(".hero-scene").evaluate(n => (n as HTMLElement).offsetHeight / innerHeight)).toBeLessThanOrEqual(2.2);
   await expect(page.locator(".hero-card")).toHaveCount(8);
-  await expect(page.locator(".hero-scroll-caption")).toHaveText("Scroll. Eight references become one report.");
-  for (const node of await page.locator(".hero-stage :is(.hero-card p,.hero-chip,.hero-scroll-caption)").all()) expect(parseFloat(await node.evaluate(n => getComputedStyle(n).fontSize))).toBeGreaterThanOrEqual(14);
+  await expect(page.locator(".hero-scroll-caption")).toHaveText("Scroll. Eight references, one reviewed page.");
+  for (const node of await page.locator(".hero-stage :is(.hero-card p,.hero-card .finding-label,.paper-slot,.hero-tally li,.hero-scroll-caption)").all()) expect(parseFloat(await node.evaluate(n => getComputedStyle(n).fontSize))).toBeGreaterThanOrEqual(14);
   await heroAt(page, 0);
-  await expect.poll(() => page.locator(".hero-chips .hero-chip").first().evaluate(n => getComputedStyle(n).opacity)).toBe("0");
+  await expect.poll(() => page.locator(".paper-slot-fill").first().evaluate(n => getComputedStyle(n).opacity)).toBe("0");
   await heroAt(page, .3);
   await expect.poll(() => transformOf(page, ".hero-card-flight")).not.toBe("none");
   await heroAt(page, 1);
-  await expect.poll(() => page.locator(".hero-chips .hero-chip").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
+  await expect.poll(() => page.locator(".paper-slot-fill").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
   await expect.poll(() => page.locator(".hero-card-flight").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "0"))).toBe(true);
-  await expect(page.locator(".hero-laptop")).toHaveCSS("transform", /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
 });
 
 test("D16 mobile hero does not pin; chips pop once in view", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto("/");
-  await expect(page.locator(".hero-stage")).toHaveCSS("position", "static");
-  await expect(page.locator(".hero-cards")).toHaveCSS("grid-template-columns", /px \d/);
-  await expect(page.locator(".hero-card-flight").first()).toHaveCSS("transform", "none");
-  await page.locator(".hero-chips").scrollIntoViewIfNeeded();
-  await expect.poll(() => page.locator(".hero-chips .hero-chip").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
+  await expect(page.locator(".hero-stage")).not.toHaveCSS("position", "sticky");
+  await expect(page.locator(".hero-card")).toHaveCount(0);
+  await page.locator(".paper-references").scrollIntoViewIfNeeded();
+  await expect.poll(() => page.locator(".paper-slot-fill").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -46,8 +45,8 @@ for (const how of ["os", "reader"] as const) test(`D16 reduced motion (${how}) s
   if (how === "os") await page.emulateMedia({ reducedMotion: "reduce" }); else await page.evaluate(() => { document.documentElement.dataset.a11yMotion = "reduce"; });
   expect(await page.locator(".hero-scene").evaluate(n => (n as HTMLElement).offsetHeight)).toBe(layout);
   await heroAt(page, 0);
-  await expect(page.locator(".hero-laptop")).toHaveCSS("transform", "none");
-  await expect.poll(() => page.locator(".hero-chips .hero-chip").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
+  await expect(page.locator(".hero-paper")).toHaveCSS("transform", "none");
+  await expect.poll(() => page.locator(".paper-slot-fill").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "1"))).toBe(true);
   await expect.poll(() => page.locator(".hero-card-flight").evaluateAll(ns => ns.every(n => getComputedStyle(n).opacity === "0"))).toBe(true);
   await page.locator("[data-stage-card='5']").scrollIntoViewIfNeeded();
   await expect(page.locator("[data-stage-card='5'] .hero-chip")).toHaveCSS("opacity", "1");
