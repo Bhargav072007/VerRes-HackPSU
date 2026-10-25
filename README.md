@@ -116,3 +116,88 @@ Partner B's contract-compatible ingestion, resolution, source, verification and 
 implementations are available through `api.app.providers.services.build_backend`.
 See the [integration handoff](api/app/verify/PARTNER_B_HANDOFF.md) for dependency injection,
 JSONB storage compatibility, scientific evaluation tooling and remaining A3 wiring.
+
+## Demo day
+
+Run these tools from this checkout with the development dependencies installed.
+They print JSON summaries and exit nonzero on request failures or incomplete jobs.
+`NEEDS_REVIEW` is a completed review outcome, not a transport failure.
+
+```sh
+.venv/bin/python scripts/warm_demo.py https://184-197-196-202.sslip.io
+cat demo.json
+curl --fail-with-body https://184-197-196-202.sslip.io/status
+```
+
+The warmer uploads all three PDFs, waits for each SSE `done`, prints stage timings
+and final verdict counts, and saves `{paper: {job_id, report_url}}` to `demo.json`.
+Report URLs point to API snapshots. The first run performs real checks; subsequent
+runs reuse completed results at the same `PIPELINE_VERSION`, with a new job ID and
+the original receipts replayed immediately. `--fresh` (or `POST /jobs?fresh=1`)
+bypasses the result cache. Bump `api/app/version.py:PIPELINE_VERSION` whenever a
+pipeline change should invalidate saved results.
+Jobs containing `CHECK_INCOMPLETE` events are not reused. Stage timings printed
+by the scripts measure SSE arrival intervals, so cached and
+recorded replays measure replay time; real execution timings are in the API JSON logs.
+
+To prepare recorded demos, keep `DEMO_FIXTURE=0` and `STUBS` disabled, run the
+warmer, then record each real job ID from `demo.json`:
+
+```sh
+.venv/bin/python scripts/record_fixture.py JOB_ID --base-url https://184-197-196-202.sslip.io
+```
+
+The recorder matches the uploaded PDF digest and writes `fixtures/demo/paper1.jsonl`,
+`paper2.jsonl`, or `paper3.jsonl`. It requires an ordered journal ending in `done`,
+rejects fixture/stub output, and preserves the receipts without adding verdicts.
+Run the recorder on the VM checkout, or copy the generated files into that checkout's
+`fixtures/demo/` directory. Existing event fixtures and `web/public/fixtures/` are
+independent test artifacts. No demo recordings ship in this PR; until recorded,
+fixture mode returns `CHECK_INCOMPLETE` with an explicit **recording missing** reason.
+
+To switch modes, set `DEMO_FIXTURE=1` in the VM's `.env`, then recreate the API:
+
+```sh
+export GIT_SHA=$(git rev-parse HEAD)
+docker compose --env-file .env -f infra/compose.prod.yml up -d --force-recreate api
+```
+
+Production mounts `fixtures/demo/` read-only, so recordings can be installed without
+rebuilding the image. Snapshots and every SSE payload identify recorded data with
+`demo_fixture: true`, including jobs already referenced in `demo.json`. Recorded
+streams replay over approximately two seconds and honor `Last-Event-ID`. Set the
+flag back to `0` and recreate the API to restore real snapshots and execution.
+Jobs created as fixtures keep their fixture provenance even after the flag is off.
+
+`/status` reports uptime, git SHA (`GIT_SHA`, default `dev`), pipeline version, job
+count and average terminal duration over the last hour, provider breaker states,
+and UTC daily LLM spend against `LLM_DAILY_BUDGET`. Average duration includes queue
+time and cached jobs. `infra/deploy.sh` supplies the deployed commit SHA.
+Configure `LLM_INPUT_USD_PER_MILLION` and `LLM_OUTPUT_USD_PER_MILLION` with the rates
+for your configured `REVIEW_MODEL`. Spend is calculated from returned token usage
+and persisted across restarts. Missing usage/rates or failed accounting gives
+`spend_usd: null`, a known subtotal, and `CHECK_INCOMPLETE`. Evidence checks continue
+when costs are unknown. The budget guard stops new calls when known spend reaches
+the threshold; in-flight calls can cross it. It is not a provider-side hard spending cap.
+
+Crossref and OpenAlex have 10-second attempt deadlines, arXiv 20 seconds, and model
+calls 60 seconds. Three consecutive failed HTTP attempts open that provider's
+breaker for 60 seconds; one successful recovery probe closes it. If a provider is
+down, inspect `/status` and API logs, wait for the probe, then retry with `--fresh`.
+Affected receipts carry `CHECK_INCOMPLETE` or the schema's `NEEDS_REVIEW`/`UNKNOWN`
+equivalent and a provider-specific reason. A provider outage does not abort the job.
+For the presentation, use previously recorded demos with the fixture flag enabled.
+
+After deploying with fixture mode disabled, validate the t3.large yourself:
+
+```sh
+.venv/bin/python scripts/load_test.py https://184-197-196-202.sslip.io -n 5
+```
+
+The load test bypasses cache, submits five jobs concurrently, and reports completed
+jobs, failures, and nearest-rank p50/p95 end-to-end duration for successful jobs.
+It returns nonzero for any failure or fixture response. Three jobs run at once and
+the remainder queue. The limit is five uncached jobs per client IP per hour; run
+this in a fresh quota window after warming, or wait for the prior jobs to age out.
+Cached replays do not consume that allowance. Local tests use mocked providers;
+no production jobs or server performance measurements were run for this PR.

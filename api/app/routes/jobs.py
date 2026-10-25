@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Literal, Self
+from urllib.parse import unquote
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response
@@ -19,7 +20,13 @@ from starlette.datastructures import UploadFile
 
 from api.app.db import JobFailure
 from api.app.providers.http import get_client
-from api.app.routes.demo import run_fake_job
+from api.app.routes.demo import (
+    fixture_journal,
+    fixture_stream,
+    mark_fixture,
+    recording_name,
+    run_fake_job,
+)
 from api.app.routes.provenance import report_provenance
 from contracts.events import ErrorPayload, SSEEvent, StagePayload
 from contracts.schema import Contract, Report, ReviewComment
@@ -51,6 +58,10 @@ class JobRow(Contract):
     client_ip: str
     created_at: datetime
     updated_at: datetime
+    cache_key: str | None = None
+    pipeline_version: str | None = None
+    demo_fixture: bool = False
+    replay_of: UUID | None = None
 
 
 class JobSnapshot(Report):
@@ -99,7 +110,7 @@ def save_pdf(data: bytes, data_dir: Path):
     return {"sha256": digest}
 
 
-async def load_pdf(job_input: dict, settings):
+async def load_pdf(job_input: dict, settings, *, gateway=None):
     """Download identifiers with a bounded body, then use the upload PDF validator."""
     if "doi" in job_input:
         return JobFailure(code="CHECK_INCOMPLETE", message="DOI intake not yet supported")
@@ -111,6 +122,15 @@ async def load_pdf(job_input: dict, settings):
         identifier = job_input.get("arxiv_id", "")
         if not re.fullmatch(r"(?:\d{4}\.\d{4,5}|[a-z][a-z.-]+/\d{7})(?:v[1-9]\d*)?", identifier):
             return JobFailure(code="CHECK_INCOMPLETE", message="Invalid arXiv identifier")
+        if gateway is not None:
+            response = await gateway.request("arxiv-intake", f"/pdf/{identifier}")
+            if response.error or response.status != 200:
+                return JobFailure(
+                    code="CHECK_INCOMPLETE",
+                    message=response.error or "arxiv: PDF intake incomplete",
+                )
+            validated = await run_in_threadpool(save_pdf, response.content, settings.data_dir)
+            return validated if isinstance(validated, JobFailure) else response.content
         async with get_client("arxiv-intake").stream(
             "GET", f"https://arxiv.org/pdf/{identifier}"
         ) as response:
@@ -130,6 +150,23 @@ async def load_pdf(job_input: dict, settings):
 
 
 ERRORS = {status: {"model": JobFailure} for status in (400, 404, 413, 429, 503)}
+
+
+def normalize_identifier(job_input):
+    if "doi" in job_input:
+        value = re.sub(
+            r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", "", job_input["doi"].strip(), flags=re.I
+        )
+        return {"doi": unquote(value).lower()}
+    value = re.sub(
+        r"^(?:https?://(?:export\.)?arxiv\.org/(?:abs|pdf)/|arxiv:\s*)",
+        "",
+        job_input["arxiv_id"].strip(),
+        flags=re.I,
+    )
+    return {"arxiv_id": re.sub(r"\.pdf$", "", value, flags=re.I).lower()}
+
+
 INTAKE_BODY = {
     "requestBody": {
         "required": True,
@@ -156,7 +193,7 @@ INTAKE_BODY = {
 @router.post(
     "/jobs", status_code=202, response_model=Accepted, responses=ERRORS, openapi_extra=INTAKE_BODY
 )
-async def create_job(request: Request):
+async def create_job(request: Request, fresh: bool = False):
     bus = request.app.state.event_bus
     if bus is None:
         return error("CHECK_INCOMPLETE", "Job storage is unavailable.")
@@ -176,16 +213,25 @@ async def create_job(request: Request):
             if len(body) > 4096:
                 return error("invalid_request", "Identifier request is too large.")
         try:
-            job_input = Identifier.model_validate_json(body).model_dump(exclude_none=True)
+            job_input = normalize_identifier(
+                Identifier.model_validate_json(body).model_dump(exclude_none=True)
+            )
         except ValidationError:
             return error("invalid_request", "Provide exactly one nonempty arxiv_id or doi.")
     else:
         return error("invalid_request", "Use multipart/form-data or application/json.")
     if isinstance(job_input, JobFailure):
         return error(job_input.code, job_input.message)
-    result = await bus.jobs.create(request.client.host if request.client else "unknown", job_input)
+    result = await bus.jobs.create(
+        request.client.host if request.client else "unknown",
+        job_input,
+        fresh=fresh,
+        demo_fixture=request.app.state.demo_fixture,
+    )
     if not isinstance(result, JobFailure) and request.app.state.runner is not None:
-        request.app.state.runner.start(result)
+        row = await bus.jobs.get(result)
+        if row["status"] in ("QUEUED", "RUNNING"):
+            request.app.state.runner.start(result)
     return (
         error(result.code, result.message)
         if isinstance(result, JobFailure)
@@ -201,6 +247,12 @@ async def snapshot(job_id: UUID, request: Request):
     state = await bus.jobs.snapshot(job_id)
     if state is None:
         return error("job_not_found", "Job not found.")
+    if request.app.state.demo_fixture and (
+        state["job"].get("demo_fixture")
+        or await run_in_threadpool(recording_name, state["job"]["input"])
+    ):
+        state["events"] = await fixture_journal(job_id, state["job"]["input"])
+        state["job"].update(demo_fixture=True, status=state["events"][-1]["payload"]["status"])
     result = {**state, "job_id": job_id, "status": state["job"]["status"]}
     arrays = {
         "existence": "existence",
@@ -251,7 +303,10 @@ async def snapshot(job_id: UUID, request: Request):
         {key: value for key, value in event.items() if key != "created_at"}
         for event in state["events"]
     ]
-    return JobSnapshot.model_validate(result)
+    validated = JobSnapshot.model_validate(result)
+    if state["job"].get("demo_fixture"):
+        return JSONResponse(mark_fixture(validated.model_dump(mode="json")))
+    return validated
 
 
 @router.get(
@@ -263,14 +318,20 @@ async def events(job_id: UUID, request: Request):
     bus = request.app.state.event_bus
     if bus is None:
         return error("CHECK_INCOMPLETE", "Job storage is unavailable.")
-    if await bus.jobs.get(job_id) is None:
+    job = await bus.jobs.get(job_id)
+    if job is None:
         return error("job_not_found", "Job not found.")
     value = request.headers.get("last-event-id", "0")
     if not value.isascii() or not value.isdecimal() or len(value) > 19 or int(value) > 2**63 - 1:
         return error("invalid_request", "Last-Event-ID must be a nonnegative sequence number.")
     # Construct the native SSE response after preflight so failures remain JSON.
+    stream = bus.stream(job_id, int(value), demo_fixture=bool(job.get("demo_fixture")))
+    if request.app.state.demo_fixture and (
+        job.get("demo_fixture") or await run_in_threadpool(recording_name, job["input"])
+    ):
+        stream = fixture_stream(await fixture_journal(job_id, job["input"]), int(value))
     return EventSourceResponse(
-        bus.stream(job_id, int(value)),
+        stream,
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 

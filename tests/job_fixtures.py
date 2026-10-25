@@ -24,6 +24,7 @@ class FixturePool:
         self.close = AsyncMock()
         self.fail_insert = False
         self.fail_commit = False
+        self.usage = []
 
     @asynccontextmanager
     async def acquire(self):
@@ -55,6 +56,13 @@ class FixturePool:
                 "created_at": datetime.now(UTC),
                 "updated_at": datetime.now(UTC),
             }
+        elif sql.startswith("INSERT INTO job_events") and "SELECT $1" in sql:
+            for event in list(self.events):
+                if event["job_id"] == args[1]:
+                    payload = json.loads(event["payload"])
+                    if event["type"] == "done":
+                        payload["job_id"] = str(args[0])
+                    self.events.append({**event, "job_id": args[0], "payload": json.dumps(payload)})
         elif sql.startswith("INSERT INTO job_events"):
             if self.fail_insert:
                 raise asyncpg.PostgresConnectionError("private credentials")
@@ -76,11 +84,23 @@ class FixturePool:
                 self.shares[args[0]]["revoked_at"] = datetime.now(UTC)
             else:
                 self.shares[args[0]]["view_count"] += 1
+        elif sql.startswith("UPDATE jobs SET cache_key"):
+            self.rows[args[0]].update(
+                cache_key=args[1], pipeline_version=args[2], demo_fixture=args[3]
+            )
         elif sql.startswith("UPDATE jobs"):
             self.rows[args[0]].update(status=args[1], updated_at=datetime.now(UTC))
+            if "replay_of" in sql:
+                self.rows[args[0]]["replay_of"] = args[2]
+        elif sql.startswith("INSERT INTO job_results") and "SELECT $1" in sql:
+            for (job_id, kind, row_id), payload in list(self.results.items()):
+                if job_id == args[1]:
+                    self.results[(args[0], kind, row_id)] = deepcopy(payload)
         elif sql.startswith("INSERT INTO job_results"):
             assert "ON CONFLICT (job_id, type, row_id) DO UPDATE" in sql
             self.results[tuple(args[:3])] = json.loads(args[3])
+        elif sql.startswith("INSERT INTO llm_usage"):
+            self.usage.append(args)
         else:
             if "pg_advisory_unlock" in sql:
                 self.leases.remove(args[0])
@@ -105,10 +125,50 @@ class FixturePool:
         if "FROM shares" in sql:
             row = self.shares.get(args[0])
             return {**row, "expired": row["expires_at"] <= datetime.now(UTC)} if row else None
+        if "FROM llm_usage" in sql:
+            return {
+                "spend_usd": float(sum(cost for _, _, cost in self.usage if cost is not None)),
+                "unknown_calls": sum(cost is None for _, _, cost in self.usage),
+            }
+        if "AS jobs_last_hour" in sql:
+            recent = [
+                r
+                for r in self.rows.values()
+                if r["created_at"] > datetime.now(UTC) - timedelta(hours=1)
+            ]
+            durations = [
+                (r["updated_at"] - r["created_at"]).total_seconds()
+                for r in recent
+                if r["status"] not in ("RUNNING", "QUEUED")
+            ]
+            return {
+                "jobs_last_hour": len(recent),
+                "avg_duration_seconds": sum(durations) / len(durations) if durations else None,
+            }
+        if "FROM jobs j WHERE cache_key" in sql:
+            for row in sorted(self.rows.values(), key=lambda r: r["updated_at"], reverse=True):
+                events = [e for e in self.events if e["job_id"] == row["id"]]
+                if (
+                    row.get("cache_key") == args[0]
+                    and row.get("pipeline_version") == args[1]
+                    and not row.get("demo_fixture")
+                    and row["status"] in ("COMPLETE", "NEEDS_REVIEW")
+                    and any(e["type"] == "done" for e in events)
+                    and not any(
+                        (
+                            json.loads(e["payload"]).get("status") == "CHECK_INCOMPLETE"
+                            or json.loads(e["payload"]).get("kind") == "CHECK_INCOMPLETE"
+                        )
+                        for e in events
+                    )
+                ):
+                    return deepcopy(row)
+            return None
         if "FILTER" in sql:
             return {
                 "hourly": sum(
                     row["client_ip"] == args[0]
+                    and not row.get("replay_of")
                     and row["created_at"] > datetime.now(UTC) - timedelta(hours=1)
                     for row in self.rows.values()
                 ),

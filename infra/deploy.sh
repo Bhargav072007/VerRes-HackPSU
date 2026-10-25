@@ -5,6 +5,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # Print diagnostics on success and failure without dumping environment values.
 trap 'docker compose --env-file .env -f infra/compose.prod.yml logs --tail 50 --no-color api || true' EXIT
 git pull --ff-only
+export GIT_SHA
+GIT_SHA=$(git rev-parse HEAD)
 api_domain=$(docker compose --env-file .env -f infra/compose.prod.yml config --format json |
     python3 -c 'import json, sys; print(json.load(sys.stdin)["services"]["caddy"]["environment"]["API_DOMAIN"])')
 docker compose --env-file .env -f infra/compose.prod.yml up -d --build

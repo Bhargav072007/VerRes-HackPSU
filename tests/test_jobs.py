@@ -145,10 +145,11 @@ async def test_global_running_limit(job_client, job_pool, job_app, intake):
     for index in range(3):
         assert isinstance(await store.create(f"192.0.2.{index}", {}, running=True), UUID)
     response = await job_client.post("/jobs", json=intake["doi"])
-    assert response.status_code == 429 and response.json()["code"] == "rate_limited"
+    assert response.status_code == 202
+    assert job_pool.rows[UUID(response.json()["job_id"])]["status"] == "QUEUED"
     response = await job_client.post("/dev/fake-job")
     assert response.status_code == 429 and response.json()["code"] == "rate_limited"
-    assert len(job_pool.rows) == 3
+    assert len(job_pool.rows) == 4
 
 
 async def test_concurrent_admission_and_starts(job_pool, events):

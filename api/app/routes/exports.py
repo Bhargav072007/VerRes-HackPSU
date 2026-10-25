@@ -1,5 +1,6 @@
 """Portable report receipts, with the same privacy boundary as shared views."""
 
+import json
 from collections import Counter
 from html import escape
 from typing import Literal
@@ -36,6 +37,8 @@ def markdown_receipt(report: dict) -> str:
         "## Summary counts",
         *[f"- {key}: {value}" for key, value in sorted(counts.items())],
     ]
+    if report.get("demo_fixture"):
+        lines[2:2] = ["Demo fixture: true (recorded data)", ""]
     lines += [
         "",
         "## Provenance",
@@ -93,9 +96,12 @@ def markdown_receipt(report: dict) -> str:
 
 
 def export_response(report: JobSnapshot | SharedSnapshot | Response, format: str):
-    if isinstance(report, Response):
+    if isinstance(report, JSONResponse) and report.status_code == 200:
+        payload = json.loads(report.body)
+    elif isinstance(report, Response):
         return report
-    payload = report.model_dump(mode="json")
+    else:
+        payload = report.model_dump(mode="json")
     if format == "md":
         return Response(markdown_receipt(payload), media_type="text/markdown")
     return JSONResponse(payload)

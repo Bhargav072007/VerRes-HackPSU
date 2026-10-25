@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections import defaultdict
 
 import asyncpg
@@ -23,7 +24,7 @@ class EventBus:
                     queue.put_nowait(event)
         return event
 
-    async def stream(self, job_id, cursor=0):
+    async def stream(self, job_id, cursor=0, *, demo_fixture=False):
         queue = asyncio.Queue(maxsize=1)
         self.subscribers[job_id].add(queue)  # Subscribe BEFORE taking the replay snapshot.
         try:
@@ -32,8 +33,11 @@ class EventBus:
                     if event.seq <= cursor:
                         continue
                     cursor = event.seq
+                    payload = event.payload.model_dump(mode="json")
+                    if demo_fixture:
+                        payload["demo_fixture"] = True
                     yield format_sse_event(
-                        id=str(cursor), event=event.type, data_str=event.payload.model_dump_json()
+                        id=str(cursor), event=event.type, data_str=json.dumps(payload)
                     )
                     if event.type == "done":
                         return
