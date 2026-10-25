@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
     "types": "openapi-typescript openapi.json -o lib/api-types.ts",
     "test": "tsx --test tests/*.test.ts",
     "test:browser": "playwright test"

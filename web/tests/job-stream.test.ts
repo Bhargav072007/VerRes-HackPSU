@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { decodeEvent, initialJob, jobCounts, jobReducer } from "../lib/job-stream";
+import { decodeEvent, initialJob, jobCounts, jobReducer, stageStatus, stages } from "../lib/job-stream";
 const events = readFileSync("public/fixtures/events/paper1.jsonl", "utf8").trim().split("\n").map(line => JSON.parse(line));
 
 test("snapshot restore and duplicate native replay keep rows and counters idempotent", () => {
@@ -30,4 +30,16 @@ test("invalid external events stay incomplete without throwing or erasing receip
     assert.equal(next.rows, state.rows);
     assert.match(next.errors.connection, /CHECK_INCOMPLETE/);
   }
+});
+
+test("timeline follows granular journal tasks and preserves incomplete phases", () => {
+  const state = jobReducer(initialJob, { type: "snapshot", events: events.slice(0, 31) });
+  assert.equal(stageStatus(state, "parse"), "COMPLETED");
+  assert.equal(stageStatus(state, "existence"), "COMPLETED");
+  assert.equal(stageStatus(state, "retraction"), "COMPLETED");
+  assert.equal(stageStatus(state, "support"), "STARTED");
+  const complete = jobReducer(state, { type: "snapshot", events });
+  for (const stage of stages) assert.equal(stageStatus(complete, stage), "COMPLETED");
+  assert.equal(stageStatus({ ...state, stages: { "retraction:r1": "COMPLETED", "retraction:r2": "CHECK_INCOMPLETE" } }, "retraction"), "CHECK_INCOMPLETE");
+  assert.equal(stageStatus(initialJob, "parse"), undefined);
 });

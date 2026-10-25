@@ -4,6 +4,7 @@ export const motionTokens = {
   fade: { duration: 0.18 },
   stagger: 0.035,
   reviewStagger: 0.06,
-  wordStagger: 0.04,
   layout: { duration: 0.35, ease: "easeInOut" },
 } as const;
+
+export const counterTiming = { duration: 350, easing: "ease-out" };

@@ -78,3 +78,11 @@ export function jobCounts(state: JobState) {
   for (const s of support.filter(s => s.label === "NEEDS_REVIEW")) uncertain.add(state.paper?.citations?.find(c => c.id === s.citation_id)?.reference_id ?? s.citation_id);
   return { checked: (state.paper?.citations ?? []).filter(c => state.rows[c.reference_id]?.existence).length, total: state.paper?.citations?.length ?? 0, missing: refs.filter(r => r.existence?.status === "NOT_FOUND").length, retracted: refs.filter(r => r.retraction?.status === "RETRACTED").length, overstated: support.filter(s => s.label === "PARTIALLY_SUPPORTED").length, needsReview: uncertain.size };
 }
+
+// The journal names individual source checks; present those as readable phases.
+export function stageStatus(state: JobState, stage: string) {
+  const aliases: Record<string, string[]> = { parse: ["parse_pdf"], existence: ["existence:"], retraction: ["retraction:"], support: ["source:", "support:"], review: ["run_review_panel"], report: ["summary"] };
+  const tasks = Object.entries(state.stages).filter(([key]) => aliases[stage]?.some(alias => alias.endsWith(":") ? key.startsWith(alias) : key === alias)).map(([, status]) => status);
+  if (!tasks.length) return state.stages[stage];
+  return tasks.includes("STARTED") ? "STARTED" : tasks.includes("CHECK_INCOMPLETE") ? "CHECK_INCOMPLETE" : "COMPLETED";
+}
