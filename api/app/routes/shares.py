@@ -49,7 +49,8 @@ class SharedSnapshot(Report):
 def share_error(failure: JobFailure):
     if failure.code in ("share_not_found", "share_gone"):
         return JSONResponse(
-            failure.model_dump(), status_code=410 if failure.code == "share_gone" else 404
+            failure.model_dump(exclude_none=True),
+            status_code=410 if failure.code == "share_gone" else 404,
         )
     return error(failure.code, failure.message)
 

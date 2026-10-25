@@ -26,7 +26,11 @@ def job_app(monkeypatch, tmp_path, job_pool):
     monkeypatch.setattr(main.Runner, "start", Mock())
     return main.create_app(
         Settings(
-            _env_file=None, env="dev", data_dir=tmp_path, frontend_origin="https://frontend.example"
+            _env_file=None,
+            env="dev",
+            data_dir=tmp_path,
+            frontend_origin="https://frontend.example",
+            jobs_per_hour_per_ip=5,
         )
     )
 
@@ -153,7 +157,7 @@ async def test_global_running_limit(job_client, job_pool, job_app, intake):
 
 
 async def test_concurrent_admission_and_starts(job_pool, events):
-    bus = EventBus(Jobs(job_pool))
+    bus = EventBus(Jobs(job_pool, Settings(_env_file=None, jobs_per_hour_per_ip=5)))
     admitted = await asyncio.gather(*(bus.jobs.create("same-ip", {}) for _ in range(6)))
     assert sum(isinstance(result, UUID) for result in admitted) == 5
     started = await asyncio.gather(

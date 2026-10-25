@@ -11,6 +11,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from pydantic import TypeAdapter
 from starlette.exceptions import HTTPException
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from api.app.db import Jobs, create_pool, run_migrations
 from api.app.orchestrator import Runner, build_services
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
             pass
         if app.state.pool is not None:
             await run_migrations(app.state.pool)
-            app.state.event_bus = EventBus(Jobs(app.state.pool))
+            app.state.event_bus = EventBus(Jobs(app.state.pool, app.state.settings))
             app.state.services = build_services(app.state.settings, app.state.pool)
             app.state.runner = Runner(
                 app.state.event_bus, app.state.services, app.state.settings, app.state.tasks
@@ -77,6 +78,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.runner = None
     app.state.started_at = monotonic()
     app.state.demo_fixture = os.getenv("DEMO_FIXTURE", "0") == "1"
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=app.state.settings.forwarded_allow_ips)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(dict.fromkeys([*app.state.frontend_origins, "http://localhost:3000"])),

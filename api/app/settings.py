@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,4 +18,7 @@ class Settings(BaseSettings):
     frontend_origin: str = "http://localhost:3000"
     data_dir: Path = Path("data")
     llm_daily_budget: float = 10.0
+    jobs_per_hour_per_ip: int = Field(default=100, ge=1)
+    rate_limit_allowlist: str = ""
+    forwarded_allow_ips: str = ""
     env: Literal["dev", "development", "test", "production"] = "development"
