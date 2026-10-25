@@ -220,9 +220,20 @@ async def test_openalex_cost_guard():
         assert (await gateway.request("openalex", "/works")).error
 
 
-async def test_unknown_openalex_cost_closes_guard():
+async def test_missing_openalex_cost_keeps_guard_open():
+    # Single-work lookups carry no meta; they count an estimate instead of closing the guard.
     async with Gateway(
         POLICIES, transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))
+    ) as gateway:
+        await gateway.request("openalex", "/works")
+        assert not (await gateway.request("openalex", "/works")).error
+        assert gateway.spent_usd > 0
+
+
+async def test_invalid_openalex_cost_closes_guard():
+    payload = {"meta": {"cost_usd": "unknown"}, "results": []}
+    async with Gateway(
+        POLICIES, transport=httpx.MockTransport(lambda r: httpx.Response(200, json=payload))
     ) as gateway:
         await gateway.request("openalex", "/works")
         assert (await gateway.request("openalex", "/works")).error
