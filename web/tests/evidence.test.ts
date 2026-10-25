@@ -41,3 +41,15 @@ test("newly rendered API fields reject malformed external data", () => {
   const report = evidenceFixture(); Object.assign(report.paper.citations[0], { claim_text: {} });
   assert.equal(decodeReport(report), null);
 });
+
+test("the evidence panel states each reason once", async () => {
+  const { default: paper3 } = await import("./fixtures/prod/paper3-job.json");
+  const report = decodeReport(structuredClone(paper3))!;
+  const unverified = evidenceDetails(report, report.paper!.citations!.find(c => c.id === "c00005")!);
+  assert.equal(unverified.needsReview, "reference identity is not verified");
+  assert.deepEqual(unverified.reasons, ["Not found in queried providers: crossref, openalex."]);
+  const fixture = evidenceFixture(), citation = fixture.paper.citations[0];
+  fixture.support[0].reason = "Quote matches the claim.";
+  fixture.existence.find(e => e.reference_id === citation.reference_id)!.reason = "quote matches the claim";
+  assert.deepEqual(evidenceDetails(fixture, citation).reasons, ["Quote matches the claim."]);
+});

@@ -42,5 +42,9 @@ export function evidenceDetails(report: Report, citation: Citation) {
   });
   const agreement = support?.adjudicated === true && ["NOT_SUPPORTED", "CONTRADICTED"].includes(verdict) ? "2 of 2 models agree"
     : verdict === "NEEDS_REVIEW" && /models disagree/i.test(`${support?.needs_review_reason} ${support?.reason}`) ? "Models disagree" : null;
-  return { verdict, quotes, source, support, reason, needsReview, links, agreement, mismatches: [...(support?.mismatch_types ?? []), ...(existence?.discrepancies ?? [])] };
+  // One line per distinct reason: drop repeats and anything the needs-review notice already says.
+  const said = (text?: string | null) => (text ?? "").trim().toLowerCase().replace(/[.\s]+$/, "");
+  const reasons = [verdict === "NOT_FOUND" ? "Not found in Crossref, OpenAlex or arXiv." : reason || "Claim support check incomplete. Needs review.", existence?.reason]
+    .filter((text, i, all): text is string => !!text?.trim() && said(text) !== said(needsReview) && all.findIndex(other => said(other) === said(text)) === i);
+  return { verdict, quotes, source, support, reason, reasons, needsReview, links, agreement, mismatches: [...(support?.mismatch_types ?? []), ...(existence?.discrepancies ?? [])] };
 }

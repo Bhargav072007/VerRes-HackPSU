@@ -50,9 +50,8 @@ export function EvidencePanel({ report, citationId, onClose, shared = false }: {
                 </figure>)}
                 {!data.quotes.length && <p className="text-sm leading-6 text-muted-foreground">{quotes.length ? "Source passages are omitted from shared reports. Quotes cannot be verified here. Needs review." : "No verified source quote available. Needs review."}</p>}
               </section>
-              </div><h3 className="mt-7 text-xs font-medium  text-muted-foreground">Why this verdict</h3>
-              <p className="mt-3 text-sm leading-6">{data.verdict === "NOT_FOUND" ? "Not found in Crossref, OpenAlex or arXiv." : data.reason || "Claim support check incomplete. Needs review."}</p>
-              <p className="mt-3 text-xs leading-6 text-muted-foreground">{report.existence?.find(e => e.reference_id === citation.reference_id)?.reason}</p>
+              </div>{!!data.reasons.length && <><h3 className="mt-7 text-xs font-medium  text-muted-foreground">Why this verdict</h3>
+              {data.reasons.map((text, i) => <p key={text} className={i ? "mt-3 text-xs leading-6 text-muted-foreground" : "mt-3 text-sm leading-6"}>{text}</p>)}</>}
               {data.agreement && <p className="mt-4 inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-xs text-muted-foreground"><Users size={14} />{data.agreement}</p>}
               <Provenance label="Source" value={data.source && { ...data.source, source_url: data.source.source_url || data.source.url }} />
               <Provenance label="Claim check" value={data.support} />

@@ -328,3 +328,4 @@ html[data-reader-theme=dark] .verdict-chip{background:#FAF9F6}html[data-reader-t
 .dot-matrix{display:flex;flex-direction:column;min-height:520px}.dot-matrix canvas{flex:1;width:100%;min-height:0;display:block}.dot-matrix figcaption{margin-top:14px;font:14px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#c5c1b9}
 @media(max-width:700px){.upload-content{grid-template-columns:1fr}.dot-matrix{min-height:260px}}
 .site-footer{overflow:hidden}.footer-wordmark{font:300 clamp(120px,25vw,380px)/.78 var(--font-source-serif);letter-spacing:-.05em;color:rgb(20 20 20 / 8%);text-align:center;white-space:nowrap;margin-bottom:-.14em;user-select:none}
+.upload-band .sample-heading{color:#fff;font-weight:500;font-size:16px;letter-spacing:.01em}
