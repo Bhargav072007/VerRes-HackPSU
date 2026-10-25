@@ -139,7 +139,7 @@ async def verify_citation(
             )
             continue
         finding = gate(judgment, selected, source, primary.model_id)
-        if judgment.label in SEVERE and source.evidence_level == "FULL_TEXT":
+        if judgment.label in SEVERE:
             # Confirm primary evidence BEFORE spending a second full-source call.
             proposed = gate(judgment, selected, source, primary.model_id, adjudicated=True)
             if proposed.status in SEVERE:
@@ -159,7 +159,7 @@ async def verify_citation(
                             "adjudicate",
                             {
                                 "claim": claim.model_dump(),
-                                "evidence_level": "FULL_TEXT",
+                                "evidence_level": source.evidence_level,
                                 "passages": [p.model_dump() for p in whole_source],
                             },
                             Judgment,

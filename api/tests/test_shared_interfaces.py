@@ -204,7 +204,7 @@ async def test_verification_preserves_shared_passage_ids(claim, level):
     assert isinstance(result, SupportResult) and result.label == SupportLabel.SUPPORTED
     assert result.evidence[0].passage_id == source.passages[0].passage_id
     assert result.evidence_strength == "DIRECT" and not result.adjudicated
-    assert result.model_id == primary.model_id and result.prompt_version == "v2"
+    assert result.model_id == primary.model_id and result.prompt_version == "v3"
     assert f"vendor={primary.vendor}, family={primary.family}" in result.reason
     sent_schema = primary.calls[-1]["schema"]
     assert sent_schema["properties"]["evidence"].pop("maxItems") == 3

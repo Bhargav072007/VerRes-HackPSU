@@ -73,7 +73,7 @@ async def test_abstention_is_not_reported_as_a_fabricated_quote(claim, source):
     report = await run_bakeoff(
         [pair], models, dataset_version="synthetic-test-only", rehearsal=True
     )
-    assert report["prompt_version"] == "v2"
+    assert report["prompt_version"] == "v3"
     for model in report["models"].values():
         assert model["metrics"]["invalid_json_rate"] == 0
         assert model["metrics"]["quote_verification_failure_rate"] == 0

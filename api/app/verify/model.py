@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from api.app.providers.http import Gateway
 
 PROMPTS = Path(__file__).parent.parent / "prompts"
-PROMPT_VERSIONS = {"judge": "v2", "adjudicate": "v2"}
+PROMPT_VERSIONS = {"judge": "v3", "adjudicate": "v3"}
 
 
 class ModelFailure(Exception):

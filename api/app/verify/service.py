@@ -70,6 +70,11 @@ class VerifyService(Verify):
         }
         models = [configured[mid] for mid in dict.fromkeys(finding.model_ids) if mid in configured]
         reason = finding.reason
+        if (
+            finding.status == "CONTRADICTED"
+            and source.evidence_level == EvidenceLevel.ABSTRACT_ONLY
+        ):
+            reason = "Contradicted by the abstract. " + reason
         if models:
             reason += (
                 " Models: "
@@ -95,7 +100,11 @@ class VerifyService(Verify):
             citation_id=citation.id,
             label=SupportLabel(finding.status),
             mismatch_types=[MismatchType(m) for m in finding.mismatch_types],
-            evidence=finding.evidence,
+            evidence=[
+                q.model_copy(update={"evidence_level": source.evidence_level})
+                for q in finding.evidence
+            ],
+            evidence_level=source.evidence_level,
             evidence_strength=finding.evidence_strength,
             reason=reason,
             adjudicated=finding.status in {"NOT_SUPPORTED", "CONTRADICTED"}
