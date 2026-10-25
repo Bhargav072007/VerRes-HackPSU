@@ -53,7 +53,7 @@ function Review(p: Play) {
   const words = (demo.review.areaChair ?? "Area chair summary unavailable.").split(" ");
   return <div className="demo-review"><ul>{demo.review.panel.map((r, i) => <motion.li key={r.id} className="hero-chip blue" initial={false} animate={chipIn(p.play)} transition={at(p, .1 + i * .09, .16)}><strong>{r.id}</strong> {r.name} · {r.major} major{r.minor ? ` · ${r.minor} minor` : ""}</motion.li>)}</ul>
     <p className="demo-ac-label">Area chair · top priority</p>
-    <p className="demo-ac" aria-label={words.join(" ")}>{words.map((w, i) => <motion.span key={i} aria-hidden initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, .45 + i * .035, .08)}>{w} </motion.span>)}{!p.reduced && p.play && <motion.span aria-hidden className="demo-caret" initial={{ opacity: 1 }} animate={{ opacity: [1, 0, 1] }} transition={{ duration: .9, repeat: 3, delay: .45 + words.length * .035 }} />}</p></div>;
+    <p className="demo-ac"><span className="sr-only">{words.join(" ")}</span>{words.map((w, i) => <motion.span key={i} aria-hidden initial={false} animate={{ opacity: p.play ? 1 : 0 }} transition={at(p, .45 + i * .035, .08)}>{w} </motion.span>)}{!p.reduced && p.play && <motion.span aria-hidden className="demo-caret" initial={{ opacity: 1 }} animate={{ opacity: [1, 0, 1] }} transition={{ duration: .9, repeat: 3, delay: .45 + words.length * .035 }} />}</p></div>;
 }
 const demos = [Parse, Resolve, Retraction, Sources, Verify, Review];
 
