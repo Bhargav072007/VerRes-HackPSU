@@ -2,7 +2,7 @@ import type { components, paths } from "./api-types";
 import { readReview } from "./review";
 
 type Snapshot = paths["/jobs/{job_id}"]["get"]["responses"][200]["content"]["application/json"];
-export type Report = Pick<Snapshot, "paper" | "existence" | "retractions" | "sources" | "support" | "status" | "reason" | "review" | "review_comments" | "hidden_text" | "stages">;
+export type Report = Pick<Snapshot, "paper" | "existence" | "retractions" | "sources" | "support" | "claim_map" | "status" | "reason" | "review" | "review_comments" | "hidden_text" | "stages">;
 export type Citation = components["schemas"]["Citation"];
 export type Filter = "All" | "Problems only" | "Needs review";
 export type Verdict = components["schemas"]["SupportLabel"] | "NOT_FOUND" | "DOI_MISMATCH" | "RETRACTED";
@@ -15,6 +15,10 @@ const strings = (v: unknown) => v === undefined || Array.isArray(v) && v.every(i
 export function decodeReport(value: unknown): Report | null {
   if (!object(value) || !["QUEUED", "RUNNING", "COMPLETE", "NEEDS_REVIEW", "CHECK_INCOMPLETE"].includes(String(value.status)) || !text(value.reason)) return null;
   const p = value.paper;
+  const map = value.claim_map;
+  if (map != null && (!object(map) || typeof map.paper_id !== "string" || typeof map.status !== "string" || !["COMPLETE", "NEEDS_REVIEW"].includes(map.status) || !text(map.needs_review_reason)
+    || !list(map.nodes, n => typeof n.id === "string" && typeof n.text === "string" && strings(n.sentence_ids) && strings(n.citation_ids) && typeof n.kind === "string" && ["CLAIM", "EVIDENCE", "ASSUMPTION"].includes(n.kind))
+    || !list(map.edges, e => typeof e.source_id === "string" && typeof e.target_id === "string" && typeof e.reason === "string" && typeof e.relation === "string" && ["SUPPORTS", "CONTRADICTS", "DEPENDS_ON"].includes(e.relation) && list(e.evidence, q => typeof q.passage_id === "string" && typeof q.quote === "string")))) return null;
   if (p != null && (!object(p) || !text(p.title) || !text(p.needs_review_reason) || !strings(p.authors)
     || !list(p.sentences, s => typeof s.id === "string" && typeof s.text === "string" && text(s.section))
     || !list(p.references, r => typeof r.id === "string" && typeof r.raw_text === "string" && text(r.title) && text(r.doi) && (r.year == null || Number.isInteger(r.year)))
