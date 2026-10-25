@@ -31,7 +31,7 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
       }
       await expect(page.getByLabel(name === "paper3" ? "1 partially supported" : "1 retracted", { exact: true })).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      await page.screenshot({ path: info.outputPath(`${name}-${width}-${reducedMotion}.png`), fullPage: true });
+      await page.screenshot({ path: info.outputPath(`${name}-${width}-${reducedMotion}.png`), fullPage: true, animations: "disabled" });
       if (name === "paper3") {
         for (const [id, label, color] of [["c00001", "Supported", "rgb(47, 125, 79)"], ["c00003", "Partially supported", "rgb(183, 121, 31)"]]) {
           const citation = page.locator(`[data-citation-id="${id}"]`);
@@ -67,7 +67,7 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
       expect(title!.y).toBeGreaterThanOrEqual(nav!.y + nav!.height);
       expect(tabs!.y).toBeGreaterThanOrEqual(title!.y + title!.height);
       expect(tabs!.y).toBeLessThanOrEqual(title!.y + title!.height + 20);
-      await page.screenshot({ path: info.outputPath(`sticky-${name}-${width}-${reducedMotion}.png`) });
+      await page.screenshot({ path: info.outputPath(`sticky-${name}-${width}-${reducedMotion}.png`), animations: "disabled" });
       await page.getByRole("tab", { name: "Claim graph", exact: true }).click();
       const graph = page.getByRole("region", { name: "Claim graph", exact: true });
       if (width === 1440) {
@@ -81,7 +81,7 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
         }
       } else await expect(page.getByRole("list", { name: "Claim graph list" })).toBeVisible();
       for (const label of name === "paper3" ? ["Not found", "DOI mismatch"] : ["Retracted"]) await expect(graph.getByText(label, { exact: true }).first()).toBeVisible();
-      await page.screenshot({ path: info.outputPath(`graph-${name}-${width}-${reducedMotion}.png`), fullPage: true });
+      await page.screenshot({ path: info.outputPath(`graph-${name}-${width}-${reducedMotion}.png`), fullPage: true, animations: "disabled" });
       if (width === 1440) {
         await page.locator(".react-flow__minimap-node").evaluateAll(nodes => nodes.forEach(node => node.remove()));
         await expect(page.locator(".react-flow__minimap")).toBeHidden();
