@@ -319,3 +319,4 @@ html[data-reader-theme=dark] .verdict-chip{background:#FAF9F6}html[data-reader-t
 .crosshair{position:absolute;width:13px;height:13px;pointer-events:none}.crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--ink)}.crosshair::before{left:6px;top:0;width:1px;height:13px}.crosshair::after{top:6px;left:0;width:13px;height:1px}
 .crosshair[data-corner^=t]{top:-7px}.crosshair[data-corner^=b]{bottom:-7px}.crosshair[data-corner$=l]{left:-7px}.crosshair[data-corner$=r]{right:-7px}
 @media(max-width:700px){.trust-columns>div{padding:0}.trust-columns>div+div{border-left:0;border-top:1px solid var(--hairline);padding-top:30px}}
+.excerpt-row .margin-note{cursor:pointer}
