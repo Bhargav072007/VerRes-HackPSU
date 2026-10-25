@@ -1,6 +1,7 @@
 """Run with configured Model adapters via run_bakeoff; CLI manages human labels.
 
-Demo PDFs are available, but human labels are not; pairs.jsonl is deliberately empty.
+Unlabeled review candidates live in candidates.jsonl (see README.md). Human labels
+are not available; pairs.jsonl is deliberately empty and is not auto-populated.
 """
 
 import argparse
