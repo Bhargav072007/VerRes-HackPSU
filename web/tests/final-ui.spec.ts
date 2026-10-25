@@ -87,7 +87,7 @@ for (const width of [1440, 390]) test(`D14 reader preferences persist, themes co
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
   await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("data-reader-theme", "light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark"); // One theme for the site: the report's choice carries over.
   await expect(page.locator(".hero-paper")).toHaveCSS("transform", /^(none|matrix\(([\d.]+), 0, 0, \2, 0, 0\))$/);
   await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
   expect(errors).toEqual([]);
