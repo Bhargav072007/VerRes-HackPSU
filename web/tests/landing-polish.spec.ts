@@ -11,7 +11,7 @@ for (const width of [1440, 390]) for (const reducedMotion of ["no-preference", "
     await page.emulateMedia({ reducedMotion });
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
-    await expect(page.locator(".hero-photo")).toHaveCount(1);
+    await expect(page.locator(".hero-scene")).toHaveCount(1);
     await expect(page.getByRole("heading", { name: "Read your paper like Reviewer 2 would." })).toBeVisible();
     await expect(page).toHaveScreenshot(`landing-${width}-${reducedMotion}.png`, { animations: "disabled", maxDiffPixelRatio: .01 });
     if (width === 390) {
@@ -57,7 +57,7 @@ test("D9 flags uncertain results, preserves receipts and honors the in-app motio
   await expect(page.locator("[data-reference-id=ref-1]")).toContainText("Not found in Crossref, OpenAlex or arXiv");
   await page.goto("/");
   await page.evaluate(() => { document.documentElement.dataset.a11yMotion = "reduce"; });
-  await expect(page.locator(".hero-details")).toHaveCSS("transform", "none");
+  await expect(page.locator(".hero-laptop")).toHaveCSS("transform", "none");
 
 });
 

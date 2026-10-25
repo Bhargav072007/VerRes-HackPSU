@@ -37,7 +37,7 @@ export function StickyNav() {
   useEffect(() => {
     const hero = document.getElementById("overview");
     const heroObserver = new IntersectionObserver(([entry]) => setShown(!entry.isIntersecting && entry.boundingClientRect.top < 0));
-    const sectionObserver = new IntersectionObserver(entries => { for (const entry of entries) if (entry.isIntersecting) setActive(entry.target.id); }, { rootMargin: "-45% 0px -54% 0px" });
+    const sectionObserver = new IntersectionObserver(entries => { for (const entry of entries) if (entry.isIntersecting) setActive(entry.target.id); }, { rootMargin: "-49% 0px -50% 0px" });
     if (hero) heroObserver.observe(hero);
     for (const [id] of sections) { const node = document.getElementById(id); if (node) sectionObserver.observe(node); }
     return () => { heroObserver.disconnect(); sectionObserver.disconnect(); };

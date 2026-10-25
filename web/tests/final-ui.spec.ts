@@ -9,7 +9,8 @@ for (const width of [1440, 390]) test(`D15 landing, facts, method and sample at 
  await expect(page.locator('.trust-columns')).toContainText('scholarly sources');
  await expect(page.locator('.trust-columns')).toContainText('median review time, recorded runs');
  await expect(page.getByText('Every finding links to its evidence.',{exact:true})).toHaveCount(1);
- await expect(page.locator('.hero-details')).toContainText('Partially supported');
+ await expect(page.locator('.hero-chips')).toContainText('Partial');
+ await expect(page.locator('.hero-chips li')).toHaveCount(8);
  const runtime=page.locator('.trust-columns .large-numeral').last();
  await expect(runtime).toHaveCSS('white-space','nowrap');
  await expect(runtime.locator('small')).toHaveCSS('vertical-align','baseline');
@@ -21,16 +22,11 @@ for (const width of [1440, 390]) test(`D15 landing, facts, method and sample at 
   expect(await number.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
  }
  await expect(page.locator('.paper-excerpt')).toHaveScreenshot(`excerpt-${width}.png`,{animations:'disabled'});
- await expect(page.locator('.sample-heading')).toHaveCSS('color','rgb(237, 235, 230)');
+ await expect(page.locator('.sample-heading')).toHaveCSS('color','rgb(255, 255, 255)');
  await expect(page.locator('.sample-papers')).toHaveScreenshot(`sample-cta-${width}.png`,{animations:'disabled'});
- if(width===1440) await expect(page.locator('.method-panel')).toHaveScreenshot(`exists-${width}.png`,{animations:'disabled'});
- else {
-  await page.locator('.method-accordion summary').first().click();
-  await expect(page.locator('.method-accordion details').first()).toHaveScreenshot(`exists-${width}.png`,{animations:'disabled'});
-  await page.locator('.method-accordion summary').first().click();
- }
- if(width===1440){await page.locator('.method-list button').nth(3).focus();await expect(page.locator('.method-list button').nth(3)).toHaveAttribute('aria-pressed','true');}
- else {await page.locator('.method-accordion summary').nth(3).click();await expect(page.locator('.method-accordion details').nth(3)).toHaveAttribute('open','');}
+ await expect(page.locator('[data-stage-card]')).toHaveCount(6);
+ await expect(page.locator('[data-stage-card="3"]')).toContainText('Retracted 2010');
+ await expect(page.locator('[data-stage-card="3"] a',{hasText:'Retraction notice'})).toHaveAttribute('href','https://doi.org/10.1016/s0140-6736%2810%2960175-4');
  await expect(page.locator('.paper-excerpt .margin-note')).toHaveCount(3);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.getByRole('link',{name:'See a sample report'}).click();await expect(page.getByRole('article',{name:'Paper text'})).toBeVisible();
@@ -92,7 +88,7 @@ for (const width of [1440, 390]) test(`D14 reader preferences persist, themes co
   }
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-reader-theme", "light");
-  await expect(page.locator(".hero-details")).toHaveCSS("transform", "none");
+  await expect(page.locator(".hero-laptop")).toHaveCSS("transform", "none");
   await expect(page.locator("html")).not.toHaveAttribute("data-landing-scroll");
   expect(errors).toEqual([]);
 });
