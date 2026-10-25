@@ -11,6 +11,7 @@ from api.app.review import ReviewPanel
 from api.app.routes.jobs import save_pdf
 from api.app.settings import Settings
 from api.app.stubs import FixtureServices
+from api.app.verify.model import ModelFailure
 from api.tests.helpers import FixtureModel
 from contracts.schema import Report
 from tests.conftest import FIXTURES
@@ -91,7 +92,7 @@ async def test_dedup_whitespace_and_chair_only_selects_survivors(panel_case):
 
 
 @pytest.mark.parametrize("task", [None, "r1_methods", "r3_claims", "r2_evidence", "chair"])
-async def test_unavailable_is_empty_logged_and_safe(panel_case, caplog, task):
+async def test_reviewer_failure_preserves_available_results_and_safe_logs(panel_case, caplog, task):
     report, model, panel = panel_case
     if task is None:
         panel.model = None
@@ -100,9 +101,15 @@ async def test_unavailable_is_empty_logged_and_safe(panel_case, caplog, task):
         model.responses[task] = RuntimeError("private API key or source data")
         reason = f"{task} failed (RuntimeError)"
     summary = await panel.run_review_panel(report.paper, report.support)
-    assert not summary.comments and not summary.top_fixes
-    assert summary.warning == f"Review panel unavailable: {reason}"
-    assert summary.warning in caplog.text and "private" not in caplog.text
+    if task is None:
+        assert not summary.comments and not summary.top_fixes
+        assert summary.warning == f"Review panel unavailable: {reason}"
+    else:
+        assert len(summary.comments) == len(summary.top_fixes) == (3 if task == "chair" else 2)
+        assert "Review panel incomplete" in summary.warning
+        assert reason in caplog.text
+        assert any(c.reviewer == "EVIDENCE" for c in summary.comments) == (task != "r2_evidence")
+    assert "private" not in caplog.text + summary.model_dump_json()
 
 
 @pytest.mark.parametrize(
@@ -112,10 +119,12 @@ async def test_strict_output_failure_is_reviewable(panel_case, response):
     report, model, panel = panel_case
     model.responses["r1_methods"] = response
     summary = await panel.run_review_panel(report.paper, report.support)
-    assert not summary.comments and "Review panel unavailable:" in summary.warning
+    assert len(summary.comments) == 2 and len(summary.top_fixes) == 2
+    assert "Methods reviewer unavailable" in summary.warning
+    assert len([c for c in model.calls if c["task"] == "r1_methods"]) == 2
 
 
-@pytest.mark.parametrize("availability", ["configured", "missing", "failed"])
+@pytest.mark.parametrize("availability", ["configured", "missing", "failed", "claims_failed"])
 async def test_stubs_free_pipeline_streams_parallel_reviewers(
     panel_case, job_pool, tmp_path, monkeypatch, availability
 ):
@@ -127,6 +136,8 @@ async def test_stubs_free_pipeline_streams_parallel_reviewers(
     monkeypatch.setenv("REVIEW_MODEL", "fixture-model")
     if availability == "failed":
         model.responses["chair"] = RuntimeError("private model error")
+    elif availability == "claims_failed":
+        model.responses["r3_claims"] = ModelFailure("private model error", code="HTTP_503")
     monkeypatch.setattr("api.app.orchestrator.build_backend", lambda *a, **kw: FixtureServices())
     services = build_services(
         Settings(_env_file=None, data_dir=tmp_path, openai_api_key=None),
@@ -154,9 +165,23 @@ async def test_stubs_free_pipeline_streams_parallel_reviewers(
         await asyncio.wait_for(runner.run_job(job_id), 2)
         events = await bus.jobs.read_events(job_id, 0)
         assert events[-1].type == "done" and runner.report.status == "NEEDS_REVIEW"
-        if availability != "configured":
+        if availability == "missing":
             assert not runner.report.review.comments and not runner.report.review.top_fixes
             assert runner.report.review.warning.startswith("Review panel unavailable:")
+            return
+        if availability == "claims_failed":
+            summary = runner.report.review
+            assert {c.reviewer for c in summary.comments} == {"METHODS", "EVIDENCE"}
+            assert len(summary.top_fixes) == 2 and "Claims reviewer unavailable" in summary.warning
+            streamed = {e.payload.model_dump_json() for e in events if e.type == "review"}
+            assert streamed == {c.model_dump_json() for c in summary.comments}
+            assert runner.report.support  # Independent citation checks still finish.
+            return
+        if availability == "failed":
+            assert len(runner.report.review.comments) == len(runner.report.review.top_fixes) == 3
+            assert "Area chair unavailable" in runner.report.review.warning
+            streamed = {e.payload.model_dump_json() for e in events if e.type == "review"}
+            assert streamed == {c.model_dump_json() for c in runner.report.review.comments}
             return
         reviews = [e for e in events if e.type == "review"]
         assert {e.payload.reviewer for e in reviews} == {"METHODS", "EVIDENCE", "CLAIMS"}
@@ -182,3 +207,67 @@ async def test_configured_model_factory_and_cleanup(monkeypatch):
     finally:
         await services.aclose()
     assert all(client.is_closed for client in services.model_gateway.clients.values())
+
+
+@pytest.mark.parametrize("failure", [ModelFailure("private", code="INCOMPLETE_OUTPUT"), "not JSON"])
+async def test_transient_claims_failure_retries_and_recovers(panel_case, failure):
+    report, model, panel = panel_case
+    answer = model.responses["r3_claims"]
+    calls = 0
+
+    def transient(kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            if isinstance(failure, Exception):
+                raise failure
+            return failure
+        return json.dumps(answer)
+
+    model.responses["r3_claims"] = transient
+    summary = await panel.run_review_panel(report.paper, report.support)
+    assert calls == 2 and len(summary.comments) == len(summary.top_fixes) == 3
+    assert summary.warning is None
+
+
+@pytest.mark.parametrize(
+    "code,reason",
+    [
+        ("HTTP_401", "credentials were rejected"),
+        ("HTTP_429", "quota is exhausted"),
+        ("HTTP_503", "could not complete"),
+        ("HTTP_403", "not accessible"),
+        ("CONTEXT_LIMIT", "input limit"),
+        ("BUDGET_EXHAUSTED", "daily model budget"),
+        ("BUDGET_UNAVAILABLE", "spending could not be checked"),
+        ("CIRCUIT_OPEN", "temporarily paused"),
+    ],
+)
+async def test_permanent_failure_does_not_retry_and_explains_cause(panel_case, code, reason):
+    report, model, panel = panel_case
+    model.responses["r3_claims"] = ModelFailure("private key and paper text", code=code)
+    summary = await panel.run_review_panel(report.paper, report.support)
+    assert len([c for c in model.calls if c["task"] == "r3_claims"]) == 1
+    assert len(summary.comments) == len(summary.top_fixes) == 2
+    assert reason in summary.warning and "private" not in summary.model_dump_json()
+
+
+async def test_all_reviewers_fail_without_fabricating_chair_fixes(panel_case):
+    report, model, panel = panel_case
+    for task in ("r1_methods", "r2_evidence", "r3_claims"):
+        model.responses[task] = ModelFailure("private", code="HTTP_401")
+    summary = await panel.run_review_panel(report.paper, report.support)
+    assert not summary.comments and not summary.top_fixes
+    assert all(role in summary.warning for role in ("Methods", "Evidence", "Claims"))
+    assert not any(c["task"] == "chair" for c in model.calls)
+
+
+async def test_panel_cancellation_is_not_swallowed_or_retried(panel_case):
+    report, model, panel = panel_case
+
+    async def cancelled(**kwargs):
+        raise asyncio.CancelledError
+
+    model.complete = cancelled
+    with pytest.raises(asyncio.CancelledError):
+        await panel.run_review_panel(report.paper, report.support)

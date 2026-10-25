@@ -4,9 +4,9 @@ import asyncio
 import logging
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 
-from api.app.verify.model import Model, ModelFailure, untrusted
+from api.app.verify.model import Model, ModelFailure, failure_reason, untrusted
 from contracts.schema import Contract, Paper, ReviewComment, ReviewSummary, SupportResult
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ class ReviewPanel:
         self.model, self.report, self.on_review = model, report, on_review
         self.prepared = None
         self.failure = None
+        self.failures = {}
         self.seen = set()
 
     def unavailable(self, reason):
@@ -35,12 +36,76 @@ class ReviewPanel:
 
     async def ask(self, task, data, schema):
         system = (Path(__file__).parent / "prompts" / f"{task}.v1.md").read_text()
-        response = await self.model.complete(
-            task=task, system=system, data=untrusted(data), schema=schema.model_json_schema()
+        for attempt in range(2):
+            try:
+                response = await self.model.complete(
+                    task=task,
+                    system=system,
+                    data=untrusted(data),
+                    schema=schema.model_json_schema(),
+                )
+                if not isinstance(response, str) or len(response) > 100_000:
+                    raise ModelFailure("missing or oversized output", code="INCOMPLETE_OUTPUT")
+                return schema.model_validate_json(response, strict=True)
+            except (ModelFailure, ValidationError) as error:
+                # HTTP retries, circuit breakers and Retry-After belong to Gateway.
+                # Retry only unusable model output here, never bypass those limits.
+                retryable = isinstance(error, ValidationError) or error.code in {
+                    "MODEL_FAILURE",
+                    "INCOMPLETE_OUTPUT",
+                }
+                if attempt or not retryable:
+                    raise
+                logger.warning("%s; retrying once", failure_reason(task, error))
+                await asyncio.sleep(0.2)
+
+    def failed(self, task, error):
+        role = {
+            "r1_methods": "Methods reviewer",
+            "r2_evidence": "Evidence reviewer",
+            "r3_claims": "Claims reviewer",
+            "chair": "Area chair",
+        }[task]
+        detail = "The model service could not complete this review."
+        if isinstance(error, ValidationError):
+            detail = "The model returned an invalid review after retrying."
+        elif isinstance(error, ModelFailure):
+            detail = {
+                "CONTEXT_LIMIT": "The paper exceeds the configured review input limit.",
+                "HTTP_401": "The model API credentials were rejected.",
+                "HTTP_403": "The configured model is not accessible with these credentials.",
+                "HTTP_400": "The configured model rejected the review request.",
+                "HTTP_404": "The configured model could not be found.",
+                "BUDGET_EXHAUSTED": "The application's daily model budget is exhausted.",
+                "BUDGET_UNAVAILABLE": "Model spending could not be checked safely.",
+                "CIRCUIT_OPEN": "The model service is temporarily paused after repeated failures.",
+                "HTTP_429": "The model service is rate limited or its quota is exhausted.",
+                "INCOMPLETE_OUTPUT": "The model returned an incomplete review after retrying.",
+                "TRANSPORT_FAILURE": "The model service is unavailable or its request timed out.",
+            }.get(error.code, detail)
+        self.failures[task] = f"{role} unavailable: {detail}"
+        diagnostic = (
+            failure_reason(task, error)
+            if isinstance(error, ModelFailure | ValidationError)
+            else f"{task} failed ({type(error).__name__})"
         )
-        if not isinstance(response, str) or len(response) > 100_000:
-            raise ModelFailure("missing or oversized output")
-        return schema.model_validate_json(response, strict=True)
+        logger.warning("%s", diagnostic)
+
+    def warning(self):
+        warnings = [
+            self.failures[task]
+            for task in ("r1_methods", "r2_evidence", "r3_claims", "chair")
+            if task in self.failures
+        ]
+        if warnings:
+            warnings.insert(0, "Review panel incomplete; available findings are preserved.")
+        if (
+            self.report
+            and not any(f.kind == "CHECK_INCOMPLETE" for f in self.report.hidden_text)
+            and any("INSTRUCTION_PATTERN" in f.reason for f in self.report.hidden_text)
+        ):
+            warnings.append(HIDDEN_WARNING)
+        return " ".join(warnings) or None
 
     def citation_table(self, paper, support):
         existence = {r.reference_id: r.status for r in self.report.existence} if self.report else {}
@@ -104,7 +169,7 @@ class ReviewPanel:
         try:
             result = await self.ask(task, data, ReviewerOutput)
         except Exception as error:
-            self.unavailable(f"{task} failed ({type(error).__name__})")
+            self.failed(task, error)
             return []
         comments = [c for c in result.comments if self.validate(c, reviewer, paper, table or [])]
         if self.on_review:
@@ -123,7 +188,7 @@ class ReviewPanel:
                 self.reviewer("r3_claims", "CLAIMS", paper),
             )
             self.prepared = [c for group in results for c in group]
-        return ReviewSummary(comments=[] if self.failure else self.prepared, warning=self.failure)
+        return ReviewSummary(comments=self.prepared, warning=self.warning())
 
     async def run_review_panel(self, paper: Paper, support: list[SupportResult]) -> ReviewSummary:
         await self.prepare(paper)
@@ -132,24 +197,27 @@ class ReviewPanel:
         evidence = await self.reviewer(
             "r2_evidence", "EVIDENCE", paper, self.citation_table(paper, support)
         )
-        if self.failure:
-            return ReviewSummary(warning=self.failure)
         comments = self.prepared + evidence
+        if not comments:
+            return ReviewSummary(warning=self.warning())
         surviving = {f"comment-{i + 1}": c for i, c in enumerate(comments)}
         try:
             chair = await self.ask(
                 "chair", {k: c.model_dump() for k, c in surviving.items()}, ChairOutput
             )
         except Exception as error:
-            return self.unavailable(f"chair failed ({type(error).__name__})")
+            self.failed("chair", error)
+            # Rank only receipt-validated reviewer suggestions; invent no replacement review.
+            fixes = list(
+                dict.fromkeys(
+                    c.suggestion for c in sorted(comments, key=lambda c: c.severity != "MAJOR")
+                )
+            )[:5]
+            return ReviewSummary(comments=comments, top_fixes=fixes, warning=self.warning())
         selected = list(dict.fromkeys(c for c in chair.comment_ids if c in surviving))
         selected.sort(key=lambda c: surviving[c].severity != "MAJOR")
         return ReviewSummary(
             comments=comments,
             top_fixes=list(dict.fromkeys(surviving[c].suggestion for c in selected)),
-            warning=HIDDEN_WARNING
-            if self.report
-            and not any(f.kind == "CHECK_INCOMPLETE" for f in self.report.hidden_text)
-            and any("INSTRUCTION_PATTERN" in f.reason for f in self.report.hidden_text)
-            else None,
+            warning=self.warning(),
         )
