@@ -51,7 +51,7 @@ class Finding(Record):
     evidence_level: Literal["FULL_TEXT", "ABSTRACT", "NONE"]
     evidence_strength: Literal["DIRECT", "INDIRECT", "INSUFFICIENT"] = "INSUFFICIENT"
     model_ids: list[str] = Field(default_factory=list)
-    prompt_version: str = "v2"
+    prompt_version: str = "v3"
     source_work_id: str | None = None
     source_origin: str | None = None
     passages: list[Passage] = Field(default_factory=list)

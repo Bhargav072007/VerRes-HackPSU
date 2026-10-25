@@ -63,7 +63,21 @@ def gate(
         return uncertain(source, "source evidence is unavailable", [model_id])
     if len(judgment.evidence) > 3:
         return uncertain(source, "judge returned more than three evidence quotes", [model_id])
-    if judgment.label in SEVERE and source.evidence_level != "FULL_TEXT":
+    if judgment.label == "NOT_SUPPORTED" and source.evidence_level == "ABSTRACT":
+        return uncertain(
+            source, "abstract does not address this claim; full text unavailable", [model_id]
+        )
+    if (
+        judgment.label == "CONTRADICTED"
+        and source.evidence_level == "ABSTRACT"
+        and (
+            judgment.evidence_strength != "DIRECT" or set(judgment.mismatch_types) != {"DIRECTION"}
+        )
+    ):
+        return uncertain(
+            source, "abstract evidence does not establish an explicit opposite finding", [model_id]
+        )
+    if judgment.label in SEVERE and source.evidence_level not in {"FULL_TEXT", "ABSTRACT"}:
         return uncertain(
             source, "abstract-only evidence cannot establish a severe finding", [model_id]
         )
@@ -81,7 +95,9 @@ def gate(
         return uncertain(source, "indirect evidence cannot establish full support", [model_id])
     if judgment.label in SEVERE and not adjudicated:
         return uncertain(
-            source, "severe finding requires independent whole-source adjudication", [model_id]
+            source,
+            "severe finding requires independent adjudication of the supplied evidence",
+            [model_id],
         )
     return Finding(
         status=judgment.label,
