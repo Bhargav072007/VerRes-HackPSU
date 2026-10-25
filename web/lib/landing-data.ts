@@ -1,6 +1,7 @@
 import demo from "@/fixtures/demo/paper3.json";
-import paper2 from "@/tests/fixtures/prod/paper2-job.json";
-import paper3 from "@/tests/fixtures/prod/paper3-job.json";
+// Trimmed recordings (scripts/d18/trim-landing-fixtures.mjs): the full job fixtures minus their event journals.
+import paper2 from "@/fixtures/landing/paper2.json";
+import paper3 from "@/fixtures/landing/paper3.json";
 import { citationSupportVerdict, decodeReport, referenceVerdict, verifiedEvidence, type Report } from "./report";
 export const landingReport = decodeReport(demo)!;
 const recordings = [paper2, paper3];

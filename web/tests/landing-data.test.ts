@@ -47,3 +47,12 @@ test("hero tally and paper page come from the fixtures, and every label meets 4.
   const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
   for (const { text, color } of Object.values(findingStyles)) { assert.ok(ratio(text, "#F3EBDD") >= 4.5, text); assert.ok(ratio(color, "#FBF6EC") >= 3, color); }
 });
+
+test("the landing's trimmed recordings equal the recorded job fixtures minus their event journals", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const name of ["paper2", "paper3"]) {
+    const full = JSON.parse(readFileSync(`tests/fixtures/prod/${name}-job.json`, "utf8")), trimmed = JSON.parse(readFileSync(`fixtures/landing/${name}.json`, "utf8"));
+    for (const key of ["events", "review_comments", "claim_map"]) delete full[key];
+    assert.deepEqual(trimmed, full);
+  }
+});
