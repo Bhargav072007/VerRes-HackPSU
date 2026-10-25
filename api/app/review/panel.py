@@ -147,5 +147,9 @@ class ReviewPanel:
         return ReviewSummary(
             comments=comments,
             top_fixes=list(dict.fromkeys(surviving[c].suggestion for c in selected)),
-            warning=HIDDEN_WARNING if self.report and self.report.hidden_text else None,
+            warning=HIDDEN_WARNING
+            if self.report
+            and not any(f.kind == "CHECK_INCOMPLETE" for f in self.report.hidden_text)
+            and any("INSTRUCTION_PATTERN" in f.reason for f in self.report.hidden_text)
+            else None,
         )

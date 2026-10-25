@@ -262,7 +262,9 @@ async def test_gateway_timeout_and_shared_crossref_breaker(respx_mock):
         await gateway.aclose()
 
 
-async def test_stage_provider_failure_becomes_receipt(job_client, job_app, job_pool, monkeypatch):
+async def test_stage_provider_failure_retains_valid_receipts(
+    job_client, job_app, job_pool, monkeypatch, caplog
+):
     gateway = ResilientGateway(
         {"openalex": Policy("https://openalex.example", 100, 1, 1)}, attempts=1
     )
@@ -281,9 +283,19 @@ async def test_stage_provider_failure_becomes_receipt(job_client, job_app, job_p
     try:
         await runner.run_job(UUID(accepted.json()["job_id"]))
         assert all(
-            row.status == "CHECK_INCOMPLETE" and "openalex: circuit open" in row.reason
+            row.status == "VERIFIED" and row.matched_reference is not None
             for row in runner.report.existence
         )
+        assert all(row.status == "AVAILABLE" and row.passages for row in runner.report.sources)
+        events = await runner.bus.jobs.read_events(runner.job_id, 0)
+        incomplete = [
+            e.payload
+            for e in events
+            if e.type == "stage" and e.payload.status == "CHECK_INCOMPLETE"
+        ]
+        assert len(incomplete) == 3
+        assert all("openalex: circuit open" in stage.reason for stage in incomplete)
+        assert "stage provider issues" in caplog.text
         assert runner.report.status == "NEEDS_REVIEW"
     finally:
         await gateway.aclose()

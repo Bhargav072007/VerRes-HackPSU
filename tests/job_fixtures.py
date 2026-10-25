@@ -3,6 +3,7 @@
 import asyncio
 import json
 import math
+import re
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
@@ -173,6 +174,7 @@ class FixturePool:
                         (
                             json.loads(e["payload"]).get("status") == "CHECK_INCOMPLETE"
                             or json.loads(e["payload"]).get("kind") == "CHECK_INCOMPLETE"
+                            or re.search(args[2], e["payload"], re.I)
                         )
                         for e in events
                     )
