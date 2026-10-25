@@ -17,6 +17,9 @@ import { decodeEvent } from "@/lib/job-stream";
 import { loadSharedReport } from "@/lib/sharing";
 import { ReportActions } from "./report-actions";
 import { HiddenText } from "./hidden-text";
+import dynamic from "next/dynamic";
+
+const ClaimGraph = dynamic(() => import("@/components/claim-graph").then(m => m.ClaimGraph), { ssr: false, loading: () => <div role="status" aria-label="Loading claim graph" className="space-y-4 rounded-xl border bg-white p-8"><div className="h-6 w-36 rounded bg-secondary" /><div className="h-64 rounded-xl bg-secondary" /><span className="sr-only">Loading claim graph…</span></div> });
 
 const counters = ["References", "Not found", "DOI mismatch", "Retracted", "Overstated", "Needs review"];
 const tabs = ["Report", "Peer review", "Claim graph", "Integrity"];
@@ -35,7 +38,7 @@ export function ReportReader({ id, shared = false, onOpenEvidence }: { id: strin
   const sections = Array.from(new Set(sentences.map(s => s.section || "Paper text")));
   const counts = report ? reportCounts(report) : counters.map(() => 0);
   const peerAvailable = loading || !!report && reviewState(report).present;
-  const tab = view === "Peer review" && !peerAvailable ? "Report" : view;
+  const tab = (view === "Peer review" && !peerAvailable) || (view === "Claim graph" && report?.claim_map == null) ? "Report" : view;
 
   useEffect(() => {
     const abort = new AbortController();
@@ -113,6 +116,14 @@ export function ReportReader({ id, shared = false, onOpenEvidence }: { id: strin
     if (!onOpenEvidence) window.dispatchEvent(new CustomEvent("verres:open-evidence", { detail: { citationId } }));
   }
 
+  function openGraphEvidence(citationId: string) {
+    setTab("Report"); setFilter("All"); setLocated("");
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-citation-id="${CSS.escape(citationId)}"]`)?.scrollIntoView({ block: "center", behavior: reduced ? "instant" : "smooth" });
+      openEvidence(citationId);
+    });
+  }
+
   return <main id="main" className="mx-auto max-w-6xl px-5 py-8 md:px-10 md:py-10">
     <div className="flex flex-wrap items-center justify-between gap-4"><Link href="/" className="inline-flex items-center gap-2 text-xs text-muted-foreground"><ArrowLeft size={14} /> Back to VerRes</Link>{report && <ReportActions id={id} shared={shared} />}</div>
     {report && <HiddenText findings={report.hidden_text} />}
@@ -125,7 +136,7 @@ export function ReportReader({ id, shared = false, onOpenEvidence }: { id: strin
       <dl className="grid grid-cols-3 border-t md:grid-cols-6">{counters.map((label, i) => <div key={label} className="border-r border-b px-4 py-5 nth-3:border-r-0 nth-last-[-n+3]:border-b-0 md:border-b-0 md:px-6 md:nth-3:border-r md:last:border-r-0"><dd aria-label={`${counts[i]} ${label.toLowerCase()}`} className="text-2xl font-medium tabular-nums"><NumberFlow aria-hidden value={counts[i]} animated={!reduced} transformTiming={counterTiming} spinTiming={counterTiming} opacityTiming={{ duration: 180, easing: "ease-out" }} /></dd><dt className="mt-1 text-[10px] text-muted-foreground">{label}</dt></div>)}</dl>
     </section>
     <Tabs value={tab} onValueChange={setTab} className="mt-7 gap-6">
-      <TabsList aria-label="Report views" variant="line" className="sticky top-0 z-20 h-14 w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-background py-3 sm:gap-5">{tabs.filter(name => name !== "Peer review" || peerAvailable).map(name => <TabsTrigger key={name} value={name} className="min-h-9 flex-none px-2 text-xs sm:text-sm">{name}</TabsTrigger>)}</TabsList>
+      <TabsList aria-label="Report views" variant="line" className="sticky top-0 z-20 h-14 w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-background py-3 sm:gap-5">{tabs.filter(name => (name !== "Peer review" || peerAvailable) && (name !== "Claim graph" || report?.claim_map != null)).map(name => <TabsTrigger key={name} value={name} className="min-h-9 flex-none px-2 text-xs sm:text-sm">{name}</TabsTrigger>)}</TabsList>
       <TabsContent value="Report">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div role="group" aria-label="Filter findings" className="flex rounded-lg border bg-white p-1">{filters.map(name => <button key={name} type="button" aria-pressed={filter === name} onClick={() => setFilter(name)} className={`rounded-md px-3 py-2 text-[11px] ${filter === name ? "bg-secondary font-medium" : "text-muted-foreground"}`}>{name}</button>)}</div><p className="text-[10px] text-muted-foreground"><kbd>j</kbd> / <kbd>k</kbd> flags · <kbd>Enter</kbd> evidence</p></div>
         {loading && <p role="status" className="rounded-xl border bg-white p-8 text-sm">Loading your report…</p>}
@@ -164,7 +175,8 @@ export function ReportReader({ id, shared = false, onOpenEvidence }: { id: strin
         </>}
       </TabsContent>
       <TabsContent value="Peer review"><PeerReview report={report} onLocate={target => { setFilter("All"); setLocated(target); setTab("Report"); }} /></TabsContent>
-      {tabs.slice(2).map(name => <TabsContent key={name} value={name} className="rounded-xl border bg-white px-6 py-14 text-center"><FileSearch size={24} className="mx-auto text-muted-foreground" /><h2 className="mt-4 font-serif text-2xl">{name}</h2><p className="mt-2 text-sm text-muted-foreground">This view is coming soon. Citation receipts are available in the Report tab.</p></TabsContent>)}
+      {report?.claim_map && <TabsContent value="Claim graph"><ClaimGraph report={report} onOpenEvidence={openGraphEvidence} /></TabsContent>}
+      {tabs.slice(3).map(name => <TabsContent key={name} value={name} className="rounded-xl border bg-white px-6 py-14 text-center"><FileSearch size={24} className="mx-auto text-muted-foreground" /><h2 className="mt-4 font-serif text-2xl">{name}</h2><p className="mt-2 text-sm text-muted-foreground">This view is coming soon. Citation receipts are available in the Report tab.</p></TabsContent>)}
     </Tabs>
     {report && <EvidencePanel report={report} citationId={flag} onClose={() => updateFlag("")} shared={shared} />}
   </main>;
