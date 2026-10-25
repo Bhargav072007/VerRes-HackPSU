@@ -1,2 +1,3 @@
 *.tsbuildinfo
 /playwright-results/
+/scripts/mockups/work/
