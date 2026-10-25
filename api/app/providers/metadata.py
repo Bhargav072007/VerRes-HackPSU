@@ -6,6 +6,7 @@ from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 
 from api.app.providers.http import DAY, Gateway
+from api.app.providers.identifiers import normalize_arxiv
 from api.app.providers.models import ProviderResult, Work
 
 
@@ -33,6 +34,8 @@ def crossref_work(item: dict) -> Work:
         venue=first_string(item.get("container-title")),
         abstract=item.get("abstract") if isinstance(item.get("abstract"), str) else None,
         abstract_origin="crossref" if item.get("abstract") else None,
+        updated_by=item.get("updated-by", []),
+        update_to=item.get("update-to", []),
     )
 
 
@@ -169,7 +172,8 @@ class Arxiv:
         self.gateway = gateway
 
     async def lookup(self, identifier: str) -> ProviderResult:
-        if not re.fullmatch(r"(?:\d{4}\.\d{4,5}|[a-z-]+/\d{7})(?:v\d+)?", identifier, re.I):
+        identifier = normalize_arxiv(identifier)
+        if not identifier:
             return ProviderResult(provider="arxiv", definitive=False, reason="invalid arXiv ID")
         response = await self.gateway.request("arxiv", "/api/query", params={"id_list": identifier})
         if response.error or response.status != 200:
@@ -187,13 +191,13 @@ class Arxiv:
             for item in root.findall(ns + "entry"):
                 title, identity = item.findtext(ns + "title"), item.findtext(ns + "id")
                 published = item.findtext(ns + "published", "")
-                if not title or not identity or "/abs/" not in identity:
+                if not title or not normalize_arxiv(identity):
                     raise ValueError("invalid arXiv entry")
                 works.append(
                     Work(
                         provider="arxiv",
                         id=identity,
-                        arxiv=identity.split("/abs/")[-1],
+                        arxiv=normalize_arxiv(identity),
                         title=" ".join(title.split()),
                         year=int(published[:4]),
                         authors=[

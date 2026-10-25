@@ -69,7 +69,7 @@ class IngestService(Ingest):
                 page=span.page,
                 quote=span.text,
                 kind="SUSPICIOUS_TEXT"
-                if "INSTRUCTION_PATTERN" in span.categories
+                if span.categories == ["INSTRUCTION_PATTERN"]
                 else "HIDDEN_TEXT",
                 reason=f"{', '.join(span.categories)}: {span.reason}",
             )

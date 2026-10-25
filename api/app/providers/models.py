@@ -20,6 +20,8 @@ class Work(Record):
     abstract_inverted_index: dict[str, list[int]] | None = None
     oa_url: str | None = None
     is_retracted: bool | None = None
+    updated_by: list[dict] | None = None
+    update_to: list[dict] | None = None
 
 
 class ProviderResult(Record):

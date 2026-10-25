@@ -7,6 +7,7 @@ from pydantic import Field
 from rapidfuzz.fuzz import token_set_ratio
 
 from api.app.ingest.models import ParsedReference, Record
+from api.app.providers.identifiers import same_arxiv
 from api.app.providers.models import Work
 
 
@@ -112,7 +113,15 @@ async def resolve_reference(
     elif ref.arxiv and arxiv:
         direct = [await arxiv.lookup(ref.arxiv)]
     direct_works = [work for result in direct for work in result.works]
-    matching = [work for work in direct_works if agrees(ref, work)]
+    matching = (
+        [
+            work
+            for work in direct_works
+            if same_arxiv(ref.arxiv, work.arxiv) and not metadata_mismatch(ref, work)
+        ]
+        if ref.arxiv and not ref.doi
+        else [work for work in direct_works if agrees(ref, work)]
+    )
     mismatching = [work for work in direct_works if metadata_mismatch(ref, work)]
     if matching and not mismatching:
         return ExistenceResult(
@@ -133,6 +142,13 @@ async def resolve_reference(
             status="DOI_MISMATCH",
             reason="DOI resolves to conflicting metadata",
             candidates=mismatching,
+            providers_checked=[r.provider for r in direct],
+        )
+    if ref.arxiv and not ref.doi and direct_works:
+        return ExistenceResult(
+            status="AMBIGUOUS",
+            reason="arXiv identifier or supplied metadata conflicts",
+            candidates=direct_works,
             providers_checked=[r.provider for r in direct],
         )
     results = await asyncio.gather(crossref.search(ref.raw), openalex.search(ref.title or ref.raw))

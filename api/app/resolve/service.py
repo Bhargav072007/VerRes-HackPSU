@@ -10,7 +10,7 @@ from api.app.providers.boundary import (
 )
 from api.app.providers.metadata import normalize_doi
 from api.app.resolve.existence import agrees, combine_works, resolve_reference
-from api.app.resolve.retraction import check_retraction
+from api.app.resolve.retraction import check_retraction, crossref_notices
 from contracts.interfaces import Resolve
 from contracts.schema import (
     ExistenceResult,
@@ -97,9 +97,37 @@ class ResolveService(Resolve):
                 work.is_retracted = next(
                     (w.is_retracted for w in matching if w.is_retracted is not None), None
                 )
-        records = (
+        records = None
+        if reference.doi and self.crossref:
+            metadata = await self.crossref.lookup(reference.doi)
+            originals = [w for w in metadata.works if w.doi == work.doi]
+            if metadata.definitive and originals:
+                records = crossref_notices(originals[0], work.doi)
+                for record in list(records or []):
+                    if record.retracted is None and record.notice_url:
+                        notice = await self.crossref.lookup(record.notice_url)
+                        for item in notice.works if notice.definitive else []:
+                            if item.doi == normalize_doi(record.notice_url):
+                                dated = crossref_notices(item, work.doi) or []
+                                records.extend(r for r in dated if r.retracted is not None)
+        watch_records = (
             await self.retractions.lookup(reference.doi)
             if self.retractions and reference.doi
+            else None
+        )
+        if watch_records is not None:
+            records = (records or []) + watch_records
+        # Dated metadata supersedes an undated stub for the same notice.
+        records = (
+            [
+                r
+                for r in records
+                if r.retracted is not None
+                or not any(
+                    d.notice_url == r.notice_url and d.retracted is not None for d in records
+                )
+            ]
+            if records is not None
             else None
         )
         checked = check_retraction(work, paper_date, records)
@@ -110,10 +138,31 @@ class ResolveService(Resolve):
             "CORRECTED": RetractionStatus.CORRECTED,
             "EXPRESSION_OF_CONCERN": RetractionStatus.EXPRESSION_OF_CONCERN,
         }[checked.status]
+        receipt = next(
+            (
+                r
+                for r in checked.records
+                if r.notice_type
+                == {"RETRACTED": "RETRACTION", "CORRECTED": "CORRECTION"}.get(
+                    checked.status, checked.status
+                )
+                and r.retracted
+                and paper_date
+                and r.retracted < paper_date
+                and r.notice_url
+            ),
+            None,
+        )
         return RetractionResult(
             reference_id=existence.reference_id,
             status=status,
             notice_urls=list(dict.fromkeys(r.notice_url for r in checked.records if r.notice_url)),
             checked_as_of=datetime.now(UTC).date(),
             reason=checked.reason,
+            source_url=receipt.notice_url if receipt else None,
+            source_type=(
+                "crossref" if receipt.provenance.startswith("Crossref") else "retraction_watch"
+            )
+            if receipt
+            else None,
         )
