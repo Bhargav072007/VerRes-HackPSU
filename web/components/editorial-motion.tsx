@@ -1,0 +1,32 @@
+"use client";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { animate, motion, useAnimationFrame, useInView, useMotionValue } from "motion/react";
+import { usePolishMotion } from "./landing-chrome";
+const ease = [.2,.7,.2,1] as const;
+export function Reveal({ children, className = "", image = false, delay = 0 }: { children: ReactNode; className?: string; image?: boolean; delay?: number }) {
+ const reduced = usePolishMotion();
+ return <motion.div className={className} data-reveal initial={reduced ? false : image ? { opacity:0,scale:.985 } : { opacity:0,y:12 }} whileInView={{opacity:1,y:0,scale:1}} viewport={{once:true,amount:.2}} transition={{duration:reduced ? 0 : image ? .5 : .36, ease, delay:reduced ? 0 : delay}}>{children}</motion.div>;
+}
+export function CountOnce({ value }: { value: number }) {
+ const ref = useRef<HTMLSpanElement>(null), visible = useInView(ref,{once:true,amount:.2}), reduced = usePolishMotion();
+ const [count,setCount] = useState(value);
+ useEffect(() => {
+  if (!visible || reduced) return;
+  const control = animate(0,value,{duration:.6,ease:"easeOut",onUpdate:n => setCount(Math.round(n))});
+  return () => control.stop();
+ },[visible,reduced,value]);
+ return <span ref={ref} className="count-once" style={{minWidth:`${String(value).length}ch`}} aria-label={String(value)}><span aria-hidden>{reduced ? value : visible ? count : 0}</span></span>;
+}
+export function HeroDetails({ children }: { children: ReactNode }) {
+ const reduced = usePolishMotion(), x = useMotionValue(0), y = useMotionValue(0);
+ const target = useRef({x:0,y:0});
+ useAnimationFrame(() => { const enabled = !reduced && matchMedia("(min-width:1000px) and (hover:hover) and (pointer:fine)").matches; const tx=enabled ? target.current.x : 0, ty=enabled ? target.current.y : 0; x.set(Math.abs(tx-x.get()) < .01 ? tx : x.get()+(tx-x.get())*.12);y.set(Math.abs(ty-y.get()) < .01 ? ty : y.get()+(ty-y.get())*.12); });
+ return <motion.div className="hero-details" style={{x:reduced?0:x,y:reduced?0:y}} onPointerMove={e => { if (e.pointerType !== "mouse" || reduced) return;const box=e.currentTarget.getBoundingClientRect();target.current={x:Math.max(-6,Math.min(6,((e.clientX-box.left)/box.width-.5)*12)),y:Math.max(-6,Math.min(6,((e.clientY-box.top)/box.height-.5)*12))}; }} onPointerLeave={() => {target.current={x:0,y:0};}}>{children}</motion.div>;
+}
+const LinkContext=createContext(false);
+export function LinkedNote({ children, className }: { children: ReactNode; className: string }) {
+ const [active,setActive]=useState(false);
+ return <LinkContext.Provider value={active}><div className={className} onMouseOver={e => setActive(!!(e.target as HTMLElement).closest(".margin-note,.excerpt-text,.reader-paragraph"))} onMouseLeave={() => setActive(false)} onFocusCapture={() => setActive(true)} onBlurCapture={e => {if(!e.currentTarget.contains(e.relatedTarget))setActive(false);}}>{children}</div></LinkContext.Provider>;
+}
+export function NoteTint() { const active=useContext(LinkContext),reduced=usePolishMotion();return <motion.span aria-hidden className="note-tint" initial={false} animate={{opacity:active?.09:0}} transition={{duration:reduced?0:.16}} />; }
+export function PenUnderline() {const reduced=usePolishMotion();return <motion.span aria-hidden className="pen-underline" initial={reduced?false:{scaleX:0}} whileInView={{scaleX:1}} viewport={{once:true,amount:.2}} transition={{duration:reduced?0:.3,ease}} />;}

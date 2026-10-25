@@ -44,3 +44,9 @@ python3 scripts/mockups/composite.py           # uses work/ scenes; no generatio
 - Shared MarginNote component is rendered beside paper lines and inline on mobile. Reader settings remain complete with theme tints; report/evidence tokens are flat and semantic.
 - Old manuscript sequence and beat mapping removed. Functional report reading header remains flat, with its obsolete progress strip removed.
 - Typecheck, lint, all 30 unit tests, and webpack build pass. Browser snapshots are regenerated at §7 after final capture.
+
+## Continuation checkpoint: §6 complete
+- Motion-only section/image/chip reveals and 200ms method crossfades; obsolete CSS animation engine removed.
+- Added requested 600ms first-view numeral count, desktop fine-pointer hero parallax (clamped ±6px, lerped), and shared line/note tint overlays (160ms opacity).
+- OS and reader reduced-motion preferences show final states. Typecheck, lint, webpack build pass.
+- Next: final capture/composite/contact sheet, then browser assertions/snapshots and §7 gates.

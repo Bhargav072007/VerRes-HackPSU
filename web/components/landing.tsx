@@ -9,6 +9,7 @@ import { LandingScene } from "./landing-scene";
 import { LandingResults } from "./landing-results";
 import { LandingMethod } from "./landing-method";
 import { MockupImage } from "./mockup-image";
+import { CountOnce, Reveal } from "./editorial-motion";
 import { Brand } from "./brand";
 import { recordedStats, productChecks, scholarlySources } from "@/lib/landing-data";
 const samples = [
@@ -78,10 +79,10 @@ export function Landing() {
   }
 
 return <main id="main" className="landing polished-page"><LandingChrome /><LandingScene />
-<section className="trust-band section-container" aria-label="Product facts"><div className="trust-columns"><div><span className="large-numeral">{productChecks.length}</span><p>checks per citation</p><div className="tiny-dots" aria-hidden>{productChecks.map(check => <span key={check} />)}</div></div><div><span className="large-numeral">{scholarlySources.length}</span><p>scholarly sources</p><div className="tiny-dots" aria-hidden>{scholarlySources.map(source => <span key={source} />)}</div></div>{recordedStats.medianSeconds != null && <div><span className="large-numeral">{recordedStats.medianSeconds}<small> s</small></span><p>median review time, recorded runs</p><div className="tiny-bars" aria-hidden><span style={{width:`${Math.min(100,recordedStats.medianSeconds)}%`}} /></div></div>}</div></section>
-<LandingMethod />
-<section id="results" className="proof-band"><div className="section-container"><div className="proof-main"><MockupImage scene="s3" alt="BERT claim and its verified evidence on a tablet" /><div><h2 className="editorial-title">See the argument, <strong>not just the citations.</strong></h2><p>A reference can exist without supporting the sentence that cites it. Inspect the claim beside the passage, then follow its source.</p></div></div><div className="proof-secondary"><div><p className="proof-caption">The same evidence,<br />wherever you read.</p><MockupImage scene="s4" alt="A VerRes review in progress on a desk laptop" /></div><MockupImage scene="s2" sizes="(max-width:700px) 60vw, 30vw" alt="The BERT finding and inline reviewer note on a phone" /></div></div></section>
-<LandingResults />
+<section className="trust-band section-container" aria-label="Product facts"><div className="trust-columns"><div><span className="large-numeral"><CountOnce value={productChecks.length} /></span><p>checks per citation</p><div className="tiny-dots" aria-hidden>{productChecks.map(check => <span key={check} />)}</div></div><div><span className="large-numeral"><CountOnce value={scholarlySources.length} /></span><p>scholarly sources</p><div className="tiny-dots" aria-hidden>{scholarlySources.map(source => <span key={source} />)}</div></div>{recordedStats.medianSeconds != null && <div><span className="large-numeral"><CountOnce value={recordedStats.medianSeconds} /><small> s</small></span><p>median review time, recorded runs</p><div className="tiny-bars" aria-hidden><span style={{width:`${Math.min(100,recordedStats.medianSeconds)}%`}} /></div></div>}</div></section>
+<Reveal><LandingMethod /></Reveal>
+<section id="results" className="proof-band"><div className="section-container"><Reveal className="proof-main"><MockupImage scene="s3" alt="BERT claim and its verified evidence on a tablet" /><div><h2 className="editorial-title">See the argument, <strong>not just the citations.</strong></h2><p>A reference can exist without supporting the sentence that cites it. Inspect the claim beside the passage, then follow its source.</p></div></Reveal><Reveal className="proof-secondary"><div><p className="proof-caption">The same evidence,<br />wherever you read.</p><MockupImage scene="s4" alt="A VerRes review in progress on a desk laptop" /></div><MockupImage scene="s2" sizes="(max-width:700px) 60vw, 30vw" alt="The BERT finding and inline reviewer note on a phone" /></Reveal></div></section>
+<Reveal><LandingResults /></Reveal>
 <section id="honesty" className="article-section section-container limitations"><h2 className="editorial-title">What we won’t guess.</h2><p>A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p><ul aria-label="Cases that need review"><li>Source text is unavailable.</li><li>The retrieved abstract does not address the claim.</li><li>The quoted passage cannot be verified.</li><li>The reference identity is ambiguous.</li></ul><p>These findings return <span className="needs-review">Needs review</span>, with the reason available for inspection.</p></section>
 <section id="submit" className="upload-band" aria-labelledby="upload-heading"><MockupImage scene="s5" sizes="100vw" alt="" /><div className="upload-content section-container"><div><h2 id="upload-heading">Careful work deserves<br />a careful review.</h2><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p></div>      <form
         onSubmit={submit}
@@ -208,7 +209,7 @@ return <main id="main" className="landing polished-page"><LandingChrome /><Landi
               <>
                 <LoaderCircle
                   size={14}
-                  className="animate-[spin_360ms_linear_infinite]"
+                  className=""
                 />{" "}
                 Starting review…
               </>
