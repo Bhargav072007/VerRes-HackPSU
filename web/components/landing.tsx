@@ -1,54 +1,24 @@
 "use client";
-
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import {
-  ArrowRight,
-  FileText,
-  Upload,
-  LockKeyhole,
-  ScanText,
-  Quote,
-  Network,
-  BookOpen,
-  ShieldCheck,
-  Eye,
-  CircleAlert,
-  LoaderCircle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  createJob,
-  parseIdentifier,
-  validatePdf,
-  type ApiError,
-} from "@/lib/api";
-import { motionTokens } from "@/lib/motion";
-import { LandingChrome, receiptNavigate, usePolishMotion } from "./landing-chrome";
+import { CircleAlert, LoaderCircle } from "lucide-react";
+import { Button } from "./ui/button";
+import { createJob, parseIdentifier, validatePdf, type ApiError } from "@/lib/api";
+import { LandingChrome, receiptNavigate } from "./landing-chrome";
 import { LandingScene } from "./landing-scene";
-
 import { LandingResults } from "./landing-results";
+import { LandingMethod } from "./landing-method";
+import { MockupImage } from "./mockup-image";
 import { Brand } from "./brand";
-
+import { recordedStats, productChecks, scholarlySources } from "@/lib/landing-data";
 const samples = [
   ["Attention Is All You Need", "paper1_attention.pdf"],
   ["Cites a retracted paper", "paper2_retracted_reference.pdf"],
   ["Planted problems", "paper3_planted_problems.pdf"],
 ] as const;
 
-const features = [
-  { icon: BookOpen, title: "Reference existence", text: "Resolve each citation through Crossref, OpenAlex, and arXiv.", diagram: "Citation → bibliographic record" },
-  { icon: ShieldCheck, title: "Retraction history", text: "Check whether a cited work has been retracted, with a link to the notice.", diagram: "Record → retraction notice" },
-  { icon: Quote, title: "Claim support", text: "Compare a claim with a verbatim passage verified against the source.", diagram: "Claim ↔ source passage" },
-  { icon: Network, title: "Claim graph", text: "Inspect connections between claims, assumptions, and cited evidence.", diagram: "Claim → evidence → claim" },
-  { icon: ScanText, title: "Peer-review panel", text: "Read three reviewer perspectives and the area chair’s priorities.", diagram: "Methods · claims · evidence → chair" },
-  { icon: Eye, title: "Hidden instructions", text: "Flag concealed or instruction-like text for human inspection.", diagram: "Manuscript → text and styling" },
-];
-
 export function Landing() {
   const router = useRouter();
-  const reduced = usePolishMotion();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [identifier, setIdentifier] = useState("");
@@ -107,38 +77,24 @@ export function Landing() {
     }
   }
 
-  return (
-    <main
-      id="main"
-      className="landing polished-page"
-    >
-      <LandingChrome />
-      <LandingScene />
-      <section id="abstract" data-section="1 · ABSTRACT" className="article-section section-container"><div className="article-section-title" data-enter><span>1</span><h2>Abstract</h2></div><p className="abstract-text" data-enter>A reference can exist without supporting the sentence that cites it. VerRes reads the space between the two: the identity of a source, the passage it contains, and the limits of the claim. <em>Every finding links to its evidence.</em></p></section>
-      <section id="how-it-works" data-section="2 · METHODS" className="article-section section-container" aria-labelledby="checks-heading"><div className="article-section-title" data-enter><span>2</span><h2 id="checks-heading">Methods</h2></div><p className="section-intro">Six checks, each with a record you can inspect.</p><div className="methods-grid">{features.map(({ icon: Icon, title, text, diagram }) => <article key={title} data-enter><Icon size={19} strokeWidth={1.4} /><h3>{title}</h3><p>{text}</p><div className="inline-diagram">{diagram}</div></article>)}</div></section>
-      <LandingResults />
-      <section id="honesty" data-section="4 · LIMITATIONS" className="article-section section-container" aria-labelledby="honesty-heading"><div className="article-section-title" data-enter><span>4</span><h2 id="honesty-heading">Limitations</h2></div><div className="limitations-grid"><div><h3 className="font-serif text-3xl">What we <em>won’t guess.</em></h3><p className="section-intro">A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p></div><article className="honesty-card" data-enter><div><p className="eyebrow">WHEN EVIDENCE IS INSUFFICIENT</p><h3>Needs review</h3><p>We could not retrieve enough source text to verify this claim.</p></div><div><span className="status-pill blue"><CircleAlert size={13} /> NEEDS REVIEW</span><p>Inspect the full paper and cited passage before submission.</p></div></article></div></section>
-      <section id="submit" data-section="5 · SUBMIT" className="article-section section-container" aria-labelledby="upload-heading">
-        <div className="article-section-title" data-enter><span>5</span><h2 id="upload-heading">Submit</h2></div>
-        <div className="upload-grid"><aside className="upload-aside" data-enter><p className="eyebrow">BEFORE THE NEXT SUBMISSION</p><h3>Careful work deserves<br />a careful review.</h3><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p><ol><li><span>01</span>Upload a PDF or paste an identifier.</li><li><span>02</span>Follow each check as it happens.</li><li><span>03</span>Open the findings. Inspect the evidence.</li></ol><p className="privacy-note"><LockKeyhole size={13} /> Private. Deleted after 7 days.</p></aside>
-      <form
+return <main id="main" className="landing polished-page"><LandingChrome /><LandingScene />
+<section className="trust-band section-container" aria-label="Product facts"><div className="trust-columns"><div><span className="large-numeral">{productChecks.length}</span><p>checks per citation</p><div className="tiny-dots" aria-hidden>{productChecks.map(check => <span key={check} />)}</div></div><div><span className="large-numeral">{scholarlySources.length}</span><p>scholarly sources</p><div className="tiny-dots" aria-hidden>{scholarlySources.map(source => <span key={source} />)}</div></div>{recordedStats.medianSeconds != null && <div><span className="large-numeral">{recordedStats.medianSeconds}<small> s</small></span><p>median review time, recorded runs</p><div className="tiny-bars" aria-hidden><span style={{width:`${Math.min(100,recordedStats.medianSeconds)}%`}} /></div></div>}</div></section>
+<LandingMethod />
+<section id="results" className="proof-band"><div className="section-container"><div className="proof-main"><MockupImage scene="s3" alt="BERT claim and its verified evidence on a tablet" /><div><h2 className="editorial-title">See the argument, <strong>not just the citations.</strong></h2><p>A reference can exist without supporting the sentence that cites it. Inspect the claim beside the passage, then follow its source.</p></div></div><div className="proof-secondary"><div><p className="proof-caption">The same evidence,<br />wherever you read.</p><MockupImage scene="s4" alt="A VerRes review in progress on a desk laptop" /></div><MockupImage scene="s2" sizes="(max-width:700px) 60vw, 30vw" alt="The BERT finding and inline reviewer note on a phone" /></div></div></section>
+<LandingResults />
+<section id="honesty" className="article-section section-container limitations"><h2 className="editorial-title">What we won’t guess.</h2><p>A missing source, an abstract without enough detail, or an unverifiable quote leaves a question open. A review is a reading aid; judgment remains with the author.</p><ul aria-label="Cases that need review"><li>Source text is unavailable.</li><li>The retrieved abstract does not address the claim.</li><li>The quoted passage cannot be verified.</li><li>The reference identity is ambiguous.</li></ul><p>These findings return <span className="needs-review">Needs review</span>, with the reason available for inspection.</p></section>
+<section id="submit" className="upload-band" aria-labelledby="upload-heading"><MockupImage scene="s5" sizes="100vw" alt="" /><div className="upload-content section-container"><div><h2 id="upload-heading">Careful work deserves<br />a careful review.</h2><p>One paper. Citations, claims, a claim graph, an AI peer-review panel, and a scan for hidden prompts.</p></div>      <form
         onSubmit={submit}
         className="upload-form"
         aria-label="Submit a paper"
         aria-busy={busy}
       >
-        <motion.section
-          layoutId="job"
-          transition={reduced ? { duration: 0 } : motionTokens.layout}
-          className="upload-card crosshair"
+        <section className="upload-card"
         >
           <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium">
               Give your paper a second look.
             </h2>
-            <span className="text-[9px] tracking-[.14em] text-muted-foreground">
-              SUBMIT
-            </span>
           </div>
           <div
             className="drop-zone"
@@ -161,7 +117,6 @@ export function Landing() {
               chooseFile(event.dataTransfer.files);
             }}
           >
-            <span className="shimmer" aria-hidden="true" />
             <input
               ref={input}
               type="file"
@@ -179,15 +134,9 @@ export function Landing() {
               aria-describedby="file-hint submission-error"
               className="flex w-full flex-col items-center rounded-lg px-4 py-7 focus-visible:-outline-offset-4 disabled:cursor-wait"
             >
-              <span className="file-type-icon" key={file ? "file" : "upload"}>
-                {file ? (
-                  <FileText size={19} strokeWidth={1.4} />
-                ) : (
-                  <Upload size={19} strokeWidth={1.4} />
-                )}
-              </span>
+              
               <span className="max-w-full truncate text-sm font-medium">
-                {file ? file.name : "Drop your paper here"}
+                {file ? file.name : "Choose PDF"}
               </span>
               <span className="mt-1.5 text-xs text-muted-foreground">
                 {file ? (
@@ -205,12 +154,12 @@ export function Landing() {
                 id="file-hint"
                 className="mt-4 text-[10px] tracking-wide text-muted-foreground"
               >
-                PDF only · Up to 25MB
+                PDF · ≤20 pages · Up to 25MB
               </span>
             </button>
           </div>
           <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[10px] leading-4 text-muted-foreground">
-            <LockKeyhole size={11} className="shrink-0" />
+            
             Your paper is private and deleted after 7 days.
           </p>
           <div className="my-5 flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -265,14 +214,11 @@ export function Landing() {
               </>
             ) : (
               <>
-                Review my paper <ArrowRight size={14} />
+                Review my paper 
               </>
             )}
           </Button>
-          <p className="mt-3 text-center text-[10px] text-muted-foreground">
-            Every finding comes with evidence you can verify.
-          </p>
-        </motion.section>
+        </section>
         <div className="sample-papers">
           <span className="sample-heading eyebrow">
             Try a sample
@@ -289,15 +235,10 @@ export function Landing() {
                 className="sample-card"
                 aria-label={label}
               >
-                <FileText size={17} strokeWidth={1.3} /><span><span className="eyebrow">SAMPLE PAPER</span><strong>{label}</strong></span><ArrowRight className="size-3" />
+                <span><strong>{label}</strong></span>
               </Button>
             ),
           )}
         </div>
-      </form>
-
-      </div></section>
-      <footer className="journal-colophon section-container"><Brand lockup /><div><p className="eyebrow">VERRES · PRE-SUBMISSION REVIEW</p><p>Every finding links to its evidence.</p><p>Set in Inter, Source Serif 4, and Sora.</p><p>Data sources: Crossref, OpenAlex, arXiv, PubMed, Retraction Watch.</p><a href="#submit">Review your paper <ArrowRight size={13} /></a></div></footer>
-    </main>
-  );
+      </form></div></section><footer className="journal-colophon section-container"><Brand /><p>{scholarlySources.join(" · ")} · GROBID</p><a href="https://github.com/Bhargav072007/VerRes-HackPSU">GitHub</a></footer></main>;
 }

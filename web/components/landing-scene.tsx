@@ -1,22 +1,9 @@
-"use client";
-import { useEffect, useRef } from "react";
-import { ArrowDown, ArrowRight } from "lucide-react";
-import { usePolishMotion } from "./landing-chrome";
-import { ManuscriptSequence } from "./manuscript-sequence";
+import Link from "next/link";
+import { landingReport as report } from "@/lib/landing-data";
+import { MarginNote } from "./margin-note";
+import { MockupImage } from "./mockup-image";
 export function LandingScene() {
-  const reduced = usePolishMotion();
-  const container = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (reduced) return;
-    let active = true;
-    let dispose: (() => void) | undefined;
-    void import("lenis").then(({ default: Lenis }) => {
-      if (!active) return;
-      const lenis = new Lenis({ autoRaf: true, duration: .35, anchors: true, smoothWheel: true });
-      document.documentElement.dataset.landingScroll = "smooth";
-      dispose = () => { lenis.destroy(); delete document.documentElement.dataset.landingScroll; };
-    });
-    return () => { active = false; dispose?.(); };
-  }, [reduced]);
-  return <div ref={container}><ManuscriptSequence><div className="article-hero-copy"><p className="article-kicker">A pre-submission review</p><h1 id="headline" aria-label="Read your paper like Reviewer 2 would."><span className="line-mask"><span data-reveal>Read your paper</span></span><span className="line-mask"><span data-reveal>like <em>Reviewer 2</em></span></span><span className="line-mask"><span data-reveal>would.</span></span></h1><p className="article-lead">VerRes checks every reference in your manuscript, finds the passage you cited, and flags where a claim goes further than its source — before anyone else does.</p><div className="hero-actions"><a className="pill-button" href="#submit">Review your paper <ArrowRight size={15} /></a><a className="outline-button" href="#results">See a sample report</a></div><p className="article-tagline">Every finding links to its evidence.</p><p className="scroll-caption"><ArrowDown size={12} /> Follow a paper through review</p></div></ManuscriptSequence></div>;
+ const bert = report.paper!.citations!.find(c => c.id === "c00003")!;
+ const missing = report.paper!.references!.find(r => report.existence?.some(e => e.reference_id === r.id && e.status === "NOT_FOUND"));
+ return <section className="hero section-container" aria-labelledby="headline"><h1 id="headline" data-reveal>Read your paper like<br className="desktop-break" /> Reviewer 2 would.</h1><p className="hero-lead">VerRes checks every reference in your manuscript, finds the passage you cited, and flags where a claim goes further than its source — before anyone else does.</p><div className="hero-actions"><a className="pill-button" href="#submit">Review a paper</a><Link className="outline-button" href="/report/sample-paper3">See a sample report</Link></div><p className="hero-caption">Every finding links to its evidence.</p><div className="hero-photo"><MockupImage scene="s1" priority sizes="(max-width: 1248px) 100vw, 1200px" alt="A recorded VerRes paper review on a library laptop" /><div className="hero-details"><MarginNote report={report} citation={bert} compact />{missing && <aside className="reference-detail"><span className="source-identifier">Reference {report.paper!.references!.indexOf(missing)+1}</span><p><s>{missing.title}</s></p><p>Not found in Crossref, OpenAlex or arXiv</p></aside>}</div></div></section>;
 }

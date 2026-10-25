@@ -37,6 +37,7 @@ export function replayReport(events: unknown[]): Report | null {
 
 export async function loadReport(id: string, signal: AbortSignal): Promise<Report | null> {
   try {
+    if (id === "sample-paper3") return decodeReport((await import("@/tests/fixtures/prod/paper3-job.json")).default);
     const mock = process.env.NEXT_PUBLIC_MOCK === "1";
     const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
     const response = await fetch(mock ? "/fixtures/events/paper1.jsonl" : `${base}/jobs/${encodeURIComponent(id)}`, { cache: "no-store", signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]) });

@@ -31,3 +31,10 @@ Start §4 (landing rebuild), following the spec.
 ## Re-run mockups (after the restyle)
 cd web && npx tsx scripts/mockups/capture.ts   # check the script header for exact args
 python3 scripts/mockups/composite.py           # uses work/ scenes; no generation
+
+## Continuation checkpoint: §4 complete
+- Landing rebuilt; static navigation, Newsreader/Inter Tight/IBM Plex Mono, two-weight headings, method selector, real paper excerpt, upload band and footer.
+- User updated trust band: 6 checks, 5 scholarly sources, fixture median with “median review time, recorded runs”. No accuracy claim.
+- BERT fixture has arXiv:1810.04805, no DOI; show its recorded identifier without inventing one.
+- Selected scenes confirmed: s1-1, s2-2, s3-2, s4-2, s5-3. No new generations.
+- Typecheck, lint, webpack production build pass. Method crops and device composites await final capture after §5–§6.
