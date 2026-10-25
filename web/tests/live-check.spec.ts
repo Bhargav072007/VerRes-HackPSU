@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+// The review room asks the API for its average run time; keep tests off the network.
+test.beforeEach(async ({ page }) => { await page.route("**/status", route => route.fulfill({ json: { avg_duration_seconds: 30 } })); });
 import { readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 const events = readFileSync("public/fixtures/events/paper1.jsonl", "utf8").trim().split("\n").map((line, index) => ({ ...JSON.parse(line), at: index * 100 }));
@@ -28,14 +30,14 @@ test.describe("live transport", () => {
       await page.goto("/check/browser-run");
       await expect(page.locator("[data-reference-id]")).toHaveCount(3);
       await page.locator('[data-reference-id="ref-1"]').evaluate(node => { node.setAttribute("data-original", "yes"); });
-      await expect(page.getByRole("link", { name: "View report" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Open report" })).toBeVisible();
       writeFileSync(info.outputPath("reconnect-requests.json"), JSON.stringify({ order, cursors }));
       expect(order.slice(0, 2)).toEqual(["snapshot", "stream"]);
       expect(cursors.slice(0, 2)).toEqual([undefined, String(events[9].seq)]);
       await expect(page.locator('[data-reference-id="ref-1"]')).toHaveAttribute("data-original", "yes");
       await expect(page.locator('[data-reference-id="ref-2"]')).toContainText("Fixture trial 2");
       await expect(page.locator('[data-chip="Verified"]')).toHaveCount(3);
-      await expect(page.getByRole("status").first()).toHaveAttribute("aria-label", "4 / 4 citations checked");
+      await expect(page.locator('.agent-card[data-agent="verifier"]')).toContainText("4 / 4");
       await page.screenshot({ path: info.outputPath("live-complete.png") });
       await expect(page).toHaveURL(/\/report\/browser-run$/);
       expect(errors).toEqual([]);
@@ -51,7 +53,7 @@ test.describe("live transport", () => {
     await page.route("**/jobs/poll-run/events", route => { streams++; return route.fulfill({ contentType: "text/event-stream", body: "retry: 100\n\n" }); });
     await page.goto("/check/poll-run");
     await expect(page.getByText("Live connection interrupted. Checking snapshots every 2 seconds.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "View report" })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("link", { name: "Open report" })).toBeVisible({ timeout: 10000 });
     expect(streams).toBe(3);
     expect(snapshots).toBe(3);
     expect(times[2] - times[1]).toBeGreaterThanOrEqual(1900);
