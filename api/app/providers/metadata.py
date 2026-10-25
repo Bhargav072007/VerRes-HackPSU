@@ -1,12 +1,8 @@
 import re
 from urllib.parse import quote
-from xml.etree.ElementTree import ParseError
 
-from defusedxml import ElementTree
-from defusedxml.common import DefusedXmlException
-
+from api.app.providers.arxiv import Arxiv as Arxiv
 from api.app.providers.http import DAY, Gateway
-from api.app.providers.identifiers import normalize_arxiv
 from api.app.providers.models import ProviderResult, Work
 
 
@@ -165,50 +161,3 @@ class OpenAlex:
             return ProviderResult(
                 provider="openalex", definitive=False, reason="malformed metadata"
             )
-
-
-class Arxiv:
-    def __init__(self, gateway: Gateway):
-        self.gateway = gateway
-
-    async def lookup(self, identifier: str) -> ProviderResult:
-        identifier = normalize_arxiv(identifier)
-        if not identifier:
-            return ProviderResult(provider="arxiv", definitive=False, reason="invalid arXiv ID")
-        response = await self.gateway.request("arxiv", "/api/query", params={"id_list": identifier})
-        if response.error or response.status != 200:
-            return ProviderResult(
-                provider="arxiv",
-                definitive=False,
-                reason=response.error or f"HTTP {response.status}",
-            )
-        ns = "{http://www.w3.org/2005/Atom}"
-        try:
-            root = ElementTree.fromstring(response.content, forbid_dtd=True)
-            if root.tag != ns + "feed":
-                raise ValueError("invalid Atom feed")
-            works = []
-            for item in root.findall(ns + "entry"):
-                title, identity = item.findtext(ns + "title"), item.findtext(ns + "id")
-                published = item.findtext(ns + "published", "")
-                if not title or not normalize_arxiv(identity):
-                    raise ValueError("invalid arXiv entry")
-                works.append(
-                    Work(
-                        provider="arxiv",
-                        id=identity,
-                        arxiv=normalize_arxiv(identity),
-                        title=" ".join(title.split()),
-                        year=int(published[:4]),
-                        authors=[
-                            a.findtext(ns + "name", "").strip()
-                            for a in item.findall(ns + "author")
-                            if a.findtext(ns + "name", "").strip()
-                        ],
-                        author_names_are_full=True,
-                        abstract=item.findtext(ns + "summary"),
-                    )
-                )
-            return ProviderResult(provider="arxiv", definitive=True, works=works)
-        except (ParseError, DefusedXmlException, ValueError, IndexError):
-            return ProviderResult(provider="arxiv", definitive=False, reason="malformed metadata")
